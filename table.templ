@@ -1,42 +1,34 @@
 package main
 
 templ table(t Table, cells [][]Cell) {
-    <form id="table-parent-form">
-        <table class="table">
-            <thead>
-                <tr>
-                for _, col := range t.OrderedCols() {
-                    <th class={ templ.KV("is-primary", col.IsPrimaryKey) }
-                        onmouseup="document.getElementById('column').value = this.textContent"
-                        hx-trigger="click"
-                        hx-post="/table"
-                        hx-target="#table-parent-form">
-                        { col.Name }
-                    </th>
-                }
-                </tr>
-            </thead>
-            <tbody>
-            for _, row := range cells {
-                <tr>
-                for _, cell := range row {
-                    <td class={ templ.KV("is-null", cell.Null) }>
-                        { cell.Value }
-                    </td>
-                }
-                </tr>
-            }
-            </tbody>
-        </table>
-        <input type="hidden"
-               name="name"
-               value={ t.FullName() }/>
-        <input type="hidden"
-               id="column"
-               name="column"/>
-        <input type="hidden"
-               id="hide"
-               name="hide"
-               value="false"/>
-    </form>
+    <thead>
+        <tr>
+        for _, col := range t.OrderedCols() {
+            <th class={ templ.KV("is-primary", col.IsPrimaryKey) }
+                onmouseup="document.getElementById('column').value = this.textContent"
+                hx-trigger="click"
+                hx-post="/table"
+                hx-target="#table">
+                { col.Name }
+            </th>
+        }
+        </tr>
+    </thead>
+    <tbody>
+    for _, row := range cells {
+        <tr>
+        for _, cell := range row {
+            <td class={ templ.KV("is-null", cell.Null) }>
+                { cell.Value }
+            </td>
+        }
+        </tr>
+    }
+    </tbody>
+    <input type="hidden"
+           name="name"
+           value={ t.FullName() }/>
+    <input type="hidden"
+           id="column"
+           name="column"/>
 }

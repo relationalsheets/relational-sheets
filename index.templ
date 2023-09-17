@@ -17,7 +17,13 @@ templ index(tables []Table) {
                 </option>
             }
             </select>
-            <div id="table"></div>
+            <form>
+                <table class="table" id="table"></table>
+                <input type="hidden"
+                       id="hide"
+                       name="hide"
+                       value="false"/>
+            </form>
         </body>
     </html>
 }

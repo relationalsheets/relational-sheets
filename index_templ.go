@@ -67,7 +67,7 @@ func index(tables []Table) templ.Component {
 				return err
 			}
 		}
-		_, err = templBuffer.WriteString("</select><div id=\"table\"></div></body></html>")
+		_, err = templBuffer.WriteString("</select><form><table class=\"table\" id=\"table\"></table><input type=\"hidden\" id=\"hide\" name=\"hide\" value=\"false\"></form></body></html>")
 		if err != nil {
 			return err
 		}

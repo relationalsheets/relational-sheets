@@ -22,7 +22,7 @@ func table(t Table, cells [][]Cell) templ.Component {
 			var_1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, err = templBuffer.WriteString("<form id=\"table-parent-form\"><table class=\"table\"><thead><tr>")
+		_, err = templBuffer.WriteString("<thead><tr>")
 		if err != nil {
 			return err
 		}
@@ -40,7 +40,7 @@ func table(t Table, cells [][]Cell) templ.Component {
 			if err != nil {
 				return err
 			}
-			_, err = templBuffer.WriteString("\" onmouseup=\"document.getElementById(&#39;column&#39;).value = this.textContent\" hx-trigger=\"click\" hx-post=\"/table\" hx-target=\"#table-parent-form\">")
+			_, err = templBuffer.WriteString("\" onmouseup=\"document.getElementById(&#39;column&#39;).value = this.textContent\" hx-trigger=\"click\" hx-post=\"/table\" hx-target=\"#table\">")
 			if err != nil {
 				return err
 			}
@@ -96,7 +96,7 @@ func table(t Table, cells [][]Cell) templ.Component {
 				return err
 			}
 		}
-		_, err = templBuffer.WriteString("</tbody></table><input type=\"hidden\" name=\"name\" value=\"")
+		_, err = templBuffer.WriteString("</tbody><input type=\"hidden\" name=\"name\" value=\"")
 		if err != nil {
 			return err
 		}
@@ -104,7 +104,7 @@ func table(t Table, cells [][]Cell) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("\"><input type=\"hidden\" id=\"column\" name=\"column\"><input type=\"hidden\" id=\"hide\" name=\"hide\" value=\"false\"></form>")
+		_, err = templBuffer.WriteString("\"><input type=\"hidden\" id=\"column\" name=\"column\">")
 		if err != nil {
 			return err
 		}
