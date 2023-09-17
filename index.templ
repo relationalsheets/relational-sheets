@@ -1,0 +1,23 @@
+package main
+
+templ index(tables []Table) {
+    <html>
+        <head>
+            <script src="https://unpkg.com/htmx.org@1.9.5"></script>
+            <script src="/static/index.js"/>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"/>
+            <link rel="stylesheet" href="/static/index.css"/>
+        </head>
+        <body>
+            <select name="name" hx-get="/table" hx-target="#table">
+                <option value="">Select Table</option>
+            for _, table := range tables {
+                <option value={ table.FullName() }>
+                    { table.FullName() }
+                </option>
+            }
+            </select>
+            <div id="table"></div>
+        </body>
+    </html>
+}
