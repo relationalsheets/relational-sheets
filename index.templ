@@ -4,12 +4,13 @@ templ index(tables []Table) {
     <html>
         <head>
             <script src="https://unpkg.com/htmx.org@1.9.5"></script>
+            <script src="https://unpkg.com/htmx.org/dist/ext/response-targets.js"></script>
             <script src="/static/index.js"/>
             <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"/>
             <link rel="stylesheet" href="/static/index.css"/>
         </head>
-        <body>
-            <select name="name" hx-get="/table" hx-target="#table">
+        <body hx-target="#table">
+            <select name="name" hx-get="/table">
                 <option value="">Select Table</option>
             for _, table := range tables {
                 <option value={ table.FullName() }>
@@ -17,13 +18,11 @@ templ index(tables []Table) {
                 </option>
             }
             </select>
-            <form>
-                <table class="table" id="table"></table>
-                <input type="hidden"
-                       id="hide"
-                       name="hide"
-                       value="false"/>
-            </form>
+            <table id="table"
+                   class="table" 
+                   hx-trigger="click"
+                   hx-ext="response-targets">
+            </table>
         </body>
     </html>
 }

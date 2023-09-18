@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -73,6 +74,14 @@ func check(e error) {
 	if e != nil {
 		panic(e)
 	}
+}
+
+func stringsToInterfaces(sx []string) []interface{} {
+	interfaces := make([]interface{}, len(sx))
+	for i, s := range sx {
+		interfaces[i] = s
+	}
+	return interfaces
 }
 
 func Open() *sqlx.DB {
@@ -246,4 +255,31 @@ func GetRows(conn *sqlx.DB, table Table, limit int, offset int) [][]Cell {
 	log.Printf("Retrieved %d rows from %s", len(cells), table.FullName())
 	check(rows.Close())
 	return cells
+}
+
+func InsertRow(conn *sqlx.DB, table Table, values map[string]string) error {
+	cols := table.OrderedCols()
+	colNames := make([]string, 0, len(cols))
+	valueLabels := make([]string, 0, len(cols))
+	nonEmptyValues := make(map[string]interface{})
+	for _, col := range cols {
+		if values[col.Name] != "" {
+			nonEmptyValues[col.Name] = values[col.Name]
+			colNames = append(colNames, col.Name)
+			valueLabels = append(valueLabels, ":"+col.Name)
+		}
+	}
+	if len(nonEmptyValues) == 0 {
+		return errors.New("All fields are empty")
+	}
+
+	query := fmt.Sprintf(
+		"INSERT INTO %s (%s) VALUES (%s)",
+		table.FullName(),
+		strings.Join(colNames, ", "),
+		strings.Join(valueLabels, ", "))
+	log.Println("Executing:", query)
+	log.Println("Values:", nonEmptyValues)
+	_, err := conn.NamedExec(query, nonEmptyValues)
+	return err
 }

@@ -31,12 +31,21 @@ func index(tables []Table) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</script><script src=\"/static/index.js\"></script><link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css\"><link rel=\"stylesheet\" href=\"/static/index.css\"></head><body><select name=\"name\" hx-get=\"/table\" hx-target=\"#table\"><option value=\"\">")
+		_, err = templBuffer.WriteString("</script><script src=\"https://unpkg.com/htmx.org/dist/ext/response-targets.js\">")
 		if err != nil {
 			return err
 		}
-		var_3 := `Select Table`
+		var_3 := ``
 		_, err = templBuffer.WriteString(var_3)
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("</script><script src=\"/static/index.js\"></script><link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css\"><link rel=\"stylesheet\" href=\"/static/index.css\"></head><body hx-target=\"#table\"><select name=\"name\" hx-get=\"/table\"><option value=\"\">")
+		if err != nil {
+			return err
+		}
+		var_4 := `Select Table`
+		_, err = templBuffer.WriteString(var_4)
 		if err != nil {
 			return err
 		}
@@ -57,8 +66,8 @@ func index(tables []Table) templ.Component {
 			if err != nil {
 				return err
 			}
-			var var_4 string = table.FullName()
-			_, err = templBuffer.WriteString(templ.EscapeString(var_4))
+			var var_5 string = table.FullName()
+			_, err = templBuffer.WriteString(templ.EscapeString(var_5))
 			if err != nil {
 				return err
 			}
@@ -67,7 +76,7 @@ func index(tables []Table) templ.Component {
 				return err
 			}
 		}
-		_, err = templBuffer.WriteString("</select><form><table class=\"table\" id=\"table\"></table><input type=\"hidden\" id=\"hide\" name=\"hide\" value=\"false\"></form></body></html>")
+		_, err = templBuffer.WriteString("</select><table id=\"table\" class=\"table\" hx-trigger=\"click\" hx-ext=\"response-targets\"></table></body></html>")
 		if err != nil {
 			return err
 		}

@@ -1,22 +1,55 @@
 package main
 
-templ table(t Table, cells [][]Cell) {
+import (
+    "fmt"
+)
+
+templ table(name string, cols []Column, colspan string, cells [][]Cell) {
     <thead>
-        <tr>
-        for _, col := range t.OrderedCols() {
+        <tr id="header-row">
+            <th></th>
+        for _, col := range cols {
             <th class={ templ.KV("is-primary", col.IsPrimaryKey) }
                 onmouseup="document.getElementById('column').value = this.textContent"
-                hx-trigger="click"
                 hx-post="/table"
-                hx-target="#table">
+                hx-include="#header-row,[name=name]">
                 { col.Name }
             </th>
         }
+            <input type="hidden"
+                   id="column"
+                   name="column"/>
+            <input type="hidden"
+                   id="hide"
+                   name="hide"
+                   value="false"/>
         </tr>
     </thead>
     <tbody>
+        <tr id="new-row">
+            <td style="border-bottom: none">
+                <button hx-post="/table"
+                        hx-include="#new-row,[name=name]"
+                        hx-target-400="#new-row-err">
+                    Add
+                </button>
+            </td>
+        for _, col := range cols {
+            <td style="border-bottom: none">
+                <input name={ "column-" + col.Name }/>
+            </td>
+        }
+        </tr>
+        <tr>
+            <td id="new-row-err"
+                colspan={ colspan }
+                style="border-top: none"
+                class="has-text-danger">
+            </td>
+        </tr>
     for _, row := range cells {
         <tr>
+            <td></td>
         for _, cell := range row {
             <td class={ templ.KV("is-null", cell.Null) }>
                 { cell.Value }
@@ -24,11 +57,14 @@ templ table(t Table, cells [][]Cell) {
         }
         </tr>
     }
+        <input type="hidden"
+               name="name"
+               value={ name }/>
     </tbody>
-    <input type="hidden"
-           name="name"
-           value={ t.FullName() }/>
-    <input type="hidden"
-           id="column"
-           name="column"/>
+}
+
+func RenderTable(t Table, cells [][]Cell) templ.Component {
+    cols := t.OrderedCols()
+    colspan := fmt.Sprintf("%d", len(cols) + 1)
+    return table(t.FullName(), cols, colspan, cells)
 }
