@@ -26,13 +26,22 @@ func table(name string, cols []Column, colspan string, cells [][]Cell) templ.Com
 			var_1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, err = templBuffer.WriteString("<thead><tr id=\"header-row\"><th></th>")
+		_, err = templBuffer.WriteString("<thead><tr id=\"header-row\"><th><button onclick=\"htmx.removeClass(htmx.find(&#39;#new-row&#39;), &#39;hide&#39;)\n                                 htmx.removeClass(htmx.find(&#39;#new-row-err-container&#39;), &#39;hide&#39;)\">")
+		if err != nil {
+			return err
+		}
+		var_2 := `+`
+		_, err = templBuffer.WriteString(var_2)
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("</button></th>")
 		if err != nil {
 			return err
 		}
 		for _, col := range cols {
-			var var_2 = []any{templ.KV("is-primary", col.IsPrimaryKey)}
-			err = templ.RenderCSSItems(ctx, templBuffer, var_2...)
+			var var_3 = []any{templ.KV("is-primary", col.IsPrimaryKey)}
+			err = templ.RenderCSSItems(ctx, templBuffer, var_3...)
 			if err != nil {
 				return err
 			}
@@ -40,7 +49,7 @@ func table(name string, cols []Column, colspan string, cells [][]Cell) templ.Com
 			if err != nil {
 				return err
 			}
-			_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_2).String()))
+			_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_3).String()))
 			if err != nil {
 				return err
 			}
@@ -48,8 +57,8 @@ func table(name string, cols []Column, colspan string, cells [][]Cell) templ.Com
 			if err != nil {
 				return err
 			}
-			var var_3 string = col.Name
-			_, err = templBuffer.WriteString(templ.EscapeString(var_3))
+			var var_4 string = col.Name
+			_, err = templBuffer.WriteString(templ.EscapeString(var_4))
 			if err != nil {
 				return err
 			}
@@ -58,12 +67,12 @@ func table(name string, cols []Column, colspan string, cells [][]Cell) templ.Com
 				return err
 			}
 		}
-		_, err = templBuffer.WriteString("<input type=\"hidden\" id=\"column\" name=\"column\"><input type=\"hidden\" id=\"hide\" name=\"hide\" value=\"false\"></tr></thead><tbody><tr id=\"new-row\"><td style=\"border-bottom: none\"><button hx-post=\"/table\" hx-include=\"#new-row,[name=name]\" hx-target-400=\"#new-row-err\">")
+		_, err = templBuffer.WriteString("<input type=\"hidden\" id=\"column\" name=\"column\"><input type=\"hidden\" id=\"hide\" name=\"hide\" value=\"false\"></tr></thead><tbody><tr id=\"new-row\" class=\"hide\"><td style=\"border-bottom: none\"><button hx-post=\"/table\" hx-include=\"#new-row,[name=name]\" hx-target-400=\"#new-row-err\">")
 		if err != nil {
 			return err
 		}
-		var_4 := `Add`
-		_, err = templBuffer.WriteString(var_4)
+		var_5 := `Add`
+		_, err = templBuffer.WriteString(var_5)
 		if err != nil {
 			return err
 		}
@@ -85,7 +94,7 @@ func table(name string, cols []Column, colspan string, cells [][]Cell) templ.Com
 				return err
 			}
 		}
-		_, err = templBuffer.WriteString("</tr><tr><td id=\"new-row-err\" colspan=\"")
+		_, err = templBuffer.WriteString("</tr><tr id=\"new-row-err-container\" class=\"hide\"><td id=\"new-row-err\" colspan=\"")
 		if err != nil {
 			return err
 		}
@@ -103,8 +112,8 @@ func table(name string, cols []Column, colspan string, cells [][]Cell) templ.Com
 				return err
 			}
 			for _, cell := range row {
-				var var_5 = []any{templ.KV("is-null", cell.Null)}
-				err = templ.RenderCSSItems(ctx, templBuffer, var_5...)
+				var var_6 = []any{templ.KV("is-null", cell.Null)}
+				err = templ.RenderCSSItems(ctx, templBuffer, var_6...)
 				if err != nil {
 					return err
 				}
@@ -112,7 +121,7 @@ func table(name string, cols []Column, colspan string, cells [][]Cell) templ.Com
 				if err != nil {
 					return err
 				}
-				_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_5).String()))
+				_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_6).String()))
 				if err != nil {
 					return err
 				}
@@ -120,8 +129,8 @@ func table(name string, cols []Column, colspan string, cells [][]Cell) templ.Com
 				if err != nil {
 					return err
 				}
-				var var_6 string = cell.Value
-				_, err = templBuffer.WriteString(templ.EscapeString(var_6))
+				var var_7 string = cell.Value
+				_, err = templBuffer.WriteString(templ.EscapeString(var_7))
 				if err != nil {
 					return err
 				}

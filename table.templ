@@ -7,7 +7,12 @@ import (
 templ table(name string, cols []Column, colspan string, cells [][]Cell) {
     <thead>
         <tr id="header-row">
-            <th></th>
+            <th>
+                <button onclick="htmx.removeClass(htmx.find('#new-row'), 'hide')
+                                 htmx.removeClass(htmx.find('#new-row-err-container'), 'hide')">
+                    +
+                </button>
+            </th>
         for _, col := range cols {
             <th class={ templ.KV("is-primary", col.IsPrimaryKey) }
                 onmouseup="document.getElementById('column').value = this.textContent"
@@ -26,7 +31,7 @@ templ table(name string, cols []Column, colspan string, cells [][]Cell) {
         </tr>
     </thead>
     <tbody>
-        <tr id="new-row">
+        <tr id="new-row" class="hide">
             <td style="border-bottom: none">
                 <button hx-post="/table"
                         hx-include="#new-row,[name=name]"
@@ -40,7 +45,7 @@ templ table(name string, cols []Column, colspan string, cells [][]Cell) {
             </td>
         }
         </tr>
-        <tr>
+        <tr id="new-row-err-container" class="hide">
             <td id="new-row-err"
                 colspan={ colspan }
                 style="border-top: none"

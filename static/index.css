@@ -4,3 +4,6 @@
 .error {
     padding-bottom: 1em;
 }
+.hide {
+    display: none !important;
+}
