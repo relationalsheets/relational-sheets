@@ -10,14 +10,19 @@ templ index(tables []Table) {
             <link rel="stylesheet" href="/static/index.css"/>
         </head>
         <body hx-target="#table">
-            <select name="name" hx-get="/table">
-                <option value="">Select Table</option>
-            for _, table := range tables {
-                <option value={ table.FullName() }>
-                    { table.FullName() }
-                </option>
-            }
-            </select>
+            <div>
+                <div class="select">
+                    <select name="name"
+                            hx-get="/table">
+                        <option value="">Table</option>
+                    for _, table := range tables {
+                        <option value={ table.FullName() }>
+                            { table.FullName() }
+                        </option>
+                    }
+                    </select>
+                </div>
+            </div>
             <table id="table"
                    class="table" 
                    hx-trigger="click"
