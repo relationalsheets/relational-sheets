@@ -40,7 +40,7 @@ func index(tables []Table) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</script><script src=\"/static/index.js\"></script><link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css\"><link rel=\"stylesheet\" href=\"/static/index.css\"></head><body hx-target=\"#table\"><div><div class=\"select\"><select name=\"name\" hx-get=\"/table\"><option value=\"\">")
+		_, err = templBuffer.WriteString("</script><script src=\"/static/index.js\"></script><link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css\"><link rel=\"stylesheet\" href=\"/static/index.css\"></head><body hx-target=\"#table\"><div><div class=\"select\"><select name=\"table_name\" hx-get=\"/table\"><option value=\"\">")
 		if err != nil {
 			return err
 		}

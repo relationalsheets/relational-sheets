@@ -13,7 +13,7 @@ import (
 	"fmt"
 )
 
-func table(name string, cols []Column, colspan string, cells [][]Cell) templ.Component {
+func sheet(name string, cols []Column, colspan string, cells [][]Cell) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -53,7 +53,7 @@ func table(name string, cols []Column, colspan string, cells [][]Cell) templ.Com
 			if err != nil {
 				return err
 			}
-			_, err = templBuffer.WriteString("\" onmouseup=\"document.getElementById(&#39;column&#39;).value = this.textContent\" hx-post=\"/table\" hx-include=\"#header-row,[name=name]\">")
+			_, err = templBuffer.WriteString("\" onmouseup=\"document.getElementById(&#39;column&#39;).value = this.textContent\" hx-post=\"/table\" hx-include=\"#header-row,[name=table_name]\">")
 			if err != nil {
 				return err
 			}
@@ -67,7 +67,7 @@ func table(name string, cols []Column, colspan string, cells [][]Cell) templ.Com
 				return err
 			}
 		}
-		_, err = templBuffer.WriteString("<input type=\"hidden\" id=\"column\" name=\"column\"><input type=\"hidden\" id=\"hide\" name=\"hide\" value=\"false\"></tr></thead><tbody><tr id=\"new-row\" class=\"hide\"><td style=\"border-bottom: none\"><button hx-post=\"/table\" hx-include=\"#new-row,[name=name]\" hx-target-400=\"#new-row-err\">")
+		_, err = templBuffer.WriteString("<input type=\"hidden\" id=\"column\" name=\"column\"><input type=\"hidden\" id=\"hide\" name=\"hide\" value=\"false\"></tr></thead><tbody><tr id=\"new-row\" class=\"hide\"><td style=\"border-bottom: none\"><button hx-post=\"/table\" hx-include=\"#new-row,[name=table_name]\" hx-target-400=\"#new-row-err\">")
 		if err != nil {
 			return err
 		}
@@ -112,7 +112,7 @@ func table(name string, cols []Column, colspan string, cells [][]Cell) templ.Com
 				return err
 			}
 			for _, cell := range row {
-				var var_6 = []any{templ.KV("is-null", cell.Null)}
+				var var_6 = []any{templ.KV("is-null", !cell.NotNull)}
 				err = templ.RenderCSSItems(ctx, templBuffer, var_6...)
 				if err != nil {
 					return err
@@ -144,7 +144,7 @@ func table(name string, cols []Column, colspan string, cells [][]Cell) templ.Com
 				return err
 			}
 		}
-		_, err = templBuffer.WriteString("<input type=\"hidden\" name=\"name\" value=\"")
+		_, err = templBuffer.WriteString("<input type=\"hidden\" name=\"table_name\" value=\"")
 		if err != nil {
 			return err
 		}
@@ -163,8 +163,8 @@ func table(name string, cols []Column, colspan string, cells [][]Cell) templ.Com
 	})
 }
 
-func RenderTable(t Table, cells [][]Cell) templ.Component {
-	cols := t.OrderedCols()
+func RenderSheet(s Sheet, cells [][]Cell) templ.Component {
+	cols := s.OrderedCols()
 	colspan := fmt.Sprintf("%d", len(cols)+1)
-	return table(t.FullName(), cols, colspan, cells)
+	return sheet(s.table.FullName(), cols, colspan, cells)
 }

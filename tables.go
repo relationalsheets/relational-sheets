@@ -4,12 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
+	"net/http"
 	"sort"
 	"strings"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/jmoiron/sqlx"
+	"github.com/a-h/templ"
 )
 
 type TableNames struct {
@@ -23,20 +22,12 @@ type Constraint struct {
 	Def            string
 }
 
-type Pref struct {
-	ColumnName string // Only used for convenient loading
-	Hide       bool
-	Editable   bool
-	Index      int
-}
-
 type Column struct {
 	Name         string
 	IsNullable   bool
 	DataType     string
 	IsPrimaryKey bool
 	Index        int
-	Config       Pref
 }
 
 type Table struct {
@@ -46,51 +37,33 @@ type Table struct {
 	Constraints   []Constraint
 }
 
+type Cell struct {
+	Value   string
+	NotNull bool
+}
+
+var tableMap = make(map[string]Table)
+
 func (table Table) FullName() string {
 	return fmt.Sprintf("%s.%s", table.SchemaName, table.TableName)
 }
 
-func (table Table) OrderedCols() []Column {
-	cols := make([]Column, 0, len(table.Cols))
-	for _, col := range table.Cols {
-		if !col.Config.Hide {
+func (sheet Sheet) OrderedCols() []Column {
+	cols := make([]Column, 0, len(sheet.table.Cols))
+	for _, col := range sheet.table.Cols {
+		if !sheet.prefsMap[col.Name].Hide {
 			cols = append(cols, col)
 		}
 	}
 	sort.SliceStable(cols, func(i, j int) bool {
-		indexI := cols[i].Config.Index | cols[i].Index
-		indexJ := cols[j].Config.Index | cols[j].Index
+		indexI := sheet.prefsMap[cols[i].Name].Index | cols[i].Index
+		indexJ := sheet.prefsMap[cols[j].Name].Index | cols[j].Index
 		return indexI < indexJ
 	})
 	return cols
 }
 
-type Cell struct {
-	Value string
-	Null  bool
-}
-
-func check(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
-
-func stringsToInterfaces(sx []string) []interface{} {
-	interfaces := make([]interface{}, len(sx))
-	for i, s := range sx {
-		interfaces[i] = s
-	}
-	return interfaces
-}
-
-func Open() *sqlx.DB {
-	conn, err := sqlx.Open("pgx", os.Getenv("DATABASE_URL"))
-	check(err)
-	return conn
-}
-
-func GetTables(conn *sqlx.DB) []Table {
+func GetTables() []Table {
 	tables := []Table{}
 	err := conn.Select(&tables, `
 		SELECT COALESCE(tablename, '') tablename
@@ -105,75 +78,7 @@ func GetTables(conn *sqlx.DB) []Table {
 	return tables
 }
 
-func InitPrefsTable(conn *sqlx.DB) {
-	conn.MustExec(`
-		CREATE SCHEMA IF NOT EXISTS db_interface;
-		DROP TABLE db_interface.column_prefs;
-		CREATE TABLE IF NOT EXISTS db_interface.column_prefs (
-			schemaname VARCHAR(255) NOT NULL
-			, tablename VARCHAR(255) NOT NULL
-			, columnname VARCHAR(255) NOT NULL
-			, hide boolean NOT NULL DEFAULT false
-			, editable boolean NOT NULL DEFAULT false
-			, index int NOT NULL
-			, UNIQUE(schemaname, tablename, columnname)
-		)`)
-	log.Println("Column prefs table exists")
-}
-
-func WritePref(conn *sqlx.DB, table Table, pref Pref) {
-	conn.MustExec(`
-		INSERT INTO db_interface.column_prefs (
-			schemaname
-			, tablename
-			, columnname
-			, hide
-			, editable
-			, index
-		) VALUES (
-			$1, $2, $3, $4, $5, $6
-		)
-		ON CONFLICT ("schemaname", "tablename", "columnname") DO
-		UPDATE SET hide = $4
-			, editable = $5
-			, index = $6`,
-		table.SchemaName,
-		table.TableName,
-		pref.ColumnName,
-		pref.Hide,
-		pref.Editable,
-		pref.Index)
-}
-
-func SetPrefs(conn *sqlx.DB, table Table) {
-	prefs := []Pref{}
-	err := conn.Select(&prefs, `
-		SELECT columnname
-			, hide
-			, editable
-			, index
-		FROM db_interface.column_prefs
-		WHERE schemaname = $1
-			AND tablename = $2`,
-		table.SchemaName,
-		table.TableName)
-	check(err)
-	log.Printf("Retrieved %d column prefs", len(prefs))
-	prefsMap := make(map[string]Pref)
-	for _, pref := range prefs {
-		prefsMap[pref.ColumnName] = pref
-	}
-	for key, col := range table.Cols {
-		// Note the key may not be present, but the zero value is
-		// the default config, except we need to set ColumnName
-		config := prefsMap[col.Name]
-		config.ColumnName = col.Name
-		col.Config = config
-		table.Cols[key] = col
-	}
-}
-
-func SetCols(conn *sqlx.DB, table *Table) {
+func SetCols(table *Table) {
 	cols := make([]Column, 0, 100)
 	err := conn.Select(&cols, `
 		SELECT column_name "name"
@@ -193,7 +98,7 @@ func SetCols(conn *sqlx.DB, table *Table) {
 	}
 }
 
-func SetConstraints(conn *sqlx.DB, table *Table) {
+func SetConstraints(table *Table) {
 	table.Constraints = make([]Constraint, 0, 10)
 	err := conn.Select(&table.Constraints, `
 		SELECT conname "name"
@@ -225,20 +130,23 @@ func SetConstraints(conn *sqlx.DB, table *Table) {
 	}
 }
 
-func GetRows(conn *sqlx.DB, table Table, limit int, offset int) [][]Cell {
+func GetRows(sheet Sheet, limit int, offset int) [][]Cell {
 	cells := make([][]Cell, 0, limit)
-	cols := table.OrderedCols()
+	cols := sheet.OrderedCols()
 	// TODO: check if table.TableName and column names are valid somewhere
 	casts := make([]string, 0, len(cols))
 	for i := 0; i < len(cols); i++ {
 		col := cols[i]
-		cast := fmt.Sprintf("\"%s\"::text, \"%s\" IS NULL", col.Name, col.Name)
+		cast := fmt.Sprintf(
+			"\"%s\"::text, \"%s\" IS NOT NULL",
+			col.Name,
+			col.Name)
 		casts = append(casts, cast)
 	}
 	query := fmt.Sprintf(
 		"SELECT %s FROM %s LIMIT $1 OFFSET $2",
 		strings.Join(casts, ", "),
-		table.FullName())
+		sheet.table.FullName())
 	log.Printf("Executing: %s", query)
 	rows, err := conn.Queryx(query, limit, offset)
 	check(err)
@@ -252,13 +160,13 @@ func GetRows(conn *sqlx.DB, table Table, limit int, offset int) [][]Cell {
 		}
 		cells = append(cells, row)
 	}
-	log.Printf("Retrieved %d rows from %s", len(cells), table.FullName())
+	log.Printf("Retrieved %d rows from %s", len(cells), sheet.table.FullName())
 	check(rows.Close())
 	return cells
 }
 
-func InsertRow(conn *sqlx.DB, table Table, values map[string]string) error {
-	cols := table.OrderedCols()
+func InsertRow(sheet Sheet, values map[string]string) error {
+	cols := sheet.OrderedCols()
 	colNames := make([]string, 0, len(cols))
 	valueLabels := make([]string, 0, len(cols))
 	nonEmptyValues := make(map[string]interface{})
@@ -275,11 +183,58 @@ func InsertRow(conn *sqlx.DB, table Table, values map[string]string) error {
 
 	query := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES (%s)",
-		table.FullName(),
+		sheet.table.FullName(),
 		strings.Join(colNames, ", "),
 		strings.Join(valueLabels, ", "))
 	log.Println("Executing:", query)
 	log.Println("Values:", nonEmptyValues)
 	_, err := conn.NamedExec(query, nonEmptyValues)
 	return err
+}
+
+func handleTable(w http.ResponseWriter, r *http.Request) {
+	tableName := ""
+	if r.Method == "POST" {
+		tableName = r.FormValue("table_name")
+	} else {
+		tableName = r.URL.Query().Get("table_name")
+	}
+	if tableName == "" {
+		WriteError(w, "No table name provided")
+		return
+	}
+
+	t := tableMap[tableName]
+	SetCols(&t)
+	SetConstraints(&t)
+	globalSheet.table = t
+	globalSheet.LoadPrefs()
+
+	if r.Method == "POST" {
+		colName := r.FormValue("column")
+		if colName != "" {
+			pref := globalSheet.prefsMap[colName]
+			pref.Hide = r.FormValue("hide") == "true"
+			globalSheet.prefsMap[colName] = pref
+			WritePref(globalSheet, colName)
+		} else {
+			values := make(map[string]string)
+			for key, value := range r.Form {
+				colName, found := strings.CutPrefix(key, "column-")
+				if found {
+					values[colName] = value[0]
+				}
+			}
+
+			err := InsertRow(globalSheet, values)
+			if err != nil {
+				WriteError(w, err.Error())
+				return
+			}
+		}
+	}
+
+	cells := GetRows(globalSheet, 100, 0)
+	handler := templ.Handler(RenderSheet(globalSheet, cells))
+	handler.ServeHTTP(w, r)
 }

@@ -12,7 +12,7 @@ templ index(tables []Table) {
         <body hx-target="#table">
             <div>
                 <div class="select">
-                    <select name="name"
+                    <select name="table_name"
                             hx-get="/table">
                         <option value="">Table</option>
                     for _, table := range tables {
