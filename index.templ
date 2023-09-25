@@ -14,7 +14,7 @@ templ sheetSelect(sheets map[int64]Sheet, sheetId int64) {
         if sheetId == 0 {
             <span>Select Sheet</span>
         } else {
-            <span>{ sheets[sheetId].VisibleName() }</span>
+            <span>Current Sheet: { sheets[sheetId].VisibleName() }</span>
         }
         </button>
       </div>
@@ -42,11 +42,11 @@ templ index(sheets map[int64]Sheet, sheetId int64, tables []Table) {
             <link rel="stylesheet" href="/static/index.css"/>
         </head>
         <body>
-            <div>
+            <div id="toolbar">
                 <div id="sheet-select">
                     @sheetSelect(sheets, sheetId)
                 </div>
-                <div class="select">
+                <div class="select table-select">
                     <select name="table_name"
                             hx-get="/table"
                             hx-target="#table"
@@ -61,12 +61,13 @@ templ index(sheets map[int64]Sheet, sheetId int64, tables []Table) {
                     </select>
                 </div>
             </div>
-            <table id="table"
-                   class="table" 
-                   hx-trigger="click"
-                   hx-target="#table"
-                   hx-ext="response-targets">
-            </table>
+            <div class="scrollable">
+                <table id="table"
+                       hx-trigger="click"
+                       hx-target="#table"
+                       hx-ext="response-targets">
+                </table>
+            </div>
         </body>
     </html>
 }

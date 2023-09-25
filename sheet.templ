@@ -10,31 +10,54 @@ templ sheet(name string, cols []Column, extraCols []SheetColumn, cells [][]Cell)
             <th>
                 <button onclick="htmx.removeClass(htmx.find('#new-row'), 'hide')
                                  htmx.removeClass(htmx.find('#new-row-err-container'), 'hide')">
-                    +
+                    + Row
                 </button>
             </th>
-        for _, col := range cols {
-            <th class={ templ.KV("is-primary", col.IsPrimaryKey) }
+        for i, col := range cols {
+            <th class={ templ.KV("is-pkey", col.IsPrimaryKey) }
                 onmouseup="document.getElementById('column').value = this.textContent"
                 hx-post="/table"
                 hx-include="#header-row">
-                { col.Name }
+                if len(extraCols) > 0 || i + 1 < len(cols) {
+                    <span>{ col.Name }</span>
+                } else {
+                <div class="flex">
+                    <span>{ col.Name }</span>
+                    <button id="add-col-button"
+                        hx-post="/add-column"
+                        hx-swap="none"
+                        onclick="addCol()">
+                        + Col
+                    </button>
+                </div>
+                }
             </th>
         }
         for i, col := range extraCols {
+            if i + 1 < len(extraCols) {
             <th>
-                <input type="text"
-                       name={ fmt.Sprintf("column-name-%d", i) }
+                <input name={ fmt.Sprintf("column-name-%d", i) }
                        value={ col.Name }
                        hx-post="/set-col-name"
                        hx-swap="none" />
             </th>
-        }
-            <th id="add-column-cell">
-                <button hx-post="/add-column" hx-swap="none" onclick="addCol()">
-                    + Col
-                </button>
+            } else {
+            <th>
+                <div class="flex">
+                    <input name={ fmt.Sprintf("column-name-%d", i) }
+                           value={ col.Name }
+                           hx-post="/set-col-name"
+                           hx-swap="none" />
+                    <button id="add-col-button"
+                        hx-post="/add-column"
+                        hx-swap="none"
+                        onclick="addCol()">
+                        + Col
+                    </button>
+                </div>
             </th>
+            }
+        }
             <input type="hidden"
                    id="column"
                    name="column"/>
@@ -71,7 +94,7 @@ templ sheet(name string, cols []Column, extraCols []SheetColumn, cells [][]Cell)
             <td></td>
         for _, cell := range row {
             <td class={ templ.KV("is-null", !cell.NotNull) }>
-                { cell.Value }
+                <span>{ cell.Value }</span>
             </td>
         }
         for i, extraCol := range extraCols {
@@ -80,7 +103,7 @@ templ sheet(name string, cols []Column, extraCols []SheetColumn, cells [][]Cell)
                     { extraCol.cells[j].Value }
                 </span>
                 <input name={ fmt.Sprintf("custom-cell-%d,%d", i, j) }
-                       class="custom-cell-input hide"
+                       class="custom-cell-formula hide"
                        value={ extraCol.cells[j].formula }
                        hx-post="/set-cell"
                        hx-swap="none" />
