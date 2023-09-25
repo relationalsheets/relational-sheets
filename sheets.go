@@ -106,12 +106,17 @@ func (s *Sheet) SaveSheet() {
 func (s *Sheet) LoadCols() {
 	s.extraCols = make([]SheetColumn, 0, 20)
 	err := conn.Select(&s.extraCols, `
-		SELECT colname
+		SELECT colname AS "name"
 		FROM db_interface.sheetcols
 		WHERE sheet_id = $1
 		ORDER BY i`,
 		s.Id)
 	check(err)
+	for i, col := range s.extraCols {
+		col.cells = make([]SheetCell, 100)
+		s.extraCols[i] = col
+	}
+	log.Printf("Loaded %d custom columns", len(s.extraCols))
 }
 
 func (s *Sheet) SaveCol(i int) {
@@ -168,6 +173,7 @@ func (s *Sheet) SetCell(i, j int, formula string) {
 func (s *Sheet) AddColumn(name string) {
 	cells := make([]SheetCell, 0, 100)
 	s.extraCols = append(s.extraCols, SheetColumn{name, cells})
+	log.Printf("Adding column to sheet %d", s.Id)
 	conn.MustExec(`
 		INSERT INTO db_interface.sheetcols (
 			sheet_id

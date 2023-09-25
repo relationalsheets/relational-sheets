@@ -31,8 +31,9 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 	if sheetIdStr != "" {
 		sheetId, err = strconv.ParseInt(sheetIdStr, 10, 64)
 		check(err)
+		globalSheet = sheetMap[sheetId]
+		globalSheet.LoadCols()
 	}
-	globalSheet = sheetMap[sheetId]
 	templ.Handler(index(sheetMap, sheetId, tables)).ServeHTTP(w, r)
 }
 
