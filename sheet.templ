@@ -4,7 +4,7 @@ import (
     "fmt"
 )
 
-templ sheet(name string, cols []Column, colspan string, cells [][]Cell) {
+templ sheet(name string, cols []Column, extraCols []SheetColumn, cells [][]Cell) {
     <thead>
         <tr id="header-row">
             <th>
@@ -17,10 +17,24 @@ templ sheet(name string, cols []Column, colspan string, cells [][]Cell) {
             <th class={ templ.KV("is-primary", col.IsPrimaryKey) }
                 onmouseup="document.getElementById('column').value = this.textContent"
                 hx-post="/table"
-                hx-include="#header-row,[name=table_name]">
+                hx-include="#header-row">
                 { col.Name }
             </th>
         }
+        for i, col := range extraCols {
+            <th>
+                <input type="text"
+                       name={ fmt.Sprintf("column-name-%d", i) }
+                       value={ col.Name }
+                       hx-post="/set-col-name"
+                       hx-swap="none" />
+            </th>
+        }
+            <th id="add-column-cell">
+                <button hx-post="/add-column" hx-swap="none" onclick="addCol()">
+                    + Col
+                </button>
+            </th>
             <input type="hidden"
                    id="column"
                    name="column"/>
@@ -34,7 +48,7 @@ templ sheet(name string, cols []Column, colspan string, cells [][]Cell) {
         <tr id="new-row" class="hide">
             <td style="border-bottom: none">
                 <button hx-post="/table"
-                        hx-include="#new-row,[name=table_name]"
+                        hx-include="#new-row"
                         hx-target-400="#new-row-err">
                     Add
                 </button>
@@ -47,29 +61,36 @@ templ sheet(name string, cols []Column, colspan string, cells [][]Cell) {
         </tr>
         <tr id="new-row-err-container" class="hide">
             <td id="new-row-err"
-                colspan={ colspan }
+                colspan={ fmt.Sprintf("%d", len(cols)) }
                 style="border-top: none"
                 class="has-text-danger">
             </td>
         </tr>
-    for _, row := range cells {
-        <tr>
+    for j, row := range cells {
+        <tr class="body-row">
             <td></td>
         for _, cell := range row {
             <td class={ templ.KV("is-null", !cell.NotNull) }>
                 { cell.Value }
             </td>
         }
+        for i, extraCol := range extraCols {
+            <td class={ templ.KV("is-null", !extraCol.cells[j].NotNull) }>
+                <span class="custom-cell-value">
+                    { extraCol.cells[j].Value }
+                </span>
+                <input name={ fmt.Sprintf("custom-cell-%d,%d", i, j) }
+                       class="custom-cell-input hide"
+                       value={ extraCol.cells[j].formula }
+                       hx-post="/set-cell"
+                       hx-swap="none" />
+            </td>
+        }
         </tr>
     }
-        <input type="hidden"
-               name="table_name"
-               value={ name }/>
     </tbody>
 }
 
 func RenderSheet(s Sheet, cells [][]Cell) templ.Component {
-    cols := s.OrderedCols()
-    colspan := fmt.Sprintf("%d", len(cols) + 1)
-    return sheet(s.table.FullName(), cols, colspan, cells)
+    return sheet(s.table.FullName(), s.OrderedCols(), s.extraCols, cells)
 }

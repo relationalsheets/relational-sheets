@@ -1,6 +1,38 @@
 package main
 
-templ index(tables []Table) {
+import (
+    "fmt"
+)
+
+templ sheetSelect(sheets map[int64]Sheet, sheetId int64) {
+    <button hx-post="/sheet" hx-prompt="Sheet name" hx-target="#sheet-select">
+        New
+    </button>
+    <div class="dropdown is-hoverable">
+      <div class="dropdown-trigger">
+        <button class="button" aria-haspopup="true" aria-controls="dropdown-menu">
+        if sheetId == 0 {
+            <span>Select Sheet</span>
+        } else {
+            <span>{ sheets[sheetId].VisibleName() }</span>
+        }
+        </button>
+      </div>
+      <div class="dropdown-menu">
+        <div class="dropdown-content">
+        for _, sheet := range sheets {
+            <a href={ templ.SafeURL(fmt.Sprintf("/?sheet_id=%d", sheet.Id)) }
+               class={ "dropdown-item", templ.KV( "is-active", sheet.Id == sheetId ) } >
+                { sheet.VisibleName() } - { fmt.Sprintf("%d", sheet.Id) }
+            </a>
+        }
+        </div>
+      </div>
+    </div>
+}
+
+templ index(sheets map[int64]Sheet, sheetId int64, tables []Table) {
+    <!DOCTYPE html>
     <html>
         <head>
             <script src="https://unpkg.com/htmx.org@1.9.5"></script>
@@ -9,14 +41,20 @@ templ index(tables []Table) {
             <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"/>
             <link rel="stylesheet" href="/static/index.css"/>
         </head>
-        <body hx-target="#table">
+        <body>
             <div>
+                <div id="sheet-select">
+                    @sheetSelect(sheets, sheetId)
+                </div>
                 <div class="select">
                     <select name="table_name"
-                            hx-get="/table">
+                            hx-get="/table"
+                            hx-target="#table"
+                            hx-trigger="click,load">
                         <option value="">Table</option>
                     for _, table := range tables {
-                        <option value={ table.FullName() }>
+                        <option value={ table.FullName() }
+                                selected?={ table.TableName == sheets[sheetId].table.TableName }>
                             { table.FullName() }
                         </option>
                     }
@@ -26,6 +64,7 @@ templ index(tables []Table) {
             <table id="table"
                    class="table" 
                    hx-trigger="click"
+                   hx-target="#table"
                    hx-ext="response-targets">
             </table>
         </body>

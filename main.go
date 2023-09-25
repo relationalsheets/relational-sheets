@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/a-h/templ"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -23,24 +24,36 @@ func WriteError(w http.ResponseWriter, text string) {
 	w.Write([]byte("<span class=\"error\">" + text + "</span>"))
 }
 
+func handleIndex(w http.ResponseWriter, r *http.Request) {
+	sheetIdStr := r.URL.Query().Get("sheet_id")
+	sheetId := int64(0)
+	var err error
+	if sheetIdStr != "" {
+		sheetId, err = strconv.ParseInt(sheetIdStr, 10, 64)
+		check(err)
+	}
+	globalSheet = sheetMap[sheetId]
+	templ.Handler(index(sheetMap, sheetId, tables)).ServeHTTP(w, r)
+}
+
 func main() {
 	Open()
 	defer conn.Close()
 
-	tables := GetTables()
-	for _, table := range tables {
-		tableMap[table.FullName()] = table
-	}
-
 	InitSheetsTables()
 	InitPrefsTable()
 
+	GetTables()
+	LoadSheets()
+
 	http.HandleFunc("/table", handleTable)
+	http.HandleFunc("/sheet", handleSheet)
+	http.HandleFunc("/add-column", handleAddColumn)
 
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
-	http.Handle("/", templ.Handler(index(tables)))
+	http.HandleFunc("/", handleIndex)
 
-	http.ListenAndServe(":8080", nil)
+	check(http.ListenAndServe(":8080", nil))
 }

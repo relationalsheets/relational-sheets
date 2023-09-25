@@ -12,8 +12,8 @@ import (
 )
 
 type TableNames struct {
-	SchemaName string
-	TableName  string
+	SchemaName string `db:"schemaname"`
+	TableName  string `db:"tablename"`
 }
 
 type Constraint struct {
@@ -31,7 +31,7 @@ type Column struct {
 }
 
 type Table struct {
-	*TableNames
+	TableNames
 	HasPrimaryKey bool
 	Cols          map[string]Column
 	Constraints   []Constraint
@@ -42,6 +42,7 @@ type Cell struct {
 	NotNull bool
 }
 
+var tables = make([]Table, 0, 20)
 var tableMap = make(map[string]Table)
 
 func (table Table) FullName() string {
@@ -63,8 +64,7 @@ func (sheet Sheet) OrderedCols() []Column {
 	return cols
 }
 
-func GetTables() []Table {
-	tables := []Table{}
+func GetTables() {
 	err := conn.Select(&tables, `
 		SELECT COALESCE(tablename, '') tablename
 			, COALESCE(schemaname, '') schemaname
@@ -75,7 +75,9 @@ func GetTables() []Table {
 		ORDER BY schemaname, tablename DESC`)
 	check(err)
 	log.Printf("Retrieved %d tables", len(tables))
-	return tables
+	for _, table := range tables {
+		tableMap[table.FullName()] = table
+	}
 }
 
 func SetCols(table *Table) {
@@ -193,21 +195,19 @@ func InsertRow(sheet Sheet, values map[string]string) error {
 }
 
 func handleTable(w http.ResponseWriter, r *http.Request) {
-	tableName := ""
-	if r.Method == "POST" {
-		tableName = r.FormValue("table_name")
-	} else {
-		tableName = r.URL.Query().Get("table_name")
-	}
+	tableName := r.URL.Query().Get("table_name")
 	if tableName == "" {
-		WriteError(w, "No table name provided")
-		return
+		if globalSheet.table.TableName == "" {
+			WriteError(w, "No table name provided")
+			return
+		}
+	} else {
+		globalSheet.table = tableMap[tableName]
+		globalSheet.SaveSheet()
 	}
 
-	t := tableMap[tableName]
-	SetCols(&t)
-	SetConstraints(&t)
-	globalSheet.table = t
+	SetCols(&globalSheet.table)
+	SetConstraints(&globalSheet.table)
 	globalSheet.LoadPrefs()
 
 	if r.Method == "POST" {

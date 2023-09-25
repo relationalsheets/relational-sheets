@@ -14,7 +14,6 @@ type Pref struct {
 func InitPrefsTable() {
 	conn.MustExec(`
 		CREATE SCHEMA IF NOT EXISTS db_interface;
-		DROP TABLE db_interface.column_prefs;
 		CREATE TABLE IF NOT EXISTS db_interface.column_prefs (
 			id SERIAL PRIMARY KEY
 			, sheet_id INT NOT NULL
@@ -46,7 +45,7 @@ func WritePref(sheet Sheet, colName string) {
 		UPDATE SET hide = $3
 			, editable = $4
 			, index = $5`,
-		sheet.id,
+		sheet.Id,
 		colName,
 		pref.Hide,
 		pref.Editable,
@@ -62,7 +61,7 @@ func (s *Sheet) LoadPrefs() {
 			, index
 		FROM db_interface.column_prefs
 		WHERE sheet_id = $1`,
-		s.id)
+		s.Id)
 	check(err)
 	log.Printf("Retrieved %d column prefs", len(prefs))
 	s.prefsMap = make(map[string]Pref)
