@@ -49,7 +49,8 @@ func main() {
 
 	http.HandleFunc("/table", handleTable)
 	http.HandleFunc("/sheet", handleSheet)
-	http.HandleFunc("/add-column", handleAddColumn)
+	http.HandleFunc("/add-column", handleAddCol)
+	http.HandleFunc("/rename-column", handleRenameCol)
 
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))

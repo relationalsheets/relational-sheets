@@ -1,4 +1,3 @@
-- [ ] Add prompt for new column name + support on back end
 - [ ] Show extra column names as span until mousedown
 - [ ] Show input for cell on mousedown
 - [ ] Support formulas in backend
@@ -6,3 +5,5 @@
 - [ ] Support joins
 - [ ] Improve toolbar CSS
 - [ ] Improve x scroll experience
+- [ ] Filtering
+- [ ] Removing extra columns

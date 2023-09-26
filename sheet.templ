@@ -4,6 +4,29 @@ import (
     "fmt"
 )
 
+templ colName(name string) {
+    <span
+        hx-vals={ fmt.Sprintf("js:{col_name:%s,hide:shiftPressed}", name) }
+        hx-post="/table">
+        { name }
+    </span>
+}
+
+templ extraColName(i int, name string) {
+    <input name="col_name"
+           hx-vals={ fmt.Sprintf("{\"col_index\":%d}", i) }
+           value={ name }
+           hx-post="/rename-column"
+           hx-swap="none" />
+}
+
+templ addColButton() {
+    <button id="add-col-button"
+        hx-post="/add-column">
+        + Col
+    </button>
+}
+
 templ sheet(name string, cols []Column, extraCols []SheetColumn, cells [][]Cell) {
     <thead>
         <tr id="header-row">
@@ -14,21 +37,13 @@ templ sheet(name string, cols []Column, extraCols []SheetColumn, cells [][]Cell)
                 </button>
             </th>
         for i, col := range cols {
-            <th class={ templ.KV("is-pkey", col.IsPrimaryKey) }
-                onmouseup="document.getElementById('column').value = this.textContent"
-                hx-post="/table"
-                hx-include="#header-row">
+            <th class={ templ.KV("is-pkey", col.IsPrimaryKey) }>
                 if len(extraCols) > 0 || i + 1 < len(cols) {
-                    <span>{ col.Name }</span>
+                    @colName(col.Name)
                 } else {
                 <div class="flex">
-                    <span>{ col.Name }</span>
-                    <button id="add-col-button"
-                        hx-post="/add-column"
-                        hx-swap="none"
-                        onclick="addCol()">
-                        + Col
-                    </button>
+                    @colName(col.Name)
+                    @addColButton()
                 </div>
                 }
             </th>
@@ -36,35 +51,17 @@ templ sheet(name string, cols []Column, extraCols []SheetColumn, cells [][]Cell)
         for i, col := range extraCols {
             if i + 1 < len(extraCols) {
             <th>
-                <input name={ fmt.Sprintf("column-name-%d", i) }
-                       value={ col.Name }
-                       hx-post="/set-col-name"
-                       hx-swap="none" />
+                @extraColName(i, col.Name)
             </th>
             } else {
             <th>
                 <div class="flex">
-                    <input name={ fmt.Sprintf("column-name-%d", i) }
-                           value={ col.Name }
-                           hx-post="/set-col-name"
-                           hx-swap="none" />
-                    <button id="add-col-button"
-                        hx-post="/add-column"
-                        hx-swap="none"
-                        onclick="addCol()">
-                        + Col
-                    </button>
+                    @extraColName(i, col.Name)
+                    @addColButton()
                 </div>
             </th>
             }
         }
-            <input type="hidden"
-                   id="column"
-                   name="column"/>
-            <input type="hidden"
-                   id="hide"
-                   name="hide"
-                   value="false"/>
         </tr>
     </thead>
     <tbody>
@@ -99,14 +96,14 @@ templ sheet(name string, cols []Column, extraCols []SheetColumn, cells [][]Cell)
         }
         for i, extraCol := range extraCols {
             <td class={ templ.KV("is-null", !extraCol.cells[j].NotNull) }>
-                <span class="custom-cell-value">
-                    { extraCol.cells[j].Value }
-                </span>
                 <input name={ fmt.Sprintf("custom-cell-%d,%d", i, j) }
                        class="custom-cell-formula hide"
                        value={ extraCol.cells[j].formula }
                        hx-post="/set-cell"
-                       hx-swap="none" />
+                       hx-target="next span" />
+                <span class="custom-cell-value">
+                    { extraCol.cells[j].Value }
+                </span>
             </td>
         }
         </tr>

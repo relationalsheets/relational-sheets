@@ -4,6 +4,7 @@ import (
 	"github.com/a-h/templ"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 type SheetCell struct {
@@ -26,6 +27,8 @@ type Sheet struct {
 
 var sheetMap = make(map[int64]Sheet)
 var globalSheet Sheet
+
+const defaultColNameChars string = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 func (s Sheet) VisibleName() string {
 	if s.Name == "" {
@@ -171,7 +174,7 @@ func (s *Sheet) SetCell(i, j int, formula string) {
 }
 
 func (s *Sheet) AddColumn(name string) {
-	cells := make([]SheetCell, 0, 100)
+	cells := make([]SheetCell, 100)
 	s.extraCols = append(s.extraCols, SheetColumn{name, cells})
 	log.Printf("Adding column to sheet %d", s.Id)
 	conn.MustExec(`
@@ -197,11 +200,26 @@ func handleSheet(w http.ResponseWriter, r *http.Request) {
 	templ.Handler(sheetSelect(sheetMap, globalSheet.Id)).ServeHTTP(w, r)
 }
 
-func handleAddColumn(w http.ResponseWriter, r *http.Request) {
-	colName := r.FormValue("new_column_name")
+func handleAddCol(w http.ResponseWriter, r *http.Request) {
+	colName := ""
+	i := len(globalSheet.extraCols)
+	for i >= 0 {
+		colName += defaultColNameChars[i%len(defaultColNameChars) : i%len(defaultColNameChars)+1]
+		i -= len(defaultColNameChars)
+	}
 	globalSheet.AddColumn(colName)
+
+	cells := GetRows(globalSheet, 100, 0)
+	handler := templ.Handler(RenderSheet(globalSheet, cells))
+	handler.ServeHTTP(w, r)
 }
 
-func handleSetColumnName(w http.ResponseWriter, r *http.Request) {
-	// TODO
+func handleRenameCol(w http.ResponseWriter, r *http.Request) {
+	colIndex, err := strconv.Atoi(r.FormValue("col_index"))
+	check(err)
+	col := globalSheet.extraCols[colIndex]
+	col.Name = r.FormValue("col_name")
+	globalSheet.extraCols[colIndex] = col
+	globalSheet.SaveCol(colIndex)
+	w.WriteHeader(http.StatusNoContent)
 }
