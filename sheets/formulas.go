@@ -1,4 +1,4 @@
-package main
+package sheets
 
 func (s *Sheet) EvalFormula(formula string) SheetCell {
 	// TODO: support non-literal formulas

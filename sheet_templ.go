@@ -10,6 +10,7 @@ import "io"
 import "bytes"
 
 import (
+	"acb/db-interface/sheets"
 	"fmt"
 )
 
@@ -127,7 +128,7 @@ func addColButton() templ.Component {
 	})
 }
 
-func extraCell(i, j int, cell SheetCell) templ.Component {
+func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -157,7 +158,7 @@ func extraCell(i, j int, cell SheetCell) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString(templ.EscapeString(cell.formula))
+		_, err = templBuffer.WriteString(templ.EscapeString(cell.Formula))
 		if err != nil {
 			return err
 		}
@@ -189,7 +190,7 @@ func extraCell(i, j int, cell SheetCell) templ.Component {
 	})
 }
 
-func sheet(name string, cols []Column, extraCols []SheetColumn, cells [][]Cell) templ.Component {
+func sheet(name string, cols []sheets.Column, ExtraCols []sheets.SheetColumn, cells [][]sheets.Cell) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -233,7 +234,7 @@ func sheet(name string, cols []Column, extraCols []SheetColumn, cells [][]Cell) 
 			if err != nil {
 				return err
 			}
-			if len(extraCols) > 0 || i+1 < len(cols) {
+			if len(ExtraCols) > 0 || i+1 < len(cols) {
 				err = colName(col.Name).Render(ctx, templBuffer)
 				if err != nil {
 					return err
@@ -261,8 +262,8 @@ func sheet(name string, cols []Column, extraCols []SheetColumn, cells [][]Cell) 
 				return err
 			}
 		}
-		for i, col := range extraCols {
-			if i+1 < len(extraCols) {
+		for i, col := range ExtraCols {
+			if i+1 < len(ExtraCols) {
 				_, err = templBuffer.WriteString("<th>")
 				if err != nil {
 					return err
@@ -366,8 +367,8 @@ func sheet(name string, cols []Column, extraCols []SheetColumn, cells [][]Cell) 
 					return err
 				}
 			}
-			for i, extraCol := range extraCols {
-				err = extraCell(i, j, extraCol.cells[j]).Render(ctx, templBuffer)
+			for i, extraCol := range ExtraCols {
+				err = extraCell(i, j, extraCol.Cells[j]).Render(ctx, templBuffer)
 				if err != nil {
 					return err
 				}
@@ -388,6 +389,6 @@ func sheet(name string, cols []Column, extraCols []SheetColumn, cells [][]Cell) 
 	})
 }
 
-func RenderSheet(s Sheet, cells [][]Cell) templ.Component {
-	return sheet(s.table.FullName(), s.OrderedCols(), s.extraCols, cells)
+func RenderSheet(s sheets.Sheet, cells [][]sheets.Cell) templ.Component {
+	return sheet(s.TableFullName(), s.OrderedCols(), s.ExtraCols, cells)
 }

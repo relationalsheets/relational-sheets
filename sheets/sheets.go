@@ -1,20 +1,17 @@
-package main
+package sheets
 
 import (
-	"github.com/a-h/templ"
 	"log"
-	"net/http"
-	"strconv"
 )
 
 type SheetCell struct {
 	Cell
-	formula string
+	Formula string
 }
 
 type SheetColumn struct {
 	Name  string
-	cells []SheetCell
+	Cells []SheetCell
 }
 
 type Sheet struct {
@@ -22,11 +19,11 @@ type Sheet struct {
 	Id        int64
 	table     Table
 	prefsMap  map[string]Pref
-	extraCols []SheetColumn
+	ExtraCols []SheetColumn
 }
 
-var sheetMap = make(map[int64]Sheet)
-var globalSheet Sheet
+var SheetMap = make(map[int64]Sheet)
+var GlobalSheet Sheet
 
 const defaultColNameChars string = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -66,13 +63,17 @@ func InitSheetsTables() {
 			, sheet_id INT NOT NULL
 			, i INTEGER NOT NULL
 			, j INTEGER NOT NULL
-			, formula INTEGER NOT NULL
+			, Formula INTEGER NOT NULL
 			, UNIQUE (sheet_id, i, j)
 			, CONSTRAINT fk_sheets
 				FOREIGN KEY (sheet_id)
 					REFERENCES db_interface.sheets(id)
 		)`)
 	log.Println("SheetCells table exists")
+}
+
+func (s Sheet) TableFullName() string {
+	return s.table.FullName()
 }
 
 func (s *Sheet) SaveSheet() {
@@ -89,7 +90,7 @@ func (s *Sheet) SaveSheet() {
 			s.table.SchemaName,
 			s.table.TableName)
 		err := row.Scan(&s.Id)
-		check(err)
+		Check(err)
 		log.Printf("Inserted sheet %d", s.Id)
 	} else {
 		conn.MustExec(`
@@ -104,42 +105,43 @@ func (s *Sheet) SaveSheet() {
 			s.Id)
 		log.Printf("Updated sheet %d", s.Id)
 	}
+	SheetMap[s.Id] = *s
 }
 
 func (s *Sheet) loadCells() {
-	for i, col := range s.extraCols {
-		col.cells = make([]SheetCell, 100)
-		s.extraCols[i] = col
+	for i, col := range s.ExtraCols {
+		col.Cells = make([]SheetCell, 100)
+		s.ExtraCols[i] = col
 	}
 
 	rows, err := conn.Query(`
-		SELECT i, j, formula
+		SELECT i, j, Formula
 		FROM db_interface.sheetcells
 		WHERE sheet_id = $1
 		ORDER BY i, j`,
 		s.Id)
-	check(err)
+	Check(err)
 
 	var formula string
 	var i, j int
 	for rows.Next() {
 		err = rows.Scan(&i, &j, &formula)
-		s.extraCols[i].cells[j] = s.EvalFormula(formula)
+		s.ExtraCols[i].Cells[j] = s.EvalFormula(formula)
 	}
 
-	log.Println("Loaded custom column cells")
+	log.Println("Loaded custom column Cells")
 }
 
-func (s *Sheet) LoadCols() {
-	s.extraCols = make([]SheetColumn, 0, 20)
-	err := conn.Select(&s.extraCols, `
+func (s *Sheet) loadCols() {
+	s.ExtraCols = make([]SheetColumn, 0, 20)
+	err := conn.Select(&s.ExtraCols, `
 		SELECT colname AS "name"
 		FROM db_interface.sheetcols
 		WHERE sheet_id = $1
 		ORDER BY i`,
 		s.Id)
-	check(err)
-	log.Printf("Loaded %d custom columns", len(s.extraCols))
+	Check(err)
+	log.Printf("Loaded %d custom columns", len(s.ExtraCols))
 
 	s.loadCells()
 }
@@ -156,7 +158,7 @@ func (s *Sheet) SaveCol(i int) {
 		UPDATE SET colname = $3`,
 		s.Id,
 		i,
-		s.extraCols[i].Name)
+		s.ExtraCols[i].Name)
 }
 
 func LoadSheets() {
@@ -166,103 +168,67 @@ func LoadSheets() {
 		     , tableName
 		     , schemaname
 		FROM db_interface.sheets`)
-	check(err)
+	Check(err)
 	for rows.Next() {
 		sheet := Sheet{}
 		err = rows.Scan(&sheet.Id, &sheet.Name, &sheet.table.TableName, &sheet.table.SchemaName)
-		check(err)
-		sheetMap[sheet.Id] = sheet
+		Check(err)
+		SheetMap[sheet.Id] = sheet
 		log.Printf("Loaded sheet: %+v", sheet)
 	}
-	log.Printf("Loaded %d sheets", len(sheetMap))
+	log.Printf("Loaded %d sheets", len(SheetMap))
 }
 
 func (s *Sheet) LoadSheet() {
 	SetCols(&s.table)
 	SetConstraints(&s.table)
-	s.LoadPrefs()
-	s.LoadCols()
+	s.loadPrefs()
+	s.loadCols()
 }
 
 func (s *Sheet) SetCell(i, j int, formula string) SheetCell {
-	column := s.extraCols[i]
-	column.cells[j] = s.EvalFormula(formula)
+	column := s.ExtraCols[i]
+	column.Cells[j] = s.EvalFormula(formula)
 	conn.MustExec(`
 		INSERT INTO db_interface.sheetcells (
 		    sheet_id
 		    , i
 		    , j
-		    , formula
+		    , Formula
 		) VALUES ($1, $2, $3, $4)
 		ON CONFLICT (sheet_id, i, j) DO
-		UPDATE SET formula = $4`,
+		UPDATE SET Formula = $4`,
 		s.Id,
 		i,
 		j,
 		formula)
-	return column.cells[j]
+	return column.Cells[j]
 }
 
 func (s *Sheet) AddColumn(name string) {
-	cells := make([]SheetCell, 100)
-	s.extraCols = append(s.extraCols, SheetColumn{name, cells})
-	log.Printf("Adding column to sheet %d", s.Id)
-	conn.MustExec(`
-		INSERT INTO db_interface.sheetcols (
-			sheet_id
-			, i
-			, colname 
-		) VALUES (
-			$1, $2, $3
-		) ON CONFLICT (sheet_id, i) DO
-		UPDATE SET colname=$3`,
-		s.Id,
-		len(s.extraCols)-1,
-		name)
-}
-
-func handleSheet(w http.ResponseWriter, r *http.Request) {
-	sheetName := r.Header.Get("HX-Prompt")
-	sheet := Sheet{Name: sheetName}
-	sheet.SaveSheet()
-	sheetMap[sheet.Id] = sheet
-	globalSheet = sheet
-	templ.Handler(sheetSelect(sheetMap, globalSheet.Id)).ServeHTTP(w, r)
-}
-
-func handleAddCol(w http.ResponseWriter, r *http.Request) {
-	colName := ""
-	i := len(globalSheet.extraCols)
-	for i >= 0 {
-		colName += defaultColNameChars[i%len(defaultColNameChars) : i%len(defaultColNameChars)+1]
-		i -= len(defaultColNameChars)
+	if name == "" {
+		i := len(GlobalSheet.ExtraCols)
+		for i >= 0 {
+			name += defaultColNameChars[i%len(defaultColNameChars) : i%len(defaultColNameChars)+1]
+			i -= len(defaultColNameChars)
+		}
 	}
-	globalSheet.AddColumn(colName)
+	log.Printf("Adding column %s to sheet %d", name, s.Id)
 
-	cells := GetRows(globalSheet, 100, 0)
-	handler := templ.Handler(RenderSheet(globalSheet, cells))
-	handler.ServeHTTP(w, r)
+	cells := make([]SheetCell, 100)
+	s.ExtraCols = append(s.ExtraCols, SheetColumn{name, cells})
+	s.SaveCol(len(GlobalSheet.ExtraCols) - 1)
 }
 
-func handleRenameCol(w http.ResponseWriter, r *http.Request) {
-	colIndex, err := strconv.Atoi(r.FormValue("col_index"))
-	check(err)
-	col := globalSheet.extraCols[colIndex]
-	col.Name = r.FormValue("col_name")
-	globalSheet.extraCols[colIndex] = col
-	globalSheet.SaveCol(colIndex)
-	w.WriteHeader(http.StatusNoContent)
+func (s *Sheet) RenameCol(i int, name string) {
+	col := GlobalSheet.ExtraCols[i]
+	col.Name = name
+	s.ExtraCols[i] = col
+	s.SaveCol(i)
 }
 
-func handleSetCell(w http.ResponseWriter, r *http.Request) {
-	i, err := strconv.Atoi(r.FormValue("i"))
-	check(err)
-	j, err := strconv.Atoi(r.FormValue("j"))
-	check(err)
-	formula := r.FormValue("formula")
-
-	cell := globalSheet.SetCell(i, j, formula)
-
-	handler := templ.Handler(extraCell(i, j, cell))
-	handler.ServeHTTP(w, r)
+func (s *Sheet) SetTable(name string) {
+	s.table = tableMap[name]
+	s.SaveSheet()
+	s.LoadSheet()
 }

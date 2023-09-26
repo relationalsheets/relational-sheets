@@ -1,8 +1,7 @@
-package main
+package sheets
 
 import (
 	"log"
-	"net/http"
 )
 
 type Pref struct {
@@ -30,8 +29,11 @@ func InitPrefsTable() {
 	log.Println("Column prefs table exists")
 }
 
-func WritePref(sheet Sheet, colName string) {
+func (sheet *Sheet) SetPref(colName string, hide bool) {
 	pref := sheet.prefsMap[colName]
+	pref.Hide = hide
+	sheet.prefsMap[colName] = pref
+
 	conn.MustExec(`
 		INSERT INTO db_interface.column_prefs (
 			sheet_id
@@ -53,7 +55,7 @@ func WritePref(sheet Sheet, colName string) {
 		pref.Index)
 }
 
-func (s *Sheet) LoadPrefs() {
+func (s *Sheet) loadPrefs() {
 	prefs := []Pref{}
 	err := conn.Select(&prefs, `
 		SELECT columnname
@@ -63,23 +65,10 @@ func (s *Sheet) LoadPrefs() {
 		FROM db_interface.column_prefs
 		WHERE sheet_id = $1`,
 		s.Id)
-	check(err)
+	Check(err)
 	log.Printf("Retrieved %d column prefs", len(prefs))
 	s.prefsMap = make(map[string]Pref)
 	for _, pref := range prefs {
 		s.prefsMap[pref.ColumnName] = pref
 	}
-}
-
-func handleSetColPref(w http.ResponseWriter, r *http.Request) {
-	colName := r.FormValue("col_name")
-	if colName == "" {
-		WriteError(w, "Missing required key: col_name")
-	}
-	pref := globalSheet.prefsMap[colName]
-	pref.Hide = r.FormValue("hide") == "true"
-	globalSheet.prefsMap[colName] = pref
-	WritePref(globalSheet, colName)
-
-	reRenderSheet(w, r)
 }

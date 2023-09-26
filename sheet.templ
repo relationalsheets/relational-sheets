@@ -1,6 +1,7 @@
 package main
 
 import (
+	"acb/db-interface/sheets"
     "fmt"
 )
 
@@ -26,11 +27,11 @@ templ addColButton() {
     </button>
 }
 
-templ extraCell(i, j int, cell SheetCell) {
+templ extraCell(i, j int, cell sheets.SheetCell) {
     <td class={ "extra-cell", templ.KV("is-null", !cell.NotNull) }>
         <input name="formula"
                class="extra-cell-formula hide"
-               value={ cell.formula }
+               value={ cell.Formula }
                hx-post="/set-cell"
                hx-vals={ fmt.Sprintf("{\"i\":%d,\"j\":%d}", i, j) }
                hx-target="closest td"
@@ -41,7 +42,7 @@ templ extraCell(i, j int, cell SheetCell) {
     </td>
 }
 
-templ sheet(name string, cols []Column, extraCols []SheetColumn, cells [][]Cell) {
+templ sheet(name string, cols []sheets.Column, ExtraCols []sheets.SheetColumn, cells [][]sheets.Cell) {
     <thead>
         <tr id="header-row">
             <th>
@@ -52,7 +53,7 @@ templ sheet(name string, cols []Column, extraCols []SheetColumn, cells [][]Cell)
             </th>
         for i, col := range cols {
             <th class={ templ.KV("is-pkey", col.IsPrimaryKey) }>
-                if len(extraCols) > 0 || i + 1 < len(cols) {
+                if len(ExtraCols) > 0 || i + 1 < len(cols) {
                     @colName(col.Name)
                 } else {
                 <div class="flex">
@@ -62,8 +63,8 @@ templ sheet(name string, cols []Column, extraCols []SheetColumn, cells [][]Cell)
                 }
             </th>
         }
-        for i, col := range extraCols {
-            if i + 1 < len(extraCols) {
+        for i, col := range ExtraCols {
+            if i + 1 < len(ExtraCols) {
             <th>
                 @extraColName(i, col.Name)
             </th>
@@ -108,14 +109,14 @@ templ sheet(name string, cols []Column, extraCols []SheetColumn, cells [][]Cell)
                 <span>{ cell.Value }</span>
             </td>
         }
-        for i, extraCol := range extraCols {
-            @extraCell(i, j, extraCol.cells[j])
+        for i, extraCol := range ExtraCols {
+            @extraCell(i, j, extraCol.Cells[j])
         }
         </tr>
     }
     </tbody>
 }
 
-func RenderSheet(s Sheet, cells [][]Cell) templ.Component {
-    return sheet(s.table.FullName(), s.OrderedCols(), s.extraCols, cells)
+func RenderSheet(s sheets.Sheet, cells [][]sheets.Cell) templ.Component {
+    return sheet(s.TableFullName(), s.OrderedCols(), s.ExtraCols, cells)
 }

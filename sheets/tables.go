@@ -1,14 +1,11 @@
-package main
+package sheets
 
 import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"sort"
 	"strings"
-
-	"github.com/a-h/templ"
 )
 
 type TableNames struct {
@@ -42,7 +39,7 @@ type Cell struct {
 	NotNull bool
 }
 
-var tables = make([]Table, 0, 20)
+var Tables = make([]Table, 0, 20)
 var tableMap = make(map[string]Table)
 
 func (table Table) FullName() string {
@@ -65,7 +62,7 @@ func (sheet Sheet) OrderedCols() []Column {
 }
 
 func GetTables() {
-	err := conn.Select(&tables, `
+	err := conn.Select(&Tables, `
 		SELECT COALESCE(tablename, '') tablename
 			, COALESCE(schemaname, '') schemaname
 		FROM pg_catalog.pg_tables
@@ -73,9 +70,9 @@ func GetTables() {
 			AND schemaname != 'information_schema'
 			AND schemaname != 'db_interface'
 		ORDER BY schemaname, tablename DESC`)
-	check(err)
-	log.Printf("Retrieved %d tables", len(tables))
-	for _, table := range tables {
+	Check(err)
+	log.Printf("Retrieved %d Tables", len(Tables))
+	for _, table := range Tables {
 		tableMap[table.FullName()] = table
 	}
 }
@@ -92,7 +89,7 @@ func SetCols(table *Table) {
 		AND table_schema = $2`,
 		table.TableName,
 		table.SchemaName)
-	check(err)
+	Check(err)
 	log.Printf("Retrieved %d columns from %s", len(cols), table.FullName())
 	table.Cols = make(map[string]Column)
 	for _, col := range cols {
@@ -111,7 +108,7 @@ func SetConstraints(table *Table) {
 			AND connamespace = $2::regnamespace`,
 		table.TableName,
 		table.SchemaName)
-	check(err)
+	Check(err)
 	log.Printf("Retrieved %d constraints from %s", len(table.Constraints), table.FullName())
 
 	for _, constraint := range table.Constraints {
@@ -135,7 +132,7 @@ func SetConstraints(table *Table) {
 func GetRows(sheet Sheet, limit int, offset int) [][]Cell {
 	cells := make([][]Cell, 0, limit)
 	cols := sheet.OrderedCols()
-	// TODO: check if table.TableName and column names are valid somewhere
+	// TODO: Check if table.TableName and column names are valid somewhere
 	casts := make([]string, 0, len(cols))
 	for i := 0; i < len(cols); i++ {
 		col := cols[i]
@@ -151,10 +148,10 @@ func GetRows(sheet Sheet, limit int, offset int) [][]Cell {
 		sheet.table.FullName())
 	log.Printf("Executing: %s", query)
 	rows, err := conn.Queryx(query, limit, offset)
-	check(err)
+	Check(err)
 	for rows.Next() {
 		scanResult, err := rows.SliceScan()
-		check(err)
+		Check(err)
 		row := make([]Cell, len(casts))
 		for i := 0; i < len(casts); i++ {
 			val, _ := scanResult[2*i].(string)
@@ -163,7 +160,7 @@ func GetRows(sheet Sheet, limit int, offset int) [][]Cell {
 		cells = append(cells, row)
 	}
 	log.Printf("Retrieved %d rows from %s", len(cells), sheet.table.FullName())
-	check(rows.Close())
+	Check(rows.Close())
 	return cells
 }
 
@@ -192,45 +189,4 @@ func InsertRow(sheet Sheet, values map[string]string) error {
 	log.Println("Values:", nonEmptyValues)
 	_, err := conn.NamedExec(query, nonEmptyValues)
 	return err
-}
-
-func reRenderSheet(w http.ResponseWriter, r *http.Request) {
-	if globalSheet.table.TableName == "" {
-		WriteError(w, "No table name provided")
-		return
-	}
-	cells := GetRows(globalSheet, 100, 0)
-	handler := templ.Handler(RenderSheet(globalSheet, cells))
-	handler.ServeHTTP(w, r)
-}
-
-func handleSetTable(w http.ResponseWriter, r *http.Request) {
-	tableName := r.URL.Query().Get("table_name")
-	if tableName == "" {
-		WriteError(w, "No table name provided")
-		return
-	}
-	globalSheet.table = tableMap[tableName]
-	globalSheet.SaveSheet()
-	globalSheet.LoadSheet()
-
-	reRenderSheet(w, r)
-}
-
-func handleAddRow(w http.ResponseWriter, r *http.Request) {
-	values := make(map[string]string)
-	for key, value := range r.Form {
-		colName, found := strings.CutPrefix(key, "column-")
-		if found {
-			values[colName] = value[0]
-		}
-	}
-
-	err := InsertRow(globalSheet, values)
-	if err != nil {
-		WriteError(w, err.Error())
-		return
-	}
-
-	reRenderSheet(w, r)
 }

@@ -10,10 +10,11 @@ import "io"
 import "bytes"
 
 import (
+	"acb/db-interface/sheets"
 	"fmt"
 )
 
-func sheetSelect(sheets map[int64]Sheet, sheetId int64) templ.Component {
+func sheetSelect(sheets map[int64]sheets.Sheet, sheetId int64) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -139,7 +140,7 @@ func sheetSelect(sheets map[int64]Sheet, sheetId int64) templ.Component {
 	})
 }
 
-func index(sheets map[int64]Sheet, sheetId int64, tables []Table) templ.Component {
+func index(sheets map[int64]sheets.Sheet, sheetId int64, tables []sheets.Table) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -204,7 +205,7 @@ func index(sheets map[int64]Sheet, sheetId int64, tables []Table) templ.Componen
 			if err != nil {
 				return err
 			}
-			if table.TableName == sheets[sheetId].table.TableName {
+			if table.FullName() == sheets[sheetId].TableFullName() {
 				_, err = templBuffer.WriteString(" selected")
 				if err != nil {
 					return err

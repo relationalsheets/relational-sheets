@@ -1,51 +1,20 @@
 package main
 
 import (
-	"net/http"
-	"os"
-	"strconv"
-
-	"github.com/a-h/templ"
+	"acb/db-interface/sheets"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/jmoiron/sqlx"
+	"net/http"
 )
 
-var conn *sqlx.DB
-
-func Open() {
-	var err error
-	conn, err = sqlx.Open("pgx", os.Getenv("DATABASE_URL"))
-	check(err)
-}
-
-func WriteError(w http.ResponseWriter, text string) {
-	w.Header().Add("Content-Type", "text/html")
-	w.WriteHeader(http.StatusBadRequest)
-	w.Write([]byte("<span class=\"error\">" + text + "</span>"))
-}
-
-func handleIndex(w http.ResponseWriter, r *http.Request) {
-	sheetIdStr := r.URL.Query().Get("sheet_id")
-	sheetId := int64(0)
-	var err error
-	if sheetIdStr != "" {
-		sheetId, err = strconv.ParseInt(sheetIdStr, 10, 64)
-		check(err)
-		globalSheet = sheetMap[sheetId]
-		globalSheet.LoadSheet()
-	}
-	templ.Handler(index(sheetMap, sheetId, tables)).ServeHTTP(w, r)
-}
-
 func main() {
-	Open()
+	conn := sheets.Open()
 	defer conn.Close()
 
-	InitSheetsTables()
-	InitPrefsTable()
+	sheets.InitSheetsTables()
+	sheets.InitPrefsTable()
 
-	GetTables()
-	LoadSheets()
+	sheets.GetTables()
+	sheets.LoadSheets()
 
 	http.HandleFunc("/sheet", handleSheet)
 	http.HandleFunc("/table", handleSetTable)
@@ -60,5 +29,5 @@ func main() {
 
 	http.HandleFunc("/", handleIndex)
 
-	check(http.ListenAndServe(":8080", nil))
+	http.ListenAndServe(":8080", nil)
 }
