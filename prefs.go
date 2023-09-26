@@ -71,13 +71,6 @@ func (s *Sheet) LoadPrefs() {
 	}
 }
 
-func (s *Sheet) LoadSheet() {
-	SetCols(&s.table)
-	SetConstraints(&s.table)
-	s.LoadPrefs()
-	s.LoadCols()
-}
-
 func handleSetColPref(w http.ResponseWriter, r *http.Request) {
 	colName := r.FormValue("col_name")
 	if colName == "" {

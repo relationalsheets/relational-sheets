@@ -1,6 +1,6 @@
 package main
 
-func EvalFormula(s Sheet, formula string) SheetCell {
+func (s *Sheet) EvalFormula(formula string) SheetCell {
 	// TODO: support non-literal formulas
-	return SheetCell{Cell{formula, false}, formula}
+	return SheetCell{Cell{formula, formula != ""}, formula}
 }

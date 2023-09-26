@@ -26,6 +26,21 @@ templ addColButton() {
     </button>
 }
 
+templ extraCell(i, j int, cell SheetCell) {
+    <td class={ "extra-cell", templ.KV("is-null", !cell.NotNull) }>
+        <input name="formula"
+               class="extra-cell-formula hide"
+               value={ cell.formula }
+               hx-post="/set-cell"
+               hx-vals={ fmt.Sprintf("{\"i\":%d,\"j\":%d}", i, j) }
+               hx-target="closest td"
+               hx-swap="outerHTML"/>
+        <span class="extra-cell-value">
+            { cell.Value }
+        </span>
+    </td>
+}
+
 templ sheet(name string, cols []Column, extraCols []SheetColumn, cells [][]Cell) {
     <thead>
         <tr id="header-row">
@@ -94,16 +109,7 @@ templ sheet(name string, cols []Column, extraCols []SheetColumn, cells [][]Cell)
             </td>
         }
         for i, extraCol := range extraCols {
-            <td class={ templ.KV("is-null", !extraCol.cells[j].NotNull) }>
-                <input name={ fmt.Sprintf("custom-cell-%d,%d", i, j) }
-                       class="custom-cell-formula hide"
-                       value={ extraCol.cells[j].formula }
-                       hx-post="/set-cell"
-                       hx-target="next span" />
-                <span class="custom-cell-value">
-                    { extraCol.cells[j].Value }
-                </span>
-            </td>
+            @extraCell(i, j, extraCol.cells[j])
         }
         </tr>
     }

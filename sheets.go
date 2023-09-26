@@ -106,6 +106,30 @@ func (s *Sheet) SaveSheet() {
 	}
 }
 
+func (s *Sheet) loadCells() {
+	for i, col := range s.extraCols {
+		col.cells = make([]SheetCell, 100)
+		s.extraCols[i] = col
+	}
+
+	rows, err := conn.Query(`
+		SELECT i, j, formula
+		FROM db_interface.sheetcells
+		WHERE sheet_id = $1
+		ORDER BY i, j`,
+		s.Id)
+	check(err)
+
+	var formula string
+	var i, j int
+	for rows.Next() {
+		err = rows.Scan(&i, &j, &formula)
+		s.extraCols[i].cells[j] = s.EvalFormula(formula)
+	}
+
+	log.Println("Loaded custom column cells")
+}
+
 func (s *Sheet) LoadCols() {
 	s.extraCols = make([]SheetColumn, 0, 20)
 	err := conn.Select(&s.extraCols, `
@@ -115,11 +139,9 @@ func (s *Sheet) LoadCols() {
 		ORDER BY i`,
 		s.Id)
 	check(err)
-	for i, col := range s.extraCols {
-		col.cells = make([]SheetCell, 100)
-		s.extraCols[i] = col
-	}
 	log.Printf("Loaded %d custom columns", len(s.extraCols))
+
+	s.loadCells()
 }
 
 func (s *Sheet) SaveCol(i int) {
@@ -155,9 +177,16 @@ func LoadSheets() {
 	log.Printf("Loaded %d sheets", len(sheetMap))
 }
 
-func (s *Sheet) SetCell(i, j int, formula string) {
+func (s *Sheet) LoadSheet() {
+	SetCols(&s.table)
+	SetConstraints(&s.table)
+	s.LoadPrefs()
+	s.LoadCols()
+}
+
+func (s *Sheet) SetCell(i, j int, formula string) SheetCell {
 	column := s.extraCols[i]
-	column.cells[j] = EvalFormula(*s, formula)
+	column.cells[j] = s.EvalFormula(formula)
 	conn.MustExec(`
 		INSERT INTO db_interface.sheetcells (
 		    sheet_id
@@ -171,6 +200,7 @@ func (s *Sheet) SetCell(i, j int, formula string) {
 		i,
 		j,
 		formula)
+	return column.cells[j]
 }
 
 func (s *Sheet) AddColumn(name string) {
@@ -222,4 +252,17 @@ func handleRenameCol(w http.ResponseWriter, r *http.Request) {
 	globalSheet.extraCols[colIndex] = col
 	globalSheet.SaveCol(colIndex)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func handleSetCell(w http.ResponseWriter, r *http.Request) {
+	i, err := strconv.Atoi(r.FormValue("i"))
+	check(err)
+	j, err := strconv.Atoi(r.FormValue("j"))
+	check(err)
+	formula := r.FormValue("formula")
+
+	cell := globalSheet.SetCell(i, j, formula)
+
+	handler := templ.Handler(extraCell(i, j, cell))
+	handler.ServeHTTP(w, r)
 }

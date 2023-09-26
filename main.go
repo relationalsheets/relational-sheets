@@ -53,6 +53,7 @@ func main() {
 	http.HandleFunc("/add-column", handleAddCol)
 	http.HandleFunc("/rename-column", handleRenameCol)
 	http.HandleFunc("/set-column-prefs", handleSetColPref)
+	http.HandleFunc("/set-cell", handleSetCell)
 
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
