@@ -32,7 +32,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 		sheetId, err = strconv.ParseInt(sheetIdStr, 10, 64)
 		check(err)
 		globalSheet = sheetMap[sheetId]
-		globalSheet.LoadCols()
+		globalSheet.LoadSheet()
 	}
 	templ.Handler(index(sheetMap, sheetId, tables)).ServeHTTP(w, r)
 }
@@ -47,10 +47,12 @@ func main() {
 	GetTables()
 	LoadSheets()
 
-	http.HandleFunc("/table", handleTable)
 	http.HandleFunc("/sheet", handleSheet)
+	http.HandleFunc("/table", handleSetTable)
+	http.HandleFunc("/add-row", handleAddRow)
 	http.HandleFunc("/add-column", handleAddCol)
 	http.HandleFunc("/rename-column", handleRenameCol)
+	http.HandleFunc("/set-column-prefs", handleSetColPref)
 
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))

@@ -194,47 +194,43 @@ func InsertRow(sheet Sheet, values map[string]string) error {
 	return err
 }
 
-func handleTable(w http.ResponseWriter, r *http.Request) {
-	tableName := r.URL.Query().Get("table_name")
-	if tableName == "" {
-		if globalSheet.table.TableName == "" {
-			WriteError(w, "No table name provided")
-			return
-		}
-	} else {
-		globalSheet.table = tableMap[tableName]
-		globalSheet.SaveSheet()
+func reRenderSheet(w http.ResponseWriter, r *http.Request) {
+	if globalSheet.table.TableName == "" {
+		WriteError(w, "No table name provided")
+		return
 	}
-
-	SetCols(&globalSheet.table)
-	SetConstraints(&globalSheet.table)
-	globalSheet.LoadPrefs()
-
-	if r.Method == "POST" {
-		colName := r.FormValue("column")
-		if colName != "" {
-			pref := globalSheet.prefsMap[colName]
-			pref.Hide = r.FormValue("hide") == "true"
-			globalSheet.prefsMap[colName] = pref
-			WritePref(globalSheet, colName)
-		} else {
-			values := make(map[string]string)
-			for key, value := range r.Form {
-				colName, found := strings.CutPrefix(key, "column-")
-				if found {
-					values[colName] = value[0]
-				}
-			}
-
-			err := InsertRow(globalSheet, values)
-			if err != nil {
-				WriteError(w, err.Error())
-				return
-			}
-		}
-	}
-
 	cells := GetRows(globalSheet, 100, 0)
 	handler := templ.Handler(RenderSheet(globalSheet, cells))
 	handler.ServeHTTP(w, r)
+}
+
+func handleSetTable(w http.ResponseWriter, r *http.Request) {
+	tableName := r.URL.Query().Get("table_name")
+	if tableName == "" {
+		WriteError(w, "No table name provided")
+		return
+	}
+	globalSheet.table = tableMap[tableName]
+	globalSheet.SaveSheet()
+	globalSheet.LoadSheet()
+
+	reRenderSheet(w, r)
+}
+
+func handleAddRow(w http.ResponseWriter, r *http.Request) {
+	values := make(map[string]string)
+	for key, value := range r.Form {
+		colName, found := strings.CutPrefix(key, "column-")
+		if found {
+			values[colName] = value[0]
+		}
+	}
+
+	err := InsertRow(globalSheet, values)
+	if err != nil {
+		WriteError(w, err.Error())
+		return
+	}
+
+	reRenderSheet(w, r)
 }

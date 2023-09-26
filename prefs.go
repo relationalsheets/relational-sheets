@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net/http"
 )
 
 type Pref struct {
@@ -68,4 +69,24 @@ func (s *Sheet) LoadPrefs() {
 	for _, pref := range prefs {
 		s.prefsMap[pref.ColumnName] = pref
 	}
+}
+
+func (s *Sheet) LoadSheet() {
+	SetCols(&s.table)
+	SetConstraints(&s.table)
+	s.LoadPrefs()
+	s.LoadCols()
+}
+
+func handleSetColPref(w http.ResponseWriter, r *http.Request) {
+	colName := r.FormValue("col_name")
+	if colName == "" {
+		WriteError(w, "Missing required key: col_name")
+	}
+	pref := globalSheet.prefsMap[colName]
+	pref.Hide = r.FormValue("hide") == "true"
+	globalSheet.prefsMap[colName] = pref
+	WritePref(globalSheet, colName)
+
+	reRenderSheet(w, r)
 }

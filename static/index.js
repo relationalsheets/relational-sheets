@@ -1,3 +1,4 @@
+htmx.logAll()
 let shiftPressed = false;
 document.addEventListener("keydown", function (event) {
     shiftPressed = event.shiftKey;

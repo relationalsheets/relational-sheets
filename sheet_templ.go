@@ -26,15 +26,15 @@ func colName(name string) templ.Component {
 			var_1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, err = templBuffer.WriteString("<span hx-vals=\"")
+		_, err = templBuffer.WriteString("<span hx-post=\"/set-column-prefs\" hx-vals=\"")
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString(templ.EscapeString(fmt.Sprintf("js:{col_name:%s,hide:shiftPressed}", name)))
+		_, err = templBuffer.WriteString(templ.EscapeString(fmt.Sprintf("js:{col_name:\"%s\",hide:shiftPressed}", name)))
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("\" hx-post=\"/table\">")
+		_, err = templBuffer.WriteString("\">")
 		if err != nil {
 			return err
 		}
@@ -232,7 +232,7 @@ func sheet(name string, cols []Column, extraCols []SheetColumn, cells [][]Cell) 
 				}
 			}
 		}
-		_, err = templBuffer.WriteString("</tr></thead><tbody><tr id=\"new-row\" class=\"hide\"><td style=\"border-bottom: none\"><button hx-post=\"/table\" hx-include=\"#new-row\" hx-target-400=\"#new-row-err\">")
+		_, err = templBuffer.WriteString("</tr></thead><tbody><tr id=\"new-row\" class=\"hide\"><td style=\"border-bottom: none\"><button hx-post=\"/add-row\" hx-include=\"#new-row\" hx-target-400=\"#new-row-err\">")
 		if err != nil {
 			return err
 		}
