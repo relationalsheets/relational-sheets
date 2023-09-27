@@ -17,3 +17,13 @@ document.addEventListener("mousedown", function (event) {
         setTimeout(() => input.focus());
     }
 });
+document.addEventListener("focusout", function (event) {
+    let target = event.target;
+    if (target.classList.contains("extra-cell-formula")) {
+        target = target.parentElement;
+    }
+    if (target.classList.contains("extra-cell")) {
+        target.querySelector("span").classList.remove("hide");
+        target.querySelector("input").classList.add("hide");
+    }
+});

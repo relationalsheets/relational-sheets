@@ -63,7 +63,7 @@ func InitSheetsTables() {
 			, sheet_id INT NOT NULL
 			, i INTEGER NOT NULL
 			, j INTEGER NOT NULL
-			, Formula INTEGER NOT NULL
+			, formula VARCHAR(255) NOT NULL
 			, UNIQUE (sheet_id, i, j)
 			, CONSTRAINT fk_sheets
 				FOREIGN KEY (sheet_id)
@@ -126,7 +126,9 @@ func (s *Sheet) loadCells() {
 	var i, j int
 	for rows.Next() {
 		err = rows.Scan(&i, &j, &formula)
-		s.ExtraCols[i].Cells[j] = s.EvalFormula(formula)
+		Check(err)
+		s.ExtraCols[i].Cells[j], err = s.EvalFormula(formula)
+		Check(err)
 	}
 
 	log.Println("Loaded custom column Cells")
@@ -188,21 +190,23 @@ func (s *Sheet) LoadSheet() {
 
 func (s *Sheet) SetCell(i, j int, formula string) SheetCell {
 	column := s.ExtraCols[i]
-	column.Cells[j] = s.EvalFormula(formula)
+	cell, err := s.EvalFormula(formula)
+	Check(err)
+	column.Cells[j] = cell
 	conn.MustExec(`
 		INSERT INTO db_interface.sheetcells (
 		    sheet_id
 		    , i
 		    , j
-		    , Formula
+		    , formula
 		) VALUES ($1, $2, $3, $4)
 		ON CONFLICT (sheet_id, i, j) DO
-		UPDATE SET Formula = $4`,
+		UPDATE SET formula = $4`,
 		s.Id,
 		i,
 		j,
 		formula)
-	return column.Cells[j]
+	return cell
 }
 
 func (s *Sheet) AddColumn(name string) {
