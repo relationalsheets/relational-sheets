@@ -24,9 +24,7 @@ func handleSheet(w http.ResponseWriter, r *http.Request) {
 
 func handleAddCol(w http.ResponseWriter, r *http.Request) {
 	sheets.GlobalSheet.AddColumn("")
-	cells := sheets.GetRows(sheets.GlobalSheet, 100, 0)
-	handler := templ.Handler(RenderSheet(sheets.GlobalSheet, cells))
-	handler.ServeHTTP(w, r)
+	reRenderSheet(w, r)
 }
 
 func handleRenameCol(w http.ResponseWriter, r *http.Request) {
@@ -54,8 +52,7 @@ func reRenderSheet(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "No table name provided")
 		return
 	}
-	cells := sheets.GetRows(sheets.GlobalSheet, 100, 0)
-	handler := templ.Handler(RenderSheet(sheets.GlobalSheet, cells))
+	handler := templ.Handler(RenderSheet(sheets.GlobalSheet))
 	handler.ServeHTTP(w, r)
 }
 
@@ -80,6 +77,7 @@ func handleAddRow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err := sheets.InsertRow(sheets.GlobalSheet, values)
+	sheets.GlobalSheet.LoadCells(100, 0)
 	if err != nil {
 		writeError(w, err.Error())
 		return
@@ -109,6 +107,7 @@ func handleSetColPref(w http.ResponseWriter, r *http.Request) {
 	}
 	hide := r.FormValue("hide") == "true"
 	sheets.GlobalSheet.SetPref(colName, hide)
+	sheets.GlobalSheet.LoadCells(100, 0)
 
 	reRenderSheet(w, r)
 }

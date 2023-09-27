@@ -6,6 +6,8 @@ import (
 	"log"
 	"sort"
 	"strings"
+
+	"golang.org/x/exp/maps"
 )
 
 type TableNames struct {
@@ -25,6 +27,7 @@ type Column struct {
 	DataType     string
 	IsPrimaryKey bool
 	Index        int
+	Cells        []Cell
 }
 
 type Table struct {
@@ -32,6 +35,7 @@ type Table struct {
 	HasPrimaryKey bool
 	Cols          map[string]Column
 	Constraints   []Constraint
+	RowCount      int
 }
 
 type Cell struct {
@@ -46,19 +50,34 @@ func (table Table) FullName() string {
 	return fmt.Sprintf("%s.%s", table.SchemaName, table.TableName)
 }
 
-func (sheet Sheet) OrderedCols() []Column {
-	cols := make([]Column, 0, len(sheet.table.Cols))
+func (sheet Sheet) OrderedColNames() []string {
+	colNames := make([]string, 0, len(sheet.table.Cols))
+	indices := make([]int, 0, len(sheet.table.Cols))
 	for _, col := range sheet.table.Cols {
 		if !sheet.prefsMap[col.Name].Hide {
-			cols = append(cols, col)
+			colNames = append(colNames, col.Name)
+			indices = append(indices, col.Index)
 		}
 	}
-	sort.SliceStable(cols, func(i, j int) bool {
-		indexI := sheet.prefsMap[cols[i].Name].Index | cols[i].Index
-		indexJ := sheet.prefsMap[cols[j].Name].Index | cols[j].Index
+	sort.SliceStable(colNames, func(i, j int) bool {
+		indexI := sheet.prefsMap[colNames[i]].Index | indices[i]
+		indexJ := sheet.prefsMap[colNames[j]].Index | indices[j]
 		return indexI < indexJ
 	})
+	return colNames
+}
+
+func (sheet Sheet) OrderedCols() []Column {
+	colNames := sheet.OrderedColNames()
+	cols := make([]Column, len(colNames))
+	for i, name := range colNames {
+		cols[i] = sheet.table.Cols[name]
+	}
 	return cols
+}
+
+func (sheet Sheet) GetCol(name string) Column {
+	return sheet.table.Cols[name]
 }
 
 func GetTables() {
@@ -129,19 +148,19 @@ func SetConstraints(table *Table) {
 	}
 }
 
-func GetRows(sheet Sheet, limit int, offset int) [][]Cell {
-	cells := make([][]Cell, 0, limit)
-	cols := sheet.OrderedCols()
+func (sheet *Sheet) LoadCells(limit int, offset int) {
+	colNames := sheet.OrderedColNames()
 	// TODO: Check if table.TableName and column names are valid somewhere
-	casts := make([]string, 0, len(cols))
-	for i := 0; i < len(cols); i++ {
-		col := cols[i]
-		cast := fmt.Sprintf(
-			"\"%s\"::text, \"%s\" IS NOT NULL",
-			col.Name,
-			col.Name)
+	casts := make([]string, 0, len(colNames))
+	for _, name := range colNames {
+		col := sheet.table.Cols[name]
+		col.Cells = make([]Cell, limit)
+		sheet.table.Cols[name] = col
+
+		cast := fmt.Sprintf("\"%s\"::text, \"%s\" IS NOT NULL", name, name)
 		casts = append(casts, cast)
 	}
+
 	query := fmt.Sprintf(
 		"SELECT %s FROM %s LIMIT $1 OFFSET $2",
 		strings.Join(casts, ", "),
@@ -149,31 +168,31 @@ func GetRows(sheet Sheet, limit int, offset int) [][]Cell {
 	log.Printf("Executing: %s", query)
 	rows, err := conn.Queryx(query, limit, offset)
 	Check(err)
+
+	sheet.table.RowCount = 0
 	for rows.Next() {
 		scanResult, err := rows.SliceScan()
 		Check(err)
-		row := make([]Cell, len(casts))
 		for i := 0; i < len(casts); i++ {
 			val, _ := scanResult[2*i].(string)
-			row[i] = Cell{val, scanResult[2*i+1].(bool)}
+			sheet.table.Cols[colNames[i]].Cells[sheet.table.RowCount] = Cell{
+				val, scanResult[2*i+1].(bool),
+			}
 		}
-		cells = append(cells, row)
+		sheet.table.RowCount++
 	}
-	log.Printf("Retrieved %d rows from %s", len(cells), sheet.table.FullName())
+	log.Printf("Retrieved %d rows from %s", sheet.table.RowCount, sheet.table.FullName())
 	Check(rows.Close())
-	return cells
 }
 
 func InsertRow(sheet Sheet, values map[string]string) error {
-	cols := sheet.OrderedCols()
-	colNames := make([]string, 0, len(cols))
-	valueLabels := make([]string, 0, len(cols))
+	colNames := sheet.OrderedColNames()
+	valueLabels := make([]string, 0, len(colNames))
 	nonEmptyValues := make(map[string]interface{})
-	for _, col := range cols {
-		if values[col.Name] != "" {
-			nonEmptyValues[col.Name] = values[col.Name]
-			colNames = append(colNames, col.Name)
-			valueLabels = append(valueLabels, ":"+col.Name)
+	for _, name := range colNames {
+		if values[name] != "" {
+			nonEmptyValues[name] = values[name]
+			valueLabels = append(valueLabels, ":"+name)
 		}
 	}
 	if len(nonEmptyValues) == 0 {
@@ -183,7 +202,7 @@ func InsertRow(sheet Sheet, values map[string]string) error {
 	query := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES (%s)",
 		sheet.table.FullName(),
-		strings.Join(colNames, ", "),
+		strings.Join(maps.Keys(nonEmptyValues), ", "),
 		strings.Join(valueLabels, ", "))
 	log.Println("Executing:", query)
 	log.Println("Values:", nonEmptyValues)

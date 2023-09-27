@@ -190,7 +190,7 @@ func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 	})
 }
 
-func sheet(name string, cols []sheets.Column, ExtraCols []sheets.SheetColumn, cells [][]sheets.Cell) templ.Component {
+func sheet(name string, cols []sheets.Column, ExtraCols []sheets.SheetColumn, rowCount int) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -334,13 +334,13 @@ func sheet(name string, cols []sheets.Column, ExtraCols []sheets.SheetColumn, ce
 		if err != nil {
 			return err
 		}
-		for j, row := range cells {
+		for j := 0; j < rowCount; j++ {
 			_, err = templBuffer.WriteString("<tr class=\"body-row\"><td></td>")
 			if err != nil {
 				return err
 			}
-			for _, cell := range row {
-				var var_13 = []any{templ.KV("is-null", !cell.NotNull)}
+			for _, col := range cols {
+				var var_13 = []any{templ.KV("is-null", !col.Cells[j].NotNull)}
 				err = templ.RenderCSSItems(ctx, templBuffer, var_13...)
 				if err != nil {
 					return err
@@ -357,7 +357,7 @@ func sheet(name string, cols []sheets.Column, ExtraCols []sheets.SheetColumn, ce
 				if err != nil {
 					return err
 				}
-				var var_14 string = cell.Value
+				var var_14 string = col.Cells[j].Value
 				_, err = templBuffer.WriteString(templ.EscapeString(var_14))
 				if err != nil {
 					return err
@@ -389,6 +389,6 @@ func sheet(name string, cols []sheets.Column, ExtraCols []sheets.SheetColumn, ce
 	})
 }
 
-func RenderSheet(s sheets.Sheet, cells [][]sheets.Cell) templ.Component {
-	return sheet(s.TableFullName(), s.OrderedCols(), s.ExtraCols, cells)
+func RenderSheet(s sheets.Sheet) templ.Component {
+	return sheet(s.TableFullName(), s.OrderedCols(), s.ExtraCols, s.RowCount())
 }

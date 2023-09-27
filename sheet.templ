@@ -42,7 +42,7 @@ templ extraCell(i, j int, cell sheets.SheetCell) {
     </td>
 }
 
-templ sheet(name string, cols []sheets.Column, ExtraCols []sheets.SheetColumn, cells [][]sheets.Cell) {
+templ sheet(name string, cols []sheets.Column, ExtraCols []sheets.SheetColumn, rowCount int) {
     <thead>
         <tr id="header-row">
             <th>
@@ -101,12 +101,12 @@ templ sheet(name string, cols []sheets.Column, ExtraCols []sheets.SheetColumn, c
                 class="has-text-danger">
             </td>
         </tr>
-    for j, row := range cells {
+    for j := 0; j < rowCount; j++ {
         <tr class="body-row">
             <td></td>
-        for _, cell := range row {
-            <td class={ templ.KV("is-null", !cell.NotNull) }>
-                <span>{ cell.Value }</span>
+        for _, col := range cols {
+            <td class={ templ.KV("is-null", !col.Cells[j].NotNull) }>
+                <span>{ col.Cells[j].Value }</span>
             </td>
         }
         for i, extraCol := range ExtraCols {
@@ -117,6 +117,6 @@ templ sheet(name string, cols []sheets.Column, ExtraCols []sheets.SheetColumn, c
     </tbody>
 }
 
-func RenderSheet(s sheets.Sheet, cells [][]sheets.Cell) templ.Component {
-    return sheet(s.TableFullName(), s.OrderedCols(), s.ExtraCols, cells)
+func RenderSheet(s sheets.Sheet) templ.Component {
+    return sheet(s.TableFullName(), s.OrderedCols(), s.ExtraCols, s.RowCount())
 }

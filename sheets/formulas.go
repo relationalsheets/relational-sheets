@@ -20,7 +20,7 @@ func literalToken(val string) efp.Token {
 	return efp.Token{val, efp.TokenTypeOperand, efp.TokenSubTypeNumber}
 }
 
-func (s *Sheet) infixOperator(t1, t2 efp.Token, operand string) (string, error) {
+func (s *Sheet) infixOperator(t1, t2 efp.Token, operator string) (string, error) {
 	a, err := s.evalToken(t1)
 	if err != nil {
 		return "", err
@@ -32,9 +32,9 @@ func (s *Sheet) infixOperator(t1, t2 efp.Token, operand string) (string, error) 
 
 	aInt, err := strconv.Atoi(a)
 	bInt, err2 := strconv.Atoi(b)
-	if err == nil && err2 == nil && (operand != "/" || aInt%bInt == 0) {
+	if err == nil && err2 == nil && (operator != "/" || aInt%bInt == 0) {
 		var d int
-		switch operand {
+		switch operator {
 		case "*":
 			d = aInt * bInt
 		case "/":
@@ -59,7 +59,7 @@ func (s *Sheet) infixOperator(t1, t2 efp.Token, operand string) (string, error) 
 	}
 
 	var f float64
-	switch operand {
+	switch operator {
 	case "*":
 		f = aFloat * bFloat
 	case "/":
@@ -75,8 +75,44 @@ func (s *Sheet) infixOperator(t1, t2 efp.Token, operand string) (string, error) 
 }
 
 func (s *Sheet) evalToken(token efp.Token) (string, error) {
-	// TODO: handle non-literals
-	return token.TValue, nil
+	if token.TType != efp.TokenTypeOperand {
+		return "", errors.New("not an operand")
+	}
+	if token.TSubType == efp.TokenSubTypeNumber {
+		return token.TValue, nil
+	}
+	if token.TSubType == efp.TokenSubTypeRange {
+		if strings.Contains(token.TValue, ":") {
+			// TODO
+		}
+		colName := strings.TrimRight(token.TValue, "0123456789")
+		index, err := strconv.Atoi(token.TValue[len(colName):])
+		if err != nil {
+			return "", errors.New("invalid row index")
+		}
+		index-- // formulas index from 1
+		if index < 0 {
+			return "", errors.New("negative indices not allowed")
+		}
+		col, ok := s.table.Cols[colName]
+		if ok {
+			if index >= s.table.RowCount {
+				return "", errors.New("row index out of range")
+			}
+			return col.Cells[index].Value, nil
+		}
+		for _, extraCol := range s.ExtraCols {
+			if colName == extraCol.Name {
+				if index >= len(extraCol.Cells) {
+					// Not an error to reference beyond the sheet
+					return "", nil
+				}
+				return extraCol.Cells[index].Value, nil
+			}
+		}
+		return "", errors.New("invalid column name")
+	}
+	return "", errors.New("invalid formula")
 }
 
 func (s *Sheet) evalTokens(tokens []efp.Token) (string, error) {

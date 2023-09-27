@@ -34,6 +34,10 @@ func (s Sheet) VisibleName() string {
 	return s.Name
 }
 
+func (s Sheet) RowCount() int {
+	return s.table.RowCount
+}
+
 func InitSheetsTables() {
 	conn.MustExec(`
 		CREATE TABLE IF NOT EXISTS db_interface.sheets (
@@ -128,13 +132,15 @@ func (s *Sheet) loadCells() {
 		err = rows.Scan(&i, &j, &formula)
 		Check(err)
 		s.ExtraCols[i].Cells[j], err = s.EvalFormula(formula)
-		Check(err)
+		if err != nil {
+			log.Printf("Error loading cell %d,%d (%s): %s", i, j, formula, err)
+		}
 	}
 
 	log.Println("Loaded custom column Cells")
 }
 
-func (s *Sheet) loadCols() {
+func (s *Sheet) loadExtraCols() {
 	s.ExtraCols = make([]SheetColumn, 0, 20)
 	err := conn.Select(&s.ExtraCols, `
 		SELECT colname AS "name"
@@ -185,7 +191,8 @@ func (s *Sheet) LoadSheet() {
 	SetCols(&s.table)
 	SetConstraints(&s.table)
 	s.loadPrefs()
-	s.loadCols()
+	s.LoadCells(100, 0)
+	s.loadExtraCols()
 }
 
 func (s *Sheet) SetCell(i, j int, formula string) SheetCell {
