@@ -14,7 +14,7 @@ import (
 	"fmt"
 )
 
-func sheetSelect(sheets map[int64]sheets.Sheet, sheetId int64) templ.Component {
+func sheetSelect(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -40,7 +40,7 @@ func sheetSelect(sheets map[int64]sheets.Sheet, sheetId int64) templ.Component {
 		if err != nil {
 			return err
 		}
-		if sheetId == 0 {
+		if sheet.Id == 0 {
 			_, err = templBuffer.WriteString("<span>")
 			if err != nil {
 				return err
@@ -64,7 +64,7 @@ func sheetSelect(sheets map[int64]sheets.Sheet, sheetId int64) templ.Component {
 			if err != nil {
 				return err
 			}
-			var var_5 string = sheets[sheetId].VisibleName()
+			var var_5 string = sheet.VisibleName()
 			_, err = templBuffer.WriteString(templ.EscapeString(var_5))
 			if err != nil {
 				return err
@@ -78,8 +78,8 @@ func sheetSelect(sheets map[int64]sheets.Sheet, sheetId int64) templ.Component {
 		if err != nil {
 			return err
 		}
-		for _, sheet := range sheets {
-			var var_6 = []any{"dropdown-item", templ.KV("is-active", sheet.Id == sheetId)}
+		for _, s := range sheets {
+			var var_6 = []any{"dropdown-item", templ.KV("is-active", s.Id == sheet.Id)}
 			err = templ.RenderCSSItems(ctx, templBuffer, var_6...)
 			if err != nil {
 				return err
@@ -88,7 +88,7 @@ func sheetSelect(sheets map[int64]sheets.Sheet, sheetId int64) templ.Component {
 			if err != nil {
 				return err
 			}
-			var var_7 templ.SafeURL = templ.SafeURL(fmt.Sprintf("/?sheet_id=%d", sheet.Id))
+			var var_7 templ.SafeURL = templ.SafeURL(fmt.Sprintf("/?sheet_id=%d", s.Id))
 			_, err = templBuffer.WriteString(templ.EscapeString(string(var_7)))
 			if err != nil {
 				return err
@@ -105,7 +105,7 @@ func sheetSelect(sheets map[int64]sheets.Sheet, sheetId int64) templ.Component {
 			if err != nil {
 				return err
 			}
-			var var_8 string = sheet.VisibleName()
+			var var_8 string = s.VisibleName()
 			_, err = templBuffer.WriteString(templ.EscapeString(var_8))
 			if err != nil {
 				return err
@@ -119,7 +119,7 @@ func sheetSelect(sheets map[int64]sheets.Sheet, sheetId int64) templ.Component {
 			if err != nil {
 				return err
 			}
-			var var_10 string = fmt.Sprintf("%d", sheet.Id)
+			var var_10 string = fmt.Sprintf("%d", s.Id)
 			_, err = templBuffer.WriteString(templ.EscapeString(var_10))
 			if err != nil {
 				return err
@@ -140,7 +140,7 @@ func sheetSelect(sheets map[int64]sheets.Sheet, sheetId int64) templ.Component {
 	})
 }
 
-func index(sheets map[int64]sheets.Sheet, sheetId int64, tables []sheets.Table) templ.Component {
+func index(sheet sheets.Sheet, sheets map[int64]sheets.Sheet, tables []sheets.Table) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -175,7 +175,7 @@ func index(sheets map[int64]sheets.Sheet, sheetId int64, tables []sheets.Table) 
 		if err != nil {
 			return err
 		}
-		err = sheetSelect(sheets, sheetId).Render(ctx, templBuffer)
+		err = sheetSelect(sheet, sheets).Render(ctx, templBuffer)
 		if err != nil {
 			return err
 		}
@@ -205,7 +205,7 @@ func index(sheets map[int64]sheets.Sheet, sheetId int64, tables []sheets.Table) 
 			if err != nil {
 				return err
 			}
-			if table.FullName() == sheets[sheetId].TableFullName() {
+			if table.FullName() == sheet.TableFullName() {
 				_, err = templBuffer.WriteString(" selected")
 				if err != nil {
 					return err

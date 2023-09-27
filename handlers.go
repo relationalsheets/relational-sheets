@@ -19,7 +19,7 @@ func handleSheet(w http.ResponseWriter, r *http.Request) {
 	sheet := sheets.Sheet{Name: sheetName}
 	sheet.SaveSheet()
 	sheets.GlobalSheet = sheet
-	templ.Handler(sheetSelect(sheets.SheetMap, sheets.GlobalSheet.Id)).ServeHTTP(w, r)
+	templ.Handler(sheetSelect(sheets.GlobalSheet, sheets.SheetMap)).ServeHTTP(w, r)
 }
 
 func handleAddCol(w http.ResponseWriter, r *http.Request) {
@@ -90,7 +90,6 @@ func handleAddRow(w http.ResponseWriter, r *http.Request) {
 
 func handleIndex(w http.ResponseWriter, r *http.Request) {
 	sheetIdStr := r.URL.Query().Get("sheet_id")
-	sheetId := int64(0)
 	if sheetIdStr != "" {
 		sheetId, err := strconv.ParseInt(sheetIdStr, 10, 64)
 		if err != nil {
@@ -100,7 +99,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 		sheets.GlobalSheet = sheets.SheetMap[sheetId]
 		sheets.GlobalSheet.LoadSheet()
 	}
-	templ.Handler(index(sheets.SheetMap, sheetId, sheets.Tables)).ServeHTTP(w, r)
+	templ.Handler(index(sheets.GlobalSheet, sheets.SheetMap, sheets.Tables)).ServeHTTP(w, r)
 }
 
 func handleSetColPref(w http.ResponseWriter, r *http.Request) {

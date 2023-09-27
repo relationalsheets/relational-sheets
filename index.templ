@@ -5,26 +5,26 @@ import (
     "fmt"
 )
 
-templ sheetSelect(sheets map[int64]sheets.Sheet, sheetId int64) {
+templ sheetSelect(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) {
     <button hx-post="/sheet" hx-prompt="Sheet name" hx-target="#sheet-select">
         New
     </button>
     <div class="dropdown is-hoverable">
       <div class="dropdown-trigger">
         <button class="button" aria-haspopup="true" aria-controls="dropdown-menu">
-        if sheetId == 0 {
+        if sheet.Id == 0 {
             <span>Select Sheet</span>
         } else {
-            <span>Current Sheet: { sheets[sheetId].VisibleName() }</span>
+            <span>Current Sheet: { sheet.VisibleName() }</span>
         }
         </button>
       </div>
       <div class="dropdown-menu">
         <div class="dropdown-content">
-        for _, sheet := range sheets {
-            <a href={ templ.SafeURL(fmt.Sprintf("/?sheet_id=%d", sheet.Id)) }
-               class={ "dropdown-item", templ.KV( "is-active", sheet.Id == sheetId ) } >
-                { sheet.VisibleName() } - { fmt.Sprintf("%d", sheet.Id) }
+        for _, s := range sheets {
+            <a href={ templ.SafeURL(fmt.Sprintf("/?sheet_id=%d", s.Id)) }
+               class={ "dropdown-item", templ.KV( "is-active", s.Id == sheet.Id ) } >
+                { s.VisibleName() } - { fmt.Sprintf("%d", s.Id) }
             </a>
         }
         </div>
@@ -32,7 +32,7 @@ templ sheetSelect(sheets map[int64]sheets.Sheet, sheetId int64) {
     </div>
 }
 
-templ index(sheets map[int64]sheets.Sheet, sheetId int64, tables []sheets.Table) {
+templ index(sheet sheets.Sheet, sheets map[int64]sheets.Sheet, tables []sheets.Table) {
     <!DOCTYPE html>
     <html>
         <head>
@@ -45,7 +45,7 @@ templ index(sheets map[int64]sheets.Sheet, sheetId int64, tables []sheets.Table)
         <body>
             <div id="toolbar">
                 <div id="sheet-select">
-                    @sheetSelect(sheets, sheetId)
+                    @sheetSelect(sheet, sheets)
                 </div>
                 <div class="select table-select">
                     <select name="table_name"
@@ -55,7 +55,7 @@ templ index(sheets map[int64]sheets.Sheet, sheetId int64, tables []sheets.Table)
                         <option value="">Table</option>
                     for _, table := range tables {
                         <option value={ table.FullName() }
-                                selected?={ table.FullName() == sheets[sheetId].TableFullName() }>
+                                selected?={ table.FullName() == sheet.TableFullName() }>
                             { table.FullName() }
                         </option>
                     }
