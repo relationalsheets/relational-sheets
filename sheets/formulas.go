@@ -29,6 +29,26 @@ func (s *Sheet) infixOperator(t1, t2 efp.Token, operand string) (string, error) 
 	if err != nil {
 		return "", err
 	}
+
+	aInt, err := strconv.Atoi(a)
+	bInt, err2 := strconv.Atoi(b)
+	if err == nil && err2 == nil && (operand != "/" || aInt%bInt == 0) {
+		var d int
+		switch operand {
+		case "*":
+			d = aInt * bInt
+		case "/":
+			d = aInt / bInt
+		case "+":
+			d = aInt + bInt
+		case "-":
+			d = aInt - bInt
+		default:
+			return "", errors.New("invalid infix operator")
+		}
+		return strconv.Itoa(d), nil
+	}
+
 	aFloat, err := strconv.ParseFloat(a, 64)
 	if err != nil {
 		return "", err
