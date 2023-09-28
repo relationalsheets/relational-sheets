@@ -41,17 +41,19 @@ func checkFormulas(t *testing.T, sheet Sheet, formulasAndValues map[string]strin
 
 func TestEvalWithLiterals(t *testing.T) {
 	formulasAndValues := map[string]string{
-		"2":         "2",
-		"(2)":       "2",
-		"2+3":       "5",
-		"2+2.5":     "4.500000",
-		"2*3":       "6",
-		"2+2+2":     "6",
-		"2+(2+3)":   "7",
-		"(2+2)+3":   "7",
-		"2+2*3":     "8",
-		"(2+2)*3":   "12",
-		"2+(2+2)+2": "8",
+		"2":           "2",
+		"(2)":         "2",
+		"2+3":         "5",
+		"2+2.5":       "4.500000",
+		"2*3":         "6",
+		"2+2+2":       "6",
+		"2+(2+3)":     "7",
+		"(2+2)+3":     "7",
+		"2+2*3":       "8",
+		"(2+2)*3":     "12",
+		"2+(2+2)+2":   "8",
+		"IF(1=1,1,2)": "1",
+		"IF(1=0,1,2)": "2",
 	}
 	checkFormulas(t, Sheet{}, formulasAndValues)
 }

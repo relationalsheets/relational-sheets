@@ -173,68 +173,134 @@ var associativeFuncs = map[string]SQLAndGoFunc{
 	},
 }
 
-func (s *Sheet) evalFunction(fName string, arguments [][]efp.Token) (string, error) {
-	log.Printf("Evaluating: %s(%+v)", fName, arguments)
-	fName = strings.ToUpper(fName)
-	fDefs, isAssociativeFunc := associativeFuncs[fName]
-	if isAssociativeFunc {
-		val := fDefs.initialVal
+func (s *Sheet) evalAssociativeFunc(fDefs SQLAndGoFunc, arguments [][]efp.Token) (string, error) {
+	val := fDefs.initialVal
 
-		for _, arg := range arguments {
-			argVal := fDefs.initialVal
+	for _, arg := range arguments {
+		argVal := fDefs.initialVal
 
-			if len(arg) == 1 && arg[0].TSubType == efp.TokenSubTypeRange {
-				colName, start, end, err := parseRange(arg[0].TValue)
-				if err != nil {
-					return "", err
-				}
-				_, colExists := s.table.Cols[colName]
-				if colExists {
-					query := fmt.Sprintf(
-						"SELECT %s(sq.val) FROM (SELECT \"%s\" AS val FROM %s LIMIT $1 OFFSET $2) sq",
-						fDefs.sqlName,
-						colName,
-						s.TableFullName())
-					log.Printf("Executing %s (%d, %d)", query, end-start+1, start-1)
-					row := conn.QueryRow(query, end-start+1, start-1)
-					err = row.Scan(&argVal)
-					Check(err)
-				} else {
-					found := false
-					for _, col := range s.ExtraCols {
-						if col.Name == colName {
-							for _, cell := range col.Cells {
-								if cell.NotNull {
-									cellVal, err := strconv.ParseFloat(cell.Value, 64)
-									if err != nil {
-										return "", err
-									}
-									argVal = fDefs.goFunc(argVal, cellVal)
-								}
-							}
-							found = true
-							break
-						}
-					}
-					if !found {
-						return "", errors.New("no column named " + colName)
-					}
-				}
+		if len(arg) == 1 && arg[0].TSubType == efp.TokenSubTypeRange {
+			colName, start, end, err := parseRange(arg[0].TValue)
+			if err != nil {
+				return "", err
+			}
+			_, colExists := s.table.Cols[colName]
+			if colExists {
+				query := fmt.Sprintf(
+					"SELECT %s(sq.val) FROM (SELECT \"%s\" AS val FROM %s LIMIT $1 OFFSET $2) sq",
+					fDefs.sqlName,
+					colName,
+					s.TableFullName())
+				log.Printf("Executing %s (%d, %d)", query, end-start+1, start-1)
+				row := conn.QueryRow(query, end-start+1, start-1)
+				err = row.Scan(&argVal)
+				Check(err)
 			} else {
-				argValStr, err := s.evalTokens(arg)
-				if err != nil {
-					return "", nil
+				found := false
+				for _, col := range s.ExtraCols {
+					if col.Name == colName {
+						for _, cell := range col.Cells {
+							if cell.NotNull {
+								cellVal, err := strconv.ParseFloat(cell.Value, 64)
+								if err != nil {
+									return "", err
+								}
+								argVal = fDefs.goFunc(argVal, cellVal)
+							}
+						}
+						found = true
+						break
+					}
 				}
-				argVal, err = strconv.ParseFloat(argValStr, 64)
-				if err != nil {
-					return "", errors.New("invalid non-numeric argument to SUM: " + argValStr)
+				if !found {
+					return "", errors.New("no column named " + colName)
 				}
 			}
-
-			val = fDefs.goFunc(val, argVal)
+		} else {
+			argValStr, err := s.evalTokens(arg)
+			if err != nil {
+				return "", nil
+			}
+			argVal, err = strconv.ParseFloat(argValStr, 64)
+			if err != nil {
+				return "", errors.New("invalid non-numeric argument to SUM: " + argValStr)
+			}
 		}
 
-		return fmt.Sprintf("%f", val), nil
+		val = fDefs.goFunc(val, argVal)
+	}
+
+	return fmt.Sprintf("%f", val), nil
+}
+
+func (s *Sheet) evalLogicalExpression(tokens []efp.Token) (bool, error) {
+	log.Printf("Evaluating logical expression: %+v", tokens)
+
+	operator := ""
+	first, second := []efp.Token{}, []efp.Token{}
+	for _, t := range tokens {
+		if t.TSubType == efp.TokenSubTypeLogical {
+			if operator != "" {
+				return false, errors.New("multiple logical operators in single expression")
+			}
+			operator = t.TValue
+			continue
+		}
+		if operator == "" {
+			first = append(first, t)
+		} else {
+			second = append(second, t)
+		}
+	}
+	if operator == "" {
+		return false, errors.New("not a logical expression")
+	}
+
+	firstVal, err := s.evalTokens(first)
+	if err != nil {
+		return false, err
+	}
+	secondVal, err := s.evalTokens(second)
+	if err != nil {
+		return false, err
+	}
+
+	switch operator {
+	case "=":
+		return firstVal == secondVal, nil
+	default:
+		return false, errors.New("unsupported logical operator: " + operator)
+	}
+}
+
+func (s *Sheet) evalIf(arguments [][]efp.Token) (string, error) {
+	if len(arguments) != 3 {
+		return "", errors.New("wrong number of arguments for IF")
+	}
+
+	condition, err := s.evalLogicalExpression(arguments[0])
+	if err != nil {
+		return "", err
+	}
+
+	if condition {
+		return s.evalTokens(arguments[1])
+	} else {
+		return s.evalTokens(arguments[2])
+	}
+}
+
+func (s *Sheet) evalFunction(fName string, arguments [][]efp.Token) (string, error) {
+	fName = strings.ToUpper(fName)
+	log.Printf("Evaluating: %s(%+v)", fName, arguments)
+
+	fDefs, isAssociativeFunc := associativeFuncs[fName]
+	if isAssociativeFunc {
+		return s.evalAssociativeFunc(fDefs, arguments)
+	}
+
+	if fName == "IF" {
+		return s.evalIf(arguments)
 	}
 
 	return "", errors.New("unsupported function: " + fName)
