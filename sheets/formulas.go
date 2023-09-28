@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/xuri/efp"
 	"log"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -146,13 +147,42 @@ func (s *Sheet) evalToken(token efp.Token) (string, error) {
 	return "", errors.New("invalid formula")
 }
 
+type SQLAndGoFunc struct {
+	sqlName    string
+	goFunc     func(float64, float64) float64
+	initialVal float64
+}
+
+var associativeFuncs = map[string]SQLAndGoFunc{
+	"SUM": {
+		"SUM",
+		func(a, b float64) float64 {
+			return a + b
+		},
+		0,
+	},
+	"MAX": {
+		"MAX",
+		math.Max,
+		0,
+	},
+	"MIN": {
+		"MIN",
+		math.Min,
+		math.MaxFloat64,
+	},
+}
+
 func (s *Sheet) evalFunction(fName string, arguments [][]efp.Token) (string, error) {
 	log.Printf("Evaluating: %s(%+v)", fName, arguments)
 	fName = strings.ToUpper(fName)
-	if fName == "SUM" {
-		sum := float64(0)
+	fDefs, isAssociativeFunc := associativeFuncs[fName]
+	if isAssociativeFunc {
+		val := fDefs.initialVal
+
 		for _, arg := range arguments {
-			argVal := float64(0)
+			argVal := fDefs.initialVal
+
 			if len(arg) == 1 && arg[0].TSubType == efp.TokenSubTypeRange {
 				colName, start, end, err := parseRange(arg[0].TValue)
 				if err != nil {
@@ -161,7 +191,8 @@ func (s *Sheet) evalFunction(fName string, arguments [][]efp.Token) (string, err
 				_, colExists := s.table.Cols[colName]
 				if colExists {
 					query := fmt.Sprintf(
-						"SELECT SUM(sq.val) FROM (SELECT \"%s\" AS val FROM %s LIMIT $1 OFFSET $2) sq",
+						"SELECT %s(sq.val) FROM (SELECT \"%s\" AS val FROM %s LIMIT $1 OFFSET $2) sq",
+						fDefs.sqlName,
 						colName,
 						s.TableFullName())
 					log.Printf("Executing %s (%d, %d)", query, end-start+1, start-1)
@@ -174,11 +205,11 @@ func (s *Sheet) evalFunction(fName string, arguments [][]efp.Token) (string, err
 						if col.Name == colName {
 							for _, cell := range col.Cells {
 								if cell.NotNull {
-									argVal, err := strconv.ParseFloat(cell.Value, 64)
+									cellVal, err := strconv.ParseFloat(cell.Value, 64)
 									if err != nil {
 										return "", err
 									}
-									sum += argVal
+									argVal = fDefs.goFunc(argVal, cellVal)
 								}
 							}
 							found = true
@@ -200,10 +231,10 @@ func (s *Sheet) evalFunction(fName string, arguments [][]efp.Token) (string, err
 				}
 			}
 
-			sum += argVal
+			val = fDefs.goFunc(val, argVal)
 		}
 
-		return fmt.Sprintf("%f", sum), nil
+		return fmt.Sprintf("%f", val), nil
 	}
 
 	return "", errors.New("unsupported function: " + fName)
