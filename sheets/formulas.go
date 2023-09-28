@@ -158,15 +158,37 @@ func (s *Sheet) evalFunction(fName string, arguments [][]efp.Token) (string, err
 				if err != nil {
 					return "", err
 				}
-
-				query := fmt.Sprintf(
-					"SELECT SUM(sq.val) FROM (SELECT \"%s\" AS val FROM %s LIMIT $1 OFFSET $2) sq",
-					colName,
-					s.TableFullName())
-				log.Printf("Executing %s (%d, %d)", query, end-start+1, start)
-				row := conn.QueryRow(query, end-start+1, start)
-				err = row.Scan(&argVal)
-				Check(err)
+				_, colExists := s.table.Cols[colName]
+				if colExists {
+					query := fmt.Sprintf(
+						"SELECT SUM(sq.val) FROM (SELECT \"%s\" AS val FROM %s LIMIT $1 OFFSET $2) sq",
+						colName,
+						s.TableFullName())
+					log.Printf("Executing %s (%d, %d)", query, end-start+1, start)
+					row := conn.QueryRow(query, end-start+1, start)
+					err = row.Scan(&argVal)
+					Check(err)
+				} else {
+					found := false
+					for _, col := range s.ExtraCols {
+						if col.Name == colName {
+							for _, cell := range col.Cells {
+								if cell.NotNull {
+									argVal, err := strconv.ParseFloat(cell.Value, 64)
+									if err != nil {
+										return "", err
+									}
+									sum += argVal
+								}
+							}
+							found = true
+							break
+						}
+					}
+					if !found {
+						return "", errors.New("no column named " + colName)
+					}
+				}
 			} else {
 				argValStr, err := s.evalTokens(arg)
 				if err != nil {
@@ -267,7 +289,9 @@ func (s *Sheet) evalTokens(tokens []efp.Token) (string, error) {
 			for j, nt := range tokens[end+1:] {
 				tokens[i+j+1] = nt
 			}
-			return s.evalTokens(tokens[:len(tokens)+i-end-1])
+			tokens = tokens[:len(tokens)+i-end]
+			log.Printf("After evaluating function: %+v", tokens)
+			return s.evalTokens(tokens)
 		}
 	}
 

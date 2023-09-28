@@ -27,3 +27,50 @@ func TestEvalWithLiterals(t *testing.T) {
 		}
 	}
 }
+
+func TestEvalWithExtraCols(t *testing.T) {
+	sheet := Sheet{
+		ExtraCols: []SheetColumn{
+			{
+				Name: "A",
+				Cells: []SheetCell{
+					{
+						Cell:    Cell{Value: "1", NotNull: true},
+						Formula: "",
+					},
+					{
+						Cell:    Cell{Value: "2", NotNull: true},
+						Formula: "",
+					},
+				},
+			},
+			{
+				Name: "B",
+				Cells: []SheetCell{
+					{
+						Cell:    Cell{Value: "3", NotNull: true},
+						Formula: "",
+					},
+					{},
+				},
+			},
+		},
+	}
+	formulasAndValues := map[string]string{
+		"A1":               "1",
+		"A2":               "2",
+		"SUM(A1:A2)":       "3.000000",
+		"A1+B1":            "4",
+		"A1+4":             "5",
+		"SUM(A1:A2,B1:B2)": "6.000000",
+	}
+	for formula, expected := range formulasAndValues {
+		actual, err := sheet.EvalFormula("=" + formula)
+		if err != nil {
+			t.Fatalf("%s: %s", formula, err)
+		}
+		if actual.Value != expected {
+			t.Fatalf("%s: %s != %s", formula, actual.Value, expected)
+		}
+	}
+}
