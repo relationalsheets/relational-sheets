@@ -208,7 +208,7 @@ func (s *Sheet) evalTokens(tokens []efp.Token) (string, error) {
 					indent--
 				}
 				if indent == 0 && nt.TType == efp.TokenTypeSubexpression && nt.TSubType == efp.TokenSubTypeStop {
-					end = j
+					end = i + 1 + j
 					break
 				}
 			}
@@ -217,6 +217,7 @@ func (s *Sheet) evalTokens(tokens []efp.Token) (string, error) {
 			}
 
 			val, err := s.evalTokens(tokens[i+1 : end])
+			log.Printf("Subexpression: %d:%d", i+1, end)
 			if err != nil {
 				return "", err
 			}
@@ -225,7 +226,9 @@ func (s *Sheet) evalTokens(tokens []efp.Token) (string, error) {
 			for j, nt := range tokens[end+1:] {
 				tokens[i+j+1] = nt
 			}
-			return s.evalTokens(tokens[:len(tokens)+i-end-1])
+			tokens = tokens[:len(tokens)+i-end]
+			log.Printf("After evaluating subexpression: %+v", tokens)
+			return s.evalTokens(tokens)
 		}
 	}
 
@@ -242,7 +245,7 @@ func (s *Sheet) evalTokens(tokens []efp.Token) (string, error) {
 					indent--
 				}
 				if indent == 0 && nt.TType == efp.TokenTypeFunction && nt.TSubType == efp.TokenSubTypeStop {
-					end = j
+					end = i + 1 + j
 					break
 				}
 				if indent == 1 && nt.TType == efp.TokenTypeArgument {
