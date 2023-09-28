@@ -80,7 +80,7 @@ func (sheet Sheet) GetCol(name string) Column {
 	return sheet.table.Cols[name]
 }
 
-func GetTables() {
+func LoadTables() {
 	err := conn.Select(&Tables, `
 		SELECT COALESCE(tablename, '') tablename
 			, COALESCE(schemaname, '') schemaname
@@ -119,12 +119,14 @@ func SetCols(table *Table) {
 func SetConstraints(table *Table) {
 	table.Constraints = make([]Constraint, 0, 10)
 	err := conn.Select(&table.Constraints, `
-		SELECT conname "name"
-			, contype constrainttype
-     		, pg_get_constraintdef(oid) def
-		FROM pg_constraint
-		WHERE conrelid = $1::regclass
-			AND connamespace = $2::regnamespace`,
+		SELECT x.conname "name"
+			, x.contype constrainttype
+			, pg_get_constraintdef(x.oid) def
+		FROM pg_catalog.pg_constraint x
+		INNER JOIN pg_catalog.pg_class pk ON x.conrelid!=0 AND x.conrelid=pk.oid
+		INNER JOIN pg_catalog.pg_class fk ON x.confrelid!=0 AND x.confrelid=fk.oid
+		WHERE pk.relname = $1
+			AND pk.relnamespace = $2::regnamespace`,
 		table.TableName,
 		table.SchemaName)
 	Check(err)

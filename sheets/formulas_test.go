@@ -1,9 +1,45 @@
 package sheets
 
-import "testing"
+import (
+	"testing"
+)
+
+func setupDB() func() {
+	Open()
+	conn.MustExec("CREATE SCHEMA IF NOT EXISTS db_interface_test")
+	conn.MustExec("DROP TABLE IF EXISTS db_interface_test.foo")
+	conn.MustExec(
+		`CREATE TABLE db_interface_test.foo (
+			bar INT
+			, baz FLOAT
+		)`)
+	conn.MustExec(
+		`INSERT INTO db_interface_test.foo VALUES
+			(1, 2)
+			, (3, 4)
+			, (5, 6)
+		`)
+	LoadTables()
+
+	return func() {
+		//conn.MustExec("DROP TABLE IF EXISTS db_interface_test.foo")
+		Check(conn.Close())
+	}
+}
+
+func checkFormulas(t *testing.T, sheet Sheet, formulasAndValues map[string]string) {
+	for formula, expected := range formulasAndValues {
+		actual, err := sheet.EvalFormula("=" + formula)
+		if err != nil {
+			t.Fatalf("%s: %s", formula, err)
+		}
+		if actual.Value != expected {
+			t.Fatalf("%s: %s != %s", formula, actual.Value, expected)
+		}
+	}
+}
 
 func TestEvalWithLiterals(t *testing.T) {
-	sheet := Sheet{}
 	formulasAndValues := map[string]string{
 		"2":         "2",
 		"(2)":       "2",
@@ -17,15 +53,7 @@ func TestEvalWithLiterals(t *testing.T) {
 		"(2+2)*3":   "12",
 		"2+(2+2)+2": "8",
 	}
-	for formula, expected := range formulasAndValues {
-		actual, err := sheet.EvalFormula("=" + formula)
-		if err != nil {
-			t.Fatalf("%s: %s", formula, err)
-		}
-		if actual.Value != expected {
-			t.Fatalf("%s: %s != %s", formula, actual.Value, expected)
-		}
-	}
+	checkFormulas(t, Sheet{}, formulasAndValues)
 }
 
 func TestEvalWithExtraCols(t *testing.T) {
@@ -64,13 +92,21 @@ func TestEvalWithExtraCols(t *testing.T) {
 		"A1+4":             "5",
 		"SUM(A1:A2,B1:B2)": "6.000000",
 	}
-	for formula, expected := range formulasAndValues {
-		actual, err := sheet.EvalFormula("=" + formula)
-		if err != nil {
-			t.Fatalf("%s: %s", formula, err)
-		}
-		if actual.Value != expected {
-			t.Fatalf("%s: %s != %s", formula, actual.Value, expected)
-		}
+	checkFormulas(t, sheet, formulasAndValues)
+}
+
+func TestEvalWithDB(t *testing.T) {
+	teardown := setupDB()
+	defer teardown()
+
+	sheet := Sheet{}
+	sheet.SetTable("db_interface_test.foo")
+
+	formulasAndValues := map[string]string{
+		"SUM(bar1:bar1)":   "1.000000",
+		"SUM(bar1:bar3)":   "9.000000",
+		"SUM(baz1:baz3)":   "12.000000",
+		"SUM(bar1:bar1,2)": "3.000000",
 	}
+	checkFormulas(t, sheet, formulasAndValues)
 }

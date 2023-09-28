@@ -3,6 +3,8 @@ package sheets
 import (
 	"github.com/jmoiron/sqlx"
 	"os"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 var conn *sqlx.DB

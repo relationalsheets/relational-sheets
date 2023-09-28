@@ -2,7 +2,6 @@ package main
 
 import (
 	"acb/db-interface/sheets"
-	_ "github.com/jackc/pgx/v5/stdlib"
 	"net/http"
 )
 
@@ -13,7 +12,7 @@ func main() {
 	sheets.InitSheetsTables()
 	sheets.InitPrefsTable()
 
-	sheets.GetTables()
+	sheets.LoadTables()
 	sheets.LoadSheets()
 
 	http.HandleFunc("/sheet", handleSheet)

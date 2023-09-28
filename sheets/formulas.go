@@ -164,8 +164,8 @@ func (s *Sheet) evalFunction(fName string, arguments [][]efp.Token) (string, err
 						"SELECT SUM(sq.val) FROM (SELECT \"%s\" AS val FROM %s LIMIT $1 OFFSET $2) sq",
 						colName,
 						s.TableFullName())
-					log.Printf("Executing %s (%d, %d)", query, end-start+1, start)
-					row := conn.QueryRow(query, end-start+1, start)
+					log.Printf("Executing %s (%d, %d)", query, end-start+1, start-1)
+					row := conn.QueryRow(query, end-start+1, start-1)
 					err = row.Scan(&argVal)
 					Check(err)
 				} else {
