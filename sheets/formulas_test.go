@@ -7,7 +7,6 @@ import (
 func setupDB() func() {
 	Open()
 	conn.MustExec("CREATE SCHEMA IF NOT EXISTS db_interface_test")
-	conn.MustExec("DROP TABLE IF EXISTS db_interface_test.foo")
 	conn.MustExec(
 		`CREATE TABLE db_interface_test.foo (
 			bar INT
@@ -22,7 +21,7 @@ func setupDB() func() {
 	LoadTables()
 
 	return func() {
-		//conn.MustExec("DROP TABLE IF EXISTS db_interface_test.foo")
+		conn.MustExec("DROP TABLE IF EXISTS db_interface_test.foo")
 		Check(conn.Close())
 	}
 }
