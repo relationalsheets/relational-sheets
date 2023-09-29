@@ -24,6 +24,10 @@ func literalToken(val string) efp.Token {
 	return efp.Token{val, efp.TokenTypeOperand, efp.TokenSubTypeNumber}
 }
 
+func formatFloat(val float64) string {
+	return strconv.FormatFloat(val, 'f', -1, 64)
+}
+
 func parseRange(r string) (string, int, int, error) {
 	if strings.Contains(r, ":") {
 		split := strings.Split(r, ":")
@@ -66,25 +70,6 @@ func (s *Sheet) infixOperator(t1, t2 efp.Token, operator string) (string, error)
 		return "", err
 	}
 
-	aInt, err := strconv.Atoi(a)
-	bInt, err2 := strconv.Atoi(b)
-	if err == nil && err2 == nil && (operator != "/" || aInt%bInt == 0) {
-		var d int
-		switch operator {
-		case "*":
-			d = aInt * bInt
-		case "/":
-			d = aInt / bInt
-		case "+":
-			d = aInt + bInt
-		case "-":
-			d = aInt - bInt
-		default:
-			return "", errors.New("invalid infix operator")
-		}
-		return strconv.Itoa(d), nil
-	}
-
 	aFloat, err := strconv.ParseFloat(a, 64)
 	if err != nil {
 		return "", err
@@ -107,7 +92,7 @@ func (s *Sheet) infixOperator(t1, t2 efp.Token, operator string) (string, error)
 	default:
 		return "", errors.New("invalid infix operator")
 	}
-	return fmt.Sprintf("%f", f), nil
+	return formatFloat(f), nil
 }
 
 func (s *Sheet) evalToken(token efp.Token) (string, error) {
@@ -230,7 +215,7 @@ func (s *Sheet) evalAssociativeFunc(fDefs SQLAndGoFunc, arguments [][]efp.Token)
 		val = fDefs.goFunc(val, argVal)
 	}
 
-	return fmt.Sprintf("%f", val), nil
+	return formatFloat(val), nil
 }
 
 func (s *Sheet) evalLogicalExpression(tokens []efp.Token) (bool, error) {
@@ -315,6 +300,25 @@ func (s *Sheet) evalTokens(tokens []efp.Token) (string, error) {
 		return s.evalToken(tokens[0])
 	}
 
+	// Prefix
+	if tokens[0].TType == efp.TokenTypeOperatorPrefix {
+		if tokens[0].TValue != "-" {
+			return "", errors.New("invalid prefix operator " + tokens[0].TValue)
+		}
+
+		val, err := s.evalTokens(tokens[1:])
+		if err != nil {
+			return "", err
+		}
+
+		valFloat, err := strconv.ParseFloat(val, 64)
+		if err != nil {
+			return "", errors.New("prefix operator not allowed here")
+		}
+
+		return formatFloat(-valFloat), nil
+	}
+
 	// Parentheses
 	for i, t := range tokens {
 		if t.TType == efp.TokenTypeSubexpression && t.TSubType == efp.TokenSubTypeStart {
@@ -389,13 +393,6 @@ func (s *Sheet) evalTokens(tokens []efp.Token) (string, error) {
 			tokens = tokens[:len(tokens)+i-end]
 			log.Printf("After evaluating function: %+v", tokens)
 			return s.evalTokens(tokens)
-		}
-	}
-
-	// Prefix
-	for _, t := range tokens {
-		if t.TType == efp.TokenTypeOperatorPrefix {
-			// TODO
 		}
 	}
 

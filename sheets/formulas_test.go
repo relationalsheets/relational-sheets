@@ -43,7 +43,7 @@ func TestEvalWithLiterals(t *testing.T) {
 		"2":           "2",
 		"(2)":         "2",
 		"2+3":         "5",
-		"2+2.5":       "4.500000",
+		"2+2.5":       "4.5",
 		"2*3":         "6",
 		"2+2+2":       "6",
 		"2+(2+3)":     "7",
@@ -87,13 +87,15 @@ func TestEvalWithExtraCols(t *testing.T) {
 	}
 	formulasAndValues := map[string]string{
 		"A1":               "1",
+		"-A1":              "-1",
 		"A2":               "2",
-		"SUM(A1:A2)":       "3.000000",
+		"SUM(A1:A2)":       "3",
 		"A1+B1":            "4",
 		"A1+4":             "5",
-		"SUM(A1:A2,B1:B2)": "6.000000",
-		"MAX(A1:A2,B1:B2)": "3.000000",
-		"MIN(A1:A2,B1:B2)": "1.000000",
+		"SUM(A1:A2,B1:B2)": "6",
+		"MAX(A1:A2,B1:B2)": "3",
+		"MIN(A1:A2,B1:B2)": "1",
+		"SUM(A1:A2,-A1)":   "2",
 	}
 	checkFormulas(t, sheet, formulasAndValues)
 }
@@ -106,14 +108,14 @@ func TestEvalWithDB(t *testing.T) {
 	sheet.SetTable("db_interface_test.foo")
 
 	formulasAndValues := map[string]string{
-		"SUM(bar1:bar1)":           "1.000000",
-		"SUM(bar1:bar3)":           "9.000000",
-		"SUM(baz1:baz3)":           "12.000000",
-		"SUM(bar1:bar1,2)":         "3.000000",
-		"SUM(bar1:bar1,1+2)":       "4.000000",
-		"SUM(bar1:bar3,baz1:baz3)": "21.000000",
-		"MAX(bar1:bar3)":           "5.000000",
-		"MIN(bar1:bar3)":           "1.000000",
+		"SUM(bar1:bar1)":           "1",
+		"SUM(bar1:bar3)":           "9",
+		"SUM(baz1:baz3)":           "12",
+		"SUM(bar1:bar1,2)":         "3",
+		"SUM(bar1:bar1,1+2)":       "4",
+		"SUM(bar1:bar3,baz1:baz3)": "21",
+		"MAX(bar1:bar3)":           "5",
+		"MIN(bar1:bar3)":           "1",
 	}
 	checkFormulas(t, sheet, formulasAndValues)
 }
