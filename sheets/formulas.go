@@ -10,18 +10,47 @@ import (
 	"strings"
 )
 
-func parseFormula(formula string) []efp.Token {
+type Token struct {
+	efp.Token
+	IsNumeric bool
+	TFloat    float64
+}
+
+func parseFormula(formula string) []Token {
 	if !strings.HasPrefix(formula, "=") {
-		return []efp.Token{literalToken(formula)}
+		return []Token{fromString(formula)}
 	}
 	parser := efp.ExcelParser()
 	parsed := parser.Parse(formula[1:])
 	log.Println(parser.PrettyPrint())
-	return parsed
+
+	tokens := make([]Token, len(parsed))
+	for i, token := range parsed {
+		if token.TSubType == efp.TokenSubTypeNumber {
+			float, err := strconv.ParseFloat(token.TValue, 64)
+			tokens[i] = Token{token, err == nil, float}
+		} else {
+			tokens[i] = Token{Token: token}
+		}
+	}
+	return tokens
 }
 
-func literalToken(val string) efp.Token {
-	return efp.Token{val, efp.TokenTypeOperand, efp.TokenSubTypeNumber}
+func fromString(val string) Token {
+	float, err := strconv.ParseFloat(val, 64)
+	return Token{
+		efp.Token{val, efp.TokenTypeOperand, efp.TokenSubTypeNumber},
+		err == nil,
+		float,
+	}
+}
+
+func fromFloat(val float64) Token {
+	return Token{
+		efp.Token{formatFloat(val), efp.TokenTypeOperand, efp.TokenSubTypeNumber},
+		true,
+		val,
+	}
 }
 
 func formatFloat(val float64) string {
@@ -60,76 +89,67 @@ func parseColumnAndIndex(r string) (string, int, error) {
 	return colName, index, nil
 }
 
-func (s *Sheet) infixOperator(t1, t2 efp.Token, operator string) (string, error) {
+func (s *Sheet) infixOperator(t1, t2 Token, operator string) (Token, error) {
 	a, err := s.evalToken(t1)
 	if err != nil {
-		return "", err
+		return Token{}, err
 	}
 	b, err := s.evalToken(t2)
 	if err != nil {
-		return "", err
-	}
-
-	aFloat, err := strconv.ParseFloat(a, 64)
-	if err != nil {
-		return "", err
-	}
-	bFloat, err := strconv.ParseFloat(b, 64)
-	if err != nil {
-		return "", err
+		return Token{}, err
 	}
 
 	var f float64
 	switch operator {
 	case "*":
-		f = aFloat * bFloat
+		f = a.TFloat * b.TFloat
 	case "/":
-		f = aFloat / bFloat
+		f = a.TFloat / b.TFloat
 	case "+":
-		f = aFloat + bFloat
+		f = a.TFloat + b.TFloat
 	case "-":
-		f = aFloat - bFloat
+		f = a.TFloat - b.TFloat
 	default:
-		return "", errors.New("invalid infix operator")
+		return Token{}, errors.New("invalid infix operator")
 	}
-	return formatFloat(f), nil
+	return fromFloat(f), nil
 }
 
-func (s *Sheet) evalToken(token efp.Token) (string, error) {
+func (s *Sheet) evalToken(token Token) (Token, error) {
 	if token.TType != efp.TokenTypeOperand {
-		return "", errors.New("not an operand")
+		return Token{}, errors.New("not an operand")
 	}
 	if token.TSubType == efp.TokenSubTypeNumber {
-		return token.TValue, nil
+		return token, nil
 	}
 	if token.TSubType == efp.TokenSubTypeRange {
 		colName, index, err := parseColumnAndIndex(token.TValue)
 		if err != nil {
-			return "", err
+			return Token{}, err
 		}
 		index-- // formulas index from 1
 		if index < 0 {
-			return "", errors.New("negative indices not allowed")
+			return Token{}, errors.New("negative indices not allowed")
 		}
 		col, ok := s.table.Cols[colName]
 		if ok {
 			if index >= s.table.RowCount {
-				return "", errors.New("row index out of range")
+				return Token{}, errors.New("row index out of range")
 			}
-			return col.Cells[index].Value, nil
+			return fromString(col.Cells[index].Value), nil
 		}
 		for _, extraCol := range s.ExtraCols {
 			if colName == extraCol.Name {
 				if index >= len(extraCol.Cells) {
 					// Not an error to reference beyond the sheet
-					return "", nil
+					return Token{}, nil
 				}
-				return extraCol.Cells[index].Value, nil
+				return fromString(extraCol.Cells[index].Value), nil
 			}
 		}
-		return "", errors.New("invalid column name")
+		return Token{}, errors.New("invalid column name")
 	}
-	return "", errors.New("invalid formula")
+	return Token{}, errors.New("invalid formula")
 }
 
 type SQLAndGoFunc struct {
@@ -158,7 +178,7 @@ var associativeFuncs = map[string]SQLAndGoFunc{
 	},
 }
 
-func (s *Sheet) evalAssociativeFunc(fDefs SQLAndGoFunc, arguments [][]efp.Token) (string, error) {
+func (s *Sheet) evalAssociativeFunc(fDefs SQLAndGoFunc, arguments [][]Token) (Token, error) {
 	val := fDefs.initialVal
 
 	for _, arg := range arguments {
@@ -167,7 +187,7 @@ func (s *Sheet) evalAssociativeFunc(fDefs SQLAndGoFunc, arguments [][]efp.Token)
 		if len(arg) == 1 && arg[0].TSubType == efp.TokenSubTypeRange {
 			colName, start, end, err := parseRange(arg[0].TValue)
 			if err != nil {
-				return "", err
+				return Token{}, err
 			}
 			_, colExists := s.table.Cols[colName]
 			if colExists {
@@ -188,7 +208,7 @@ func (s *Sheet) evalAssociativeFunc(fDefs SQLAndGoFunc, arguments [][]efp.Token)
 							if cell.NotNull {
 								cellVal, err := strconv.ParseFloat(cell.Value, 64)
 								if err != nil {
-									return "", err
+									return Token{}, err
 								}
 								argVal = fDefs.goFunc(argVal, cellVal)
 							}
@@ -198,31 +218,31 @@ func (s *Sheet) evalAssociativeFunc(fDefs SQLAndGoFunc, arguments [][]efp.Token)
 					}
 				}
 				if !found {
-					return "", errors.New("no column named " + colName)
+					return Token{}, errors.New("no column named " + colName)
 				}
 			}
 		} else {
-			argValStr, err := s.evalTokens(arg)
+			argValToken, err := s.evalTokens(arg)
 			if err != nil {
-				return "", nil
+				return Token{}, nil
 			}
-			argVal, err = strconv.ParseFloat(argValStr, 64)
-			if err != nil {
-				return "", errors.New("invalid non-numeric argument to SUM: " + argValStr)
+			if !argValToken.IsNumeric {
+				return Token{}, errors.New("invalid non-numeric argument to SUM: " + argValToken.TValue)
 			}
+			argVal = argValToken.TFloat
 		}
 
 		val = fDefs.goFunc(val, argVal)
 	}
 
-	return formatFloat(val), nil
+	return fromFloat(val), nil
 }
 
-func (s *Sheet) evalLogicalExpression(tokens []efp.Token) (bool, error) {
+func (s *Sheet) evalLogicalExpression(tokens []Token) (bool, error) {
 	log.Printf("Evaluating logical expression: %+v", tokens)
 
 	operator := ""
-	first, second := []efp.Token{}, []efp.Token{}
+	first, second := []Token{}, []Token{}
 	for _, t := range tokens {
 		if t.TSubType == efp.TokenSubTypeLogical {
 			if operator != "" {
@@ -252,20 +272,22 @@ func (s *Sheet) evalLogicalExpression(tokens []efp.Token) (bool, error) {
 
 	switch operator {
 	case "=":
-		return firstVal == secondVal, nil
+		numericEqual := firstVal.IsNumeric && secondVal.IsNumeric && firstVal.TFloat == secondVal.TFloat
+		stringEqual := !firstVal.IsNumeric && !secondVal.IsNumeric && firstVal.TValue == secondVal.TValue
+		return numericEqual || stringEqual, nil
 	default:
 		return false, errors.New("unsupported logical operator: " + operator)
 	}
 }
 
-func (s *Sheet) evalIf(arguments [][]efp.Token) (string, error) {
+func (s *Sheet) evalIf(arguments [][]Token) (Token, error) {
 	if len(arguments) != 3 {
-		return "", errors.New("wrong number of arguments for IF")
+		return Token{}, errors.New("wrong number of arguments for IF")
 	}
 
 	condition, err := s.evalLogicalExpression(arguments[0])
 	if err != nil {
-		return "", err
+		return Token{}, err
 	}
 
 	if condition {
@@ -275,7 +297,7 @@ func (s *Sheet) evalIf(arguments [][]efp.Token) (string, error) {
 	}
 }
 
-func (s *Sheet) evalFunction(fName string, arguments [][]efp.Token) (string, error) {
+func (s *Sheet) evalFunction(fName string, arguments [][]Token) (Token, error) {
 	fName = strings.ToUpper(fName)
 	log.Printf("Evaluating: %s(%+v)", fName, arguments)
 
@@ -288,12 +310,12 @@ func (s *Sheet) evalFunction(fName string, arguments [][]efp.Token) (string, err
 		return s.evalIf(arguments)
 	}
 
-	return "", errors.New("unsupported function: " + fName)
+	return Token{}, errors.New("unsupported function: " + fName)
 }
 
-func (s *Sheet) evalTokens(tokens []efp.Token) (string, error) {
+func (s *Sheet) evalTokens(tokens []Token) (Token, error) {
 	if len(tokens) == 0 {
-		return "", errors.New("empty expression")
+		return Token{}, errors.New("empty expression")
 	}
 
 	if len(tokens) == 1 {
@@ -303,20 +325,19 @@ func (s *Sheet) evalTokens(tokens []efp.Token) (string, error) {
 	// Prefix
 	if tokens[0].TType == efp.TokenTypeOperatorPrefix {
 		if tokens[0].TValue != "-" {
-			return "", errors.New("invalid prefix operator " + tokens[0].TValue)
+			return Token{}, errors.New("invalid prefix operator " + tokens[0].TValue)
 		}
 
 		val, err := s.evalTokens(tokens[1:])
 		if err != nil {
-			return "", err
+			return Token{}, err
 		}
 
-		valFloat, err := strconv.ParseFloat(val, 64)
-		if err != nil {
-			return "", errors.New("prefix operator not allowed here")
+		if !val.IsNumeric {
+			return Token{}, errors.New("attempting to negate non-numeric value")
 		}
 
-		return formatFloat(-valFloat), nil
+		return fromFloat(-val.TFloat), nil
 	}
 
 	// Parentheses
@@ -336,16 +357,16 @@ func (s *Sheet) evalTokens(tokens []efp.Token) (string, error) {
 				}
 			}
 			if end == 0 {
-				return "", errors.New("unmatched parentheses")
+				return Token{}, errors.New("unmatched parentheses")
 			}
 
 			val, err := s.evalTokens(tokens[i+1 : end])
 			log.Printf("Subexpression: %d:%d", i+1, end)
 			if err != nil {
-				return "", err
+				return Token{}, err
 			}
 
-			tokens[i] = literalToken(val)
+			tokens[i] = val
 			for j, nt := range tokens[end+1:] {
 				tokens[i+j+1] = nt
 			}
@@ -358,7 +379,7 @@ func (s *Sheet) evalTokens(tokens []efp.Token) (string, error) {
 	// Functions
 	for i, t := range tokens {
 		if t.TType == efp.TokenTypeFunction && t.TSubType == efp.TokenSubTypeStart {
-			arguments := [][]efp.Token{{}}
+			arguments := [][]Token{{}}
 			indent, end := 1, 0
 			for j, nt := range tokens[i+1:] {
 				if nt.TSubType == efp.TokenSubTypeStart {
@@ -372,21 +393,21 @@ func (s *Sheet) evalTokens(tokens []efp.Token) (string, error) {
 					break
 				}
 				if indent == 1 && nt.TType == efp.TokenTypeArgument {
-					arguments = append(arguments, []efp.Token{})
+					arguments = append(arguments, []Token{})
 				} else {
 					arguments[len(arguments)-1] = append(arguments[len(arguments)-1], nt)
 				}
 			}
 			if end == 0 {
-				return "", errors.New("unmatched parentheses for function")
+				return Token{}, errors.New("unmatched parentheses for function")
 			}
 
 			val, err := s.evalFunction(t.TValue, arguments)
 			if err != nil {
-				return "", err
+				return Token{}, err
 			}
 
-			tokens[i] = literalToken(val)
+			tokens[i] = val
 			for j, nt := range tokens[end+1:] {
 				tokens[i+j+1] = nt
 			}
@@ -400,14 +421,14 @@ func (s *Sheet) evalTokens(tokens []efp.Token) (string, error) {
 	for i, t := range tokens {
 		if t.TType == efp.TokenTypeOperatorInfix && (t.TValue == "*" || t.TValue == "/") {
 			if i == 0 {
-				return "", errors.New("cannot start expression with infix operator")
+				return Token{}, errors.New("cannot start expression with infix operator")
 			}
 			val, err := s.infixOperator(tokens[i-1], tokens[i+1], t.TValue)
 			if err != nil {
-				return "", err
+				return Token{}, err
 			}
 
-			tokens[i-1] = literalToken(val)
+			tokens[i-1] = val
 			for j, nt := range tokens[i+2:] {
 				tokens[i+j] = nt
 			}
@@ -419,14 +440,14 @@ func (s *Sheet) evalTokens(tokens []efp.Token) (string, error) {
 	for i, t := range tokens {
 		if t.TType == efp.TokenTypeOperatorInfix && (t.TValue == "+" || t.TValue == "-") {
 			if i == 0 {
-				return "", errors.New("cannot start expression with infix operator")
+				return Token{}, errors.New("cannot start expression with infix operator")
 			}
 			val, err := s.infixOperator(tokens[i-1], tokens[i+1], t.TValue)
 			if err != nil {
-				return "", err
+				return Token{}, err
 			}
 
-			tokens[i-1] = literalToken(val)
+			tokens[i-1] = val
 			for j, nt := range tokens[i+2:] {
 				tokens[i+j] = nt
 			}
@@ -434,14 +455,14 @@ func (s *Sheet) evalTokens(tokens []efp.Token) (string, error) {
 		}
 	}
 
-	return "", errors.New("not implemented")
+	return Token{}, errors.New("not implemented")
 }
 
 func (s *Sheet) EvalFormula(formula string) (SheetCell, error) {
 	tokens := parseFormula(formula)
-	val, err := s.evalTokens(tokens)
+	token, err := s.evalTokens(tokens)
 	if err != nil {
 		return SheetCell{Cell{}, formula}, err
 	}
-	return SheetCell{Cell{val, val != ""}, formula}, nil
+	return SheetCell{Cell{token.TValue, token.TValue != ""}, formula}, nil
 }
