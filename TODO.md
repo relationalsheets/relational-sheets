@@ -1,4 +1,4 @@
-- [ ] Split sheets.go up
+- [x] Split sheets.go up
 - [ ] Give cells types instead of strings
 - [ ] Implement AVG
 - [ ] Support column dependencies
@@ -7,3 +7,4 @@
 - [ ] Improve x scroll experience
 - [ ] Filtering
 - [ ] Removing extra columns
+- [ ] Add example database

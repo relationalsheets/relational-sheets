@@ -187,7 +187,7 @@ func (sheet *Sheet) LoadCells(limit int, offset int) {
 	Check(rows.Close())
 }
 
-func InsertRow(sheet Sheet, values map[string]string) error {
+func (sheet *Sheet) InsertRow(values map[string]string) error {
 	colNames := sheet.OrderedColNames()
 	valueLabels := make([]string, 0, len(colNames))
 	nonEmptyValues := make(map[string]interface{})

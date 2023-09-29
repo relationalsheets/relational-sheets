@@ -76,7 +76,7 @@ func handleAddRow(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err := sheets.InsertRow(sheets.GlobalSheet, values)
+	err := sheets.GlobalSheet.InsertRow(values)
 	sheets.GlobalSheet.LoadCells(100, 0)
 	if err != nil {
 		writeError(w, err.Error())
