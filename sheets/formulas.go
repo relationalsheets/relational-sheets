@@ -16,6 +16,17 @@ type Token struct {
 	TFloat    float64
 }
 
+func CreateAggregates() {
+	conn.MustExec(
+		`CREATE OR REPLACE AGGREGATE db_interface.mul(numeric) (
+			STYPE = numeric,
+			INITCOND = 1,
+			SFUNC = numeric_mul,
+			COMBINEFUNC = numeric_mul,
+			PARALLEL = SAFE
+		)`)
+}
+
 func parseFormula(formula string) []Token {
 	if !strings.HasPrefix(formula, "=") {
 		return []Token{fromString(formula)}
@@ -154,6 +165,7 @@ func (s *Sheet) evalToken(token Token) (Token, error) {
 
 type SQLAndGoFunc struct {
 	sqlName    string
+	sqlCast    string
 	goFunc     func(float64, float64) float64
 	initialVal float64
 }
@@ -161,6 +173,7 @@ type SQLAndGoFunc struct {
 var associativeFuncs = map[string]SQLAndGoFunc{
 	"SUM": {
 		"SUM",
+		"",
 		func(a, b float64) float64 {
 			return a + b
 		},
@@ -168,13 +181,23 @@ var associativeFuncs = map[string]SQLAndGoFunc{
 	},
 	"MAX": {
 		"MAX",
+		"",
 		math.Max,
 		0,
 	},
 	"MIN": {
 		"MIN",
+		"",
 		math.Min,
 		math.MaxFloat64,
+	},
+	"PRODUCT": {
+		"db_interface.mul",
+		"numeric",
+		func(a, b float64) float64 {
+			return a * b
+		},
+		1,
 	},
 }
 
@@ -191,10 +214,14 @@ func (s *Sheet) evalAssociativeFunc(fDefs SQLAndGoFunc, arguments [][]Token) (To
 			}
 			_, colExists := s.table.Cols[colName]
 			if colExists {
+				colExpression := "\"" + colName + "\""
+				if fDefs.sqlCast != "" {
+					colExpression = fmt.Sprintf("CAST(%s AS %s)", colExpression, fDefs.sqlCast)
+				}
 				query := fmt.Sprintf(
-					"SELECT %s(sq.val) FROM (SELECT \"%s\" AS val FROM %s LIMIT $1 OFFSET $2) sq",
+					"SELECT %s(sq.val) FROM (SELECT %s AS val FROM %s LIMIT $1 OFFSET $2) sq",
 					fDefs.sqlName,
-					colName,
+					colExpression,
 					s.TableFullName())
 				log.Printf("Executing %s (%d, %d)", query, end-start+1, start-1)
 				row := conn.QueryRow(query, end-start+1, start-1)

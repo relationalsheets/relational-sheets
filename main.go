@@ -11,6 +11,7 @@ func main() {
 
 	sheets.InitSheetsTables()
 	sheets.InitPrefsTable()
+	sheets.CreateAggregates()
 
 	sheets.LoadTables()
 	sheets.LoadSheets()

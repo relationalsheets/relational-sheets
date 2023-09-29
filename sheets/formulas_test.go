@@ -8,7 +8,7 @@ func setupDB() func() {
 	Open()
 	conn.MustExec("CREATE SCHEMA IF NOT EXISTS db_interface_test")
 	conn.MustExec(
-		`CREATE TABLE db_interface_test.foo (
+		`CREATE TABLE IF NOT EXISTS db_interface_test.foo (
 			bar INT
 			, baz FLOAT
 		)`)
@@ -18,6 +18,7 @@ func setupDB() func() {
 			, (3, 4)
 			, (5, 6)
 		`)
+	CreateAggregates()
 	LoadTables()
 
 	return func() {
@@ -86,16 +87,17 @@ func TestEvalWithExtraCols(t *testing.T) {
 		},
 	}
 	formulasAndValues := map[string]string{
-		"A1":               "1",
-		"-A1":              "-1",
-		"A2":               "2",
-		"SUM(A1:A2)":       "3",
-		"A1+B1":            "4",
-		"A1+4":             "5",
-		"SUM(A1:A2,B1:B2)": "6",
-		"MAX(A1:A2,B1:B2)": "3",
-		"MIN(A1:A2,B1:B2)": "1",
-		"SUM(A1:A2,-A1)":   "2",
+		"A1":                "1",
+		"-A1":               "-1",
+		"A2":                "2",
+		"SUM(A1:A2)":        "3",
+		"A1+B1":             "4",
+		"A1+4":              "5",
+		"SUM(A1:A2,B1:B2)":  "6",
+		"MAX(A1:A2,B1:B2)":  "3",
+		"MIN(A1:A2,B1:B2)":  "1",
+		"SUM(A1:A2,-A1)":    "2",
+		"PRODUCT(A1:A2,B1)": "6",
 	}
 	checkFormulas(t, sheet, formulasAndValues)
 }
@@ -116,6 +118,7 @@ func TestEvalWithDB(t *testing.T) {
 		"SUM(bar1:bar3,baz1:baz3)": "21",
 		"MAX(bar1:bar3)":           "5",
 		"MIN(bar1:bar3)":           "1",
+		"PRODUCT(bar1:bar3)":       "15",
 	}
 	checkFormulas(t, sheet, formulasAndValues)
 }
