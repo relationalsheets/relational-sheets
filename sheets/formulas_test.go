@@ -41,19 +41,20 @@ func checkFormulas(t *testing.T, sheet Sheet, formulasAndValues map[string]strin
 
 func TestEvalWithLiterals(t *testing.T) {
 	formulasAndValues := map[string]string{
-		"2":           "2",
-		"(2)":         "2",
-		"2+3":         "5",
-		"2+2.5":       "4.5",
-		"2*3":         "6",
-		"2+2+2":       "6",
-		"2+(2+3)":     "7",
-		"(2+2)+3":     "7",
-		"2+2*3":       "8",
-		"(2+2)*3":     "12",
-		"2+(2+2)+2":   "8",
-		"IF(1=1,1,2)": "1",
-		"IF(1=0,1,2)": "2",
+		"2":             "2",
+		"(2)":           "2",
+		"2+3":           "5",
+		"2+2.5":         "4.5",
+		"2*3":           "6",
+		"2+2+2":         "6",
+		"2+(2+3)":       "7",
+		"(2+2)+3":       "7",
+		"2+2*3":         "8",
+		"(2+2)*3":       "12",
+		"2+(2+2)+2":     "8",
+		"IF(1=1,1,2)":   "1",
+		"IF(1=0,1,2)":   "2",
+		"AVERAGE(10,1)": "5.5",
 	}
 	checkFormulas(t, Sheet{}, formulasAndValues)
 }
@@ -98,6 +99,7 @@ func TestEvalWithExtraCols(t *testing.T) {
 		"MIN(A1:A2,B1:B2)":  "1",
 		"SUM(A1:A2,-A1)":    "2",
 		"PRODUCT(A1:A2,B1)": "6",
+		"AVERAGE(A1:A2,B1)": "2",
 	}
 	checkFormulas(t, sheet, formulasAndValues)
 }
@@ -119,6 +121,8 @@ func TestEvalWithDB(t *testing.T) {
 		"MAX(bar1:bar3)":           "5",
 		"MIN(bar1:bar3)":           "1",
 		"PRODUCT(bar1:bar3)":       "15",
+		"AVERAGE(bar1:bar3)":       "3",
+		"AVERAGE(bar1:bar3,7)":     "4",
 	}
 	checkFormulas(t, sheet, formulasAndValues)
 }

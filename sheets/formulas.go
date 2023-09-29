@@ -324,6 +324,69 @@ func (s *Sheet) evalIf(arguments [][]Token) (Token, error) {
 	}
 }
 
+func (s *Sheet) evalAverage(arguments [][]Token) (Token, error) {
+	sum := 0.0
+	count := 0
+
+	for _, arg := range arguments {
+		argVal := 0.0
+		argCount := 0
+		if len(arg) == 1 && arg[0].TSubType == efp.TokenSubTypeRange {
+			colName, start, end, err := parseRange(arg[0].TValue)
+			if err != nil {
+				return Token{}, err
+			}
+			_, colExists := s.table.Cols[colName]
+			if colExists {
+				query := fmt.Sprintf(
+					"SELECT SUM(sq.val), COUNT(*) FROM (SELECT \"%s\" AS val FROM %s LIMIT $1 OFFSET $2) sq",
+					colName,
+					s.TableFullName())
+				log.Printf("Executing %s (%d, %d)", query, end-start+1, start-1)
+				row := conn.QueryRow(query, end-start+1, start-1)
+				err = row.Scan(&argVal, &argCount)
+				Check(err)
+			} else {
+				found := false
+				for _, col := range s.ExtraCols {
+					if col.Name == colName {
+						for _, cell := range col.Cells {
+							if cell.NotNull {
+								cellVal, err := strconv.ParseFloat(cell.Value, 64)
+								if err != nil {
+									return Token{}, err
+								}
+								argVal += cellVal
+								argCount += 1
+							}
+						}
+						found = true
+						break
+					}
+				}
+				if !found {
+					return Token{}, errors.New("no column named " + colName)
+				}
+			}
+		} else {
+			argValToken, err := s.evalTokens(arg)
+			if err != nil {
+				return Token{}, nil
+			}
+			if !argValToken.IsNumeric {
+				return Token{}, errors.New("invalid non-numeric argument to SUM: " + argValToken.TValue)
+			}
+			argVal = argValToken.TFloat
+			argCount = 1
+		}
+
+		sum += argVal
+		count += argCount
+	}
+
+	return fromFloat(sum / float64(count)), nil
+}
+
 func (s *Sheet) evalFunction(fName string, arguments [][]Token) (Token, error) {
 	fName = strings.ToUpper(fName)
 	log.Printf("Evaluating: %s(%+v)", fName, arguments)
@@ -335,6 +398,10 @@ func (s *Sheet) evalFunction(fName string, arguments [][]Token) (Token, error) {
 
 	if fName == "IF" {
 		return s.evalIf(arguments)
+	}
+
+	if fName == "AVERAGE" {
+		return s.evalAverage(arguments)
 	}
 
 	return Token{}, errors.New("unsupported function: " + fName)

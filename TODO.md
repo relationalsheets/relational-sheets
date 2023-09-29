@@ -1,6 +1,3 @@
-- [x] Split sheets.go up
-- [ ] Give cells types instead of strings
-- [ ] Implement AVG
 - [ ] Support column dependencies
 - [ ] Support joins
 - [ ] Improve toolbar CSS
