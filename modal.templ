@@ -1,36 +1,36 @@
 import (
 	"acb/db-interface/sheets"
+	"strconv"
 )
 
-templ modal(sheet sheets.Sheet, tables []sheets.Table) {
-    <div id="modal" class="modal is-active">
-        <div class="modal-content box">
-            <div class="flex">
-                <label>Primary Table</label>
-                <div class="select table-select">
-                    <select name="table_name">
-                        <option value=""></option>
-                    for _, table := range tables {
-                        <option value={ table.FullName() }
-                                selected?={ table.FullName() == sheet.TableFullName() }>
-                            { table.FullName() }
-                        </option>
-                    }
-                    </select>
-                </div>
-            </div>
+templ fkeySelect(table sheets.Table, selected int) {
+    <div class="select fkey-select">
+        <select name="fkey" hx-post="/modal">
+            <option value=""></option>
+        for oid, fkey := range table.FkeysFrom {
+            <option value={ strconv.Itoa(oid) }
+                    selected?={ oid == selected }>
+                { fkey.ToString(true) }
+            </option>
+        }
+        for oid, fkey := range table.FkeysTo {
+            <option value={ strconv.Itoa(oid) }
+                    selected?={ oid == selected }>
+                { fkey.ToString(false) }
+            </option>
+        }
+        </select>
+    </div>
+}
 
-            <div class="flex">
-                <label>Joins</label>
-                <div id="joins-container">
-                    <button class="is-primary">
-                        + Join
-                    </button>
+templ modal(sheet sheets.Sheet, tables []sheets.Table, addJoin bool) {
+    <div id="modal" class="modal is-active" hx-target="body" hx-swap="beforeend" hx-include="select">
+        <div class="modal-content box">
+            <div id="table-fkey-config">
+                <label>Tables</label>
+                <div class="dropdown-list">
                     <div class="select table-select">
-                        <select name="table_name"
-                                hx-post="/table"
-                                hx-target="#table"
-                                hx-trigger="click">
+                        <select name="table_name" hx-post="/modal">
                             <option value=""></option>
                         for _, table := range tables {
                             <option value={ table.FullName() }
@@ -40,8 +40,28 @@ templ modal(sheet sheets.Sheet, tables []sheets.Table) {
                         }
                         </select>
                     </div>
+                    for oid, _ := range sheet.Joins {
+                        @fkeySelect(sheet.Table, oid)
+                    }
+                    if addJoin {
+                        @fkeySelect(sheet.Table, 0)
+                    }
+                    <button hx-post="/modal"
+                            name="add_join"
+                            class="button is-primary">
+                        + Join
+                    </button>
                 </div>
             </div>
+
+            <div class="flex full-width mt center">
+                <button hx-post="/sheet"
+                        class="button is-primary">
+                    Ok
+                </button>
+            </div>
         </div>
+
+        <div class="modal-close"></div>
     </div>
 }

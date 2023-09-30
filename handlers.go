@@ -115,18 +115,43 @@ func handleSetColPref(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleModal(w http.ResponseWriter, r *http.Request) {
+	sheet := sheets.Sheet{}
 	sheetIdStr := r.URL.Query().Get("sheet_id")
-	if sheetIdStr == "" {
-		templ.Handler(modal(sheets.Sheet{}, sheets.Tables)).ServeHTTP(w, r)
-		return
+	if sheetIdStr != "" {
+		sheetId, err := strconv.ParseInt(sheetIdStr, 10, 64)
+		var ok bool
+		sheet, ok = sheets.SheetMap[sheetId]
+		if err != nil || !ok {
+			writeError(w, "Invalid sheet ID")
+			return
+		}
 	}
 
-	sheetId, err := strconv.ParseInt(sheetIdStr, 10, 64)
-	sheet, ok := sheets.SheetMap[sheetId]
-	if err != nil || !ok {
-		writeError(w, "Invalid sheet ID")
-		return
+	tableName := r.FormValue("table_name")
+	if tableName != "" {
+		sheet.SetTable(tableName)
 	}
 
-	templ.Handler(modal(sheet, sheets.Tables)).ServeHTTP(w, r)
+	fkeyOidStrs, ok := r.Form["fkey"]
+	if ok {
+		for _, fkeyOidStr := range fkeyOidStrs {
+			oid, err := strconv.Atoi(fkeyOidStr)
+			if err != nil {
+				writeError(w, "Invalid fkey Oid")
+				return
+			}
+			fkey, ok := sheet.Table.FkeysFrom[oid]
+			if !ok {
+				fkey, ok = sheet.Table.FkeysTo[oid]
+			}
+			if !ok {
+				writeError(w, "Invalid fkey Oid")
+				return
+			}
+			sheet.Joins[oid] = fkey
+		}
+	}
+
+	_, addJoin := r.Form["add_join"]
+	templ.Handler(modal(sheet, sheets.Tables, addJoin)).ServeHTTP(w, r)
 }

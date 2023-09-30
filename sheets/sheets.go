@@ -17,7 +17,8 @@ type SheetColumn struct {
 type Sheet struct {
 	Name      string
 	Id        int64
-	table     Table
+	Table     Table
+	Joins     map[int]ForeignKey
 	prefsMap  map[string]Pref
 	ExtraCols []SheetColumn
 }
@@ -35,7 +36,7 @@ func (s Sheet) VisibleName() string {
 }
 
 func (s Sheet) RowCount() int {
-	return s.table.RowCount
+	return s.Table.RowCount
 }
 
 func initSheetsTable() {
@@ -55,7 +56,7 @@ func InitSheetsTables() {
 }
 
 func (s Sheet) TableFullName() string {
-	return s.table.FullName()
+	return s.Table.FullName()
 }
 
 func (s *Sheet) SaveSheet() {
@@ -69,8 +70,8 @@ func (s *Sheet) SaveSheet() {
 				$1, $2, $3
 			) RETURNING id`,
 			s.Name,
-			s.table.SchemaName,
-			s.table.TableName)
+			s.Table.SchemaName,
+			s.Table.TableName)
 		err := row.Scan(&s.Id)
 		Check(err)
 		log.Printf("Inserted sheet %d", s.Id)
@@ -82,8 +83,8 @@ func (s *Sheet) SaveSheet() {
 				, tablename = $3
 			WHERE id = $4`,
 			s.Name,
-			s.table.SchemaName,
-			s.table.TableName,
+			s.Table.SchemaName,
+			s.Table.TableName,
 			s.Id)
 		log.Printf("Updated sheet %d", s.Id)
 	}
@@ -100,7 +101,7 @@ func LoadSheets() {
 	Check(err)
 	for rows.Next() {
 		sheet := Sheet{}
-		err = rows.Scan(&sheet.Id, &sheet.Name, &sheet.table.TableName, &sheet.table.SchemaName)
+		err = rows.Scan(&sheet.Id, &sheet.Name, &sheet.Table.TableName, &sheet.Table.SchemaName)
 		Check(err)
 		SheetMap[sheet.Id] = sheet
 		log.Printf("Loaded sheet: %+v", sheet)
@@ -108,17 +109,23 @@ func LoadSheets() {
 	log.Printf("Loaded %d sheets", len(SheetMap))
 }
 
+func (s *Sheet) loadJoins() {
+	// TODO
+	s.Joins = make(map[int]ForeignKey)
+}
+
 func (s *Sheet) LoadSheet() {
-	s.table = tableMap[s.TableFullName()]
-	s.table.loadCols()
-	s.table.loadConstraints()
+	s.Table = tableMap[s.TableFullName()]
+	s.Table.loadCols()
+	s.Table.loadConstraints()
 	s.loadPrefs()
+	s.loadJoins()
 	s.LoadCells(100, 0)
 	s.loadExtraCols()
 }
 
 func (s *Sheet) SetTable(name string) {
-	s.table = tableMap[name]
+	s.Table = tableMap[name]
 	s.SaveSheet()
 	s.LoadSheet()
 }

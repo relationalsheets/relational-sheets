@@ -15,10 +15,20 @@
     display: flex;
     align-items: center;
 }
+.full-width {
+    width: 100%;
+}
+.mt {
+    margin-top: 1em;
+}
+.center {
+    justify-content: center;
+}
 button,select,.select,input {
     border-radius: 0 !important;
     border: 0;
     min-width: 60px;
+    max-width: 80px;
     background-color: white;
     cursor: pointer;
     font-size: 1rem;
@@ -41,6 +51,27 @@ label {
 .toolbar-group {
     display: flex;
     align-items: center;
+}
+
+/* modal styles */
+#table-fkey-config {
+    display: flex;
+}
+#table-fkey-config > label {
+    height: 40px;
+    display: flex;
+    align-items: center;
+}
+.dropdown-list {
+    display: flex;
+    flex-direction: column;
+}
+.dropdown-list > .select {
+    margin-bottom: 1em;
+    max-width: 500px;
+}
+.dropdown-list > .select > select {
+    min-width: 100%;
 }
 
 /* Table styles */

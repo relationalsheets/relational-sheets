@@ -19,8 +19,8 @@ type TableNames struct {
 
 type ForeignKey struct {
 	otherTableName string
-	SourceColNames []string
-	TargetColNames []string
+	sourceColNames []string
+	targetColNames []string
 }
 
 type Column struct {
@@ -36,8 +36,8 @@ type Table struct {
 	TableNames
 	HasPrimaryKey bool
 	Cols          map[string]Column
-	FkeysFrom     []ForeignKey
-	FkeysTo       []ForeignKey
+	FkeysFrom     map[int]ForeignKey
+	FkeysTo       map[int]ForeignKey
 	RowCount      int
 	Oid           int64
 }
@@ -54,10 +54,18 @@ func (table Table) FullName() string {
 	return fmt.Sprintf("%s.%s", table.SchemaName, table.TableName)
 }
 
+func (fkey ForeignKey) ToString(isSource bool) string {
+	if isSource {
+		return strings.Join(fkey.sourceColNames, ",") + "->" + fkey.otherTableName + "." + strings.Join(fkey.targetColNames, ",")
+	} else {
+		return fkey.otherTableName + "." + strings.Join(fkey.sourceColNames, ",") + "->" + strings.Join(fkey.targetColNames, ",")
+	}
+}
+
 func (sheet Sheet) OrderedColNames() []string {
-	colNames := make([]string, 0, len(sheet.table.Cols))
-	indices := make([]int, 0, len(sheet.table.Cols))
-	for _, col := range sheet.table.Cols {
+	colNames := make([]string, 0, len(sheet.Table.Cols))
+	indices := make([]int, 0, len(sheet.Table.Cols))
+	for _, col := range sheet.Table.Cols {
 		if !sheet.prefsMap[col.Name].Hide {
 			colNames = append(colNames, col.Name)
 			indices = append(indices, col.Index)
@@ -75,13 +83,13 @@ func (sheet Sheet) OrderedCols() []Column {
 	colNames := sheet.OrderedColNames()
 	cols := make([]Column, len(colNames))
 	for i, name := range colNames {
-		cols[i] = sheet.table.Cols[name]
+		cols[i] = sheet.Table.Cols[name]
 	}
 	return cols
 }
 
 func (sheet Sheet) GetCol(name string) Column {
-	return sheet.table.Cols[name]
+	return sheet.Table.Cols[name]
 }
 
 func LoadTables() {
@@ -124,8 +132,8 @@ func (table *Table) loadCols() {
 }
 
 func (t *Table) loadConstraints() {
-	t.FkeysFrom = make([]ForeignKey, 0, 10)
-	t.FkeysTo = make([]ForeignKey, 0, 10)
+	t.FkeysFrom = make(map[int]ForeignKey)
+	t.FkeysTo = make(map[int]ForeignKey)
 	tablesByOid := make(map[int64]Table)
 	for _, t := range Tables {
 		tablesByOid[t.Oid] = t
@@ -142,13 +150,17 @@ func (t *Table) loadConstraints() {
 
 	// Query the foreign keys, but returns IDs instead of column names
 	rawFkeys := make([]struct {
+		Oid       int
 		Conrelid  int64
 		Confrelid int64
-		Conkey    pq.Int64Array
-		Confkey   pq.Int64Array
+		// PostgreSQL integers are 64-bit, so there is no IntArray type
+		// This is why we use int64 for most ints here
+		Conkey  pq.Int64Array
+		Confkey pq.Int64Array
 	}, 0, 20)
 	err = conn.Select(&rawFkeys, `
-		SELECT conrelid
+		SELECT oid
+		    , conrelid
 			, confrelid
 			, conkey
 			, confkey
@@ -237,11 +249,15 @@ func (t *Table) loadConstraints() {
 			panic(fmt.Sprintf("Unexpected table oid %d", otherTableOid))
 		}
 
-		fkey := ForeignKey{otherTableName, sourceColNames, targetColNames}
+		fkey := ForeignKey{
+			otherTableName,
+			sourceColNames,
+			targetColNames,
+		}
 		if rawFkey.Conrelid == t.Oid {
-			t.FkeysFrom = append(t.FkeysFrom, fkey)
+			t.FkeysFrom[rawFkey.Oid] = fkey
 		} else {
-			t.FkeysTo = append(t.FkeysFrom, fkey)
+			t.FkeysTo[rawFkey.Oid] = fkey
 		}
 	}
 }
@@ -251,9 +267,9 @@ func (sheet *Sheet) LoadCells(limit int, offset int) {
 	// TODO: Check if table.TableName and column names are valid somewhere
 	casts := make([]string, 0, len(colNames))
 	for _, name := range colNames {
-		col := sheet.table.Cols[name]
+		col := sheet.Table.Cols[name]
 		col.Cells = make([]Cell, limit)
-		sheet.table.Cols[name] = col
+		sheet.Table.Cols[name] = col
 
 		cast := fmt.Sprintf("\"%s\"::text, \"%s\" IS NOT NULL", name, name)
 		casts = append(casts, cast)
@@ -262,24 +278,24 @@ func (sheet *Sheet) LoadCells(limit int, offset int) {
 	query := fmt.Sprintf(
 		"SELECT %s FROM %s LIMIT $1 OFFSET $2",
 		strings.Join(casts, ", "),
-		sheet.table.FullName())
+		sheet.Table.FullName())
 	log.Printf("Executing: %s", query)
 	rows, err := conn.Queryx(query, limit, offset)
 	Check(err)
 
-	sheet.table.RowCount = 0
+	sheet.Table.RowCount = 0
 	for rows.Next() {
 		scanResult, err := rows.SliceScan()
 		Check(err)
 		for i := 0; i < len(casts); i++ {
 			val, _ := scanResult[2*i].(string)
-			sheet.table.Cols[colNames[i]].Cells[sheet.table.RowCount] = Cell{
+			sheet.Table.Cols[colNames[i]].Cells[sheet.Table.RowCount] = Cell{
 				val, scanResult[2*i+1].(bool),
 			}
 		}
-		sheet.table.RowCount++
+		sheet.Table.RowCount++
 	}
-	log.Printf("Retrieved %d rows from %s", sheet.table.RowCount, sheet.table.FullName())
+	log.Printf("Retrieved %d rows from %s", sheet.Table.RowCount, sheet.Table.FullName())
 	Check(rows.Close())
 }
 
@@ -299,7 +315,7 @@ func (sheet *Sheet) InsertRow(values map[string]string) error {
 
 	query := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES (%s)",
-		sheet.table.FullName(),
+		sheet.Table.FullName(),
 		strings.Join(maps.Keys(nonEmptyValues), ", "),
 		strings.Join(valueLabels, ", "))
 	log.Println("Executing:", query)

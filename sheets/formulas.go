@@ -142,9 +142,9 @@ func (s *Sheet) evalToken(token Token) (Token, error) {
 		if index < 0 {
 			return Token{}, errors.New("negative indices not allowed")
 		}
-		col, ok := s.table.Cols[colName]
+		col, ok := s.Table.Cols[colName]
 		if ok {
-			if index >= s.table.RowCount {
+			if index >= s.Table.RowCount {
 				return Token{}, errors.New("row index out of range")
 			}
 			return fromString(col.Cells[index].Value), nil
@@ -212,7 +212,7 @@ func (s *Sheet) evalAssociativeFunc(fDefs SQLAndGoFunc, arguments [][]Token) (To
 			if err != nil {
 				return Token{}, err
 			}
-			_, colExists := s.table.Cols[colName]
+			_, colExists := s.Table.Cols[colName]
 			if colExists {
 				colExpression := "\"" + colName + "\""
 				if fDefs.sqlCast != "" {
@@ -336,7 +336,7 @@ func (s *Sheet) evalAverage(arguments [][]Token) (Token, error) {
 			if err != nil {
 				return Token{}, err
 			}
-			_, colExists := s.table.Cols[colName]
+			_, colExists := s.Table.Cols[colName]
 			if colExists {
 				query := fmt.Sprintf(
 					"SELECT SUM(sq.val), COUNT(*) FROM (SELECT \"%s\" AS val FROM %s LIMIT $1 OFFSET $2) sq",
