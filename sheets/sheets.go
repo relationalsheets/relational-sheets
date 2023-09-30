@@ -1,6 +1,7 @@
 package sheets
 
 import (
+	"github.com/lib/pq"
 	"log"
 )
 
@@ -16,14 +17,14 @@ type SheetColumn struct {
 
 type Sheet struct {
 	Name      string
-	Id        int64
+	Id        int
 	Table     Table
-	Joins     map[int]ForeignKey
+	JoinOids  pq.Int64Array
 	prefsMap  map[string]Pref
 	ExtraCols []SheetColumn
 }
 
-var SheetMap = make(map[int64]Sheet)
+var SheetMap = make(map[int]Sheet)
 var GlobalSheet Sheet
 
 const defaultColNameChars string = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -46,6 +47,7 @@ func initSheetsTable() {
 			, "name" VARCHAR(255) NOT NULL
 			, schemaname VARCHAR(255) NOT NULL
 			, tablename VARCHAR(255) NOT NULL
+		    , joinoids INTEGER ARRAY
 		)`)
 	log.Println("Sheets table exists")
 }
@@ -66,12 +68,14 @@ func (s *Sheet) SaveSheet() {
 				"name"
 				, schemaname
 				, tablename
+				, joinoids
 			) VALUES (
-				$1, $2, $3
+				$1, $2, $3, $4
 			) RETURNING id`,
 			s.Name,
 			s.Table.SchemaName,
-			s.Table.TableName)
+			s.Table.TableName,
+			s.JoinOids)
 		err := row.Scan(&s.Id)
 		Check(err)
 		log.Printf("Inserted sheet %d", s.Id)
@@ -81,10 +85,12 @@ func (s *Sheet) SaveSheet() {
 				"name" = $1
 				, schemaname = $2
 				, tablename = $3
-			WHERE id = $4`,
+			    , joinoids = $4
+			WHERE id = $5`,
 			s.Name,
 			s.Table.SchemaName,
 			s.Table.TableName,
+			s.JoinOids,
 			s.Id)
 		log.Printf("Updated sheet %d", s.Id)
 	}
@@ -97,11 +103,12 @@ func LoadSheets() {
 		     , "name"
 		     , tableName
 		     , schemaname
+			 , joinoids
 		FROM db_interface.sheets`)
 	Check(err)
 	for rows.Next() {
 		sheet := Sheet{}
-		err = rows.Scan(&sheet.Id, &sheet.Name, &sheet.Table.TableName, &sheet.Table.SchemaName)
+		err = rows.Scan(&sheet.Id, &sheet.Name, &sheet.Table.TableName, &sheet.Table.SchemaName, &sheet.JoinOids)
 		Check(err)
 		SheetMap[sheet.Id] = sheet
 		log.Printf("Loaded sheet: %+v", sheet)
@@ -109,17 +116,11 @@ func LoadSheets() {
 	log.Printf("Loaded %d sheets", len(SheetMap))
 }
 
-func (s *Sheet) loadJoins() {
-	// TODO
-	s.Joins = make(map[int]ForeignKey)
-}
-
 func (s *Sheet) LoadSheet() {
 	s.Table = tableMap[s.TableFullName()]
 	s.Table.loadCols()
 	s.Table.loadConstraints()
 	s.loadPrefs()
-	s.loadJoins()
 	s.LoadCells(100, 0)
 	s.loadExtraCols()
 }

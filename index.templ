@@ -5,7 +5,7 @@ import (
     "fmt"
 )
 
-templ toolbar(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) {
+templ toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) {
     <div class="toolbar-group">
         <button hx-get="/table"
                 hx-target="#table"
@@ -15,8 +15,8 @@ templ toolbar(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) {
         </button>
 
         <button hx-get="/modal"
-                hx-target="body"
-                hx-swap="beforeend"
+                hx-target="#modal"
+                hx-swap="outerHTML"
                 name="sheet_id"
                 value={ fmt.Sprintf("%d", sheet.Id) }>
             Edit
@@ -31,8 +31,8 @@ templ toolbar(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) {
           <div class="dropdown-menu">
             <div class="dropdown-content">
                 <a hx-get="/modal"
-                   hx-target="body"
-                   hx-swap="beforeend"
+                   hx-target="#modal"
+                   hx-swap="outerHTML"
                    class="dropdown-item">
                     + New
                 </a>
@@ -58,7 +58,7 @@ templ toolbar(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) {
     </div>
 }
 
-templ index(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) {
+templ index(sheet sheets.Sheet, sheets map[int]sheets.Sheet) {
     <!DOCTYPE html>
     <html>
         <head>
@@ -72,12 +72,16 @@ templ index(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) {
             <div id="toolbar">
                 @toolbar(sheet, sheets)
             </div>
+
             <div class="scrollable">
                 <table id="table"
                        hx-trigger="click"
                        hx-target="#table"
                        hx-ext="response-targets">
                 </table>
+            </div>
+
+            <div id="modal">
             </div>
         </body>
     </html>

@@ -14,7 +14,7 @@ import (
 	"fmt"
 )
 
-func toolbar(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) templ.Component {
+func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -37,7 +37,7 @@ func toolbar(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) templ.Component 
 				return err
 			}
 		}
-		_, err = templBuffer.WriteString("><img src=\"/static/icons/cached_FILL0_wght400_GRAD0_opsz24.svg\"></button><button hx-get=\"/modal\" hx-target=\"body\" hx-swap=\"beforeend\" name=\"sheet_id\" value=\"")
+		_, err = templBuffer.WriteString("><img src=\"/static/icons/cached_FILL0_wght400_GRAD0_opsz24.svg\"></button><button hx-get=\"/modal\" hx-target=\"#modal\" hx-swap=\"outerHTML\" name=\"sheet_id\" value=\"")
 		if err != nil {
 			return err
 		}
@@ -63,7 +63,7 @@ func toolbar(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) templ.Component 
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</button></div><div class=\"dropdown-menu\"><div class=\"dropdown-content\"><a hx-get=\"/modal\" hx-target=\"body\" hx-swap=\"beforeend\" class=\"dropdown-item\">")
+		_, err = templBuffer.WriteString("</button></div><div class=\"dropdown-menu\"><div class=\"dropdown-content\"><a hx-get=\"/modal\" hx-target=\"#modal\" hx-swap=\"outerHTML\" class=\"dropdown-item\">")
 		if err != nil {
 			return err
 		}
@@ -156,7 +156,7 @@ func toolbar(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) templ.Component 
 	})
 }
 
-func index(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) templ.Component {
+func index(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -195,7 +195,7 @@ func index(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</div><div class=\"scrollable\"><table id=\"table\" hx-trigger=\"click\" hx-target=\"#table\" hx-ext=\"response-targets\"></table></div></body></html>")
+		_, err = templBuffer.WriteString("</div><div class=\"scrollable\"><table id=\"table\" hx-trigger=\"click\" hx-target=\"#table\" hx-ext=\"response-targets\"></table></div><div id=\"modal\"></div></body></html>")
 		if err != nil {
 			return err
 		}

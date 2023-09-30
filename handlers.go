@@ -2,6 +2,7 @@ package main
 
 import (
 	"acb/db-interface/sheets"
+	"errors"
 	"github.com/a-h/templ"
 	"net/http"
 	"strconv"
@@ -14,12 +15,27 @@ func writeError(w http.ResponseWriter, text string) {
 	w.Write([]byte("<span class=\"error\">" + text + "</span>"))
 }
 
+func getSheet(r *http.Request, required bool) (sheets.Sheet, error) {
+	sheetIdStr := r.FormValue("sheet_id")
+	if sheetIdStr != "" {
+		sheetId, err := strconv.Atoi(sheetIdStr)
+		return sheets.SheetMap[sheetId], err
+	}
+	if required {
+		return sheets.Sheet{}, errors.New("missing sheet_id")
+	}
+	return sheets.Sheet{}, nil
+}
+
 func handleSheet(w http.ResponseWriter, r *http.Request) {
-	sheetName := r.Header.Get("HX-Prompt")
-	sheet := sheets.Sheet{Name: sheetName}
-	sheet.SaveSheet()
+	sheet, err := getSheet(r, true)
+	if err != nil {
+		writeError(w, err.Error())
+		return
+	}
+	sheet.LoadSheet()
 	sheets.GlobalSheet = sheet
-	templ.Handler(toolbar(sheets.GlobalSheet, sheets.SheetMap)).ServeHTTP(w, r)
+	reRenderSheet(w, r)
 }
 
 func handleAddCol(w http.ResponseWriter, r *http.Request) {
@@ -89,14 +105,13 @@ func handleAddRow(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleIndex(w http.ResponseWriter, r *http.Request) {
-	sheetIdStr := r.URL.Query().Get("sheet_id")
-	if sheetIdStr != "" {
-		sheetId, err := strconv.ParseInt(sheetIdStr, 10, 64)
-		if err != nil {
-			writeError(w, "Invalid sheet ID")
-			return
-		}
-		sheets.GlobalSheet = sheets.SheetMap[sheetId]
+	sheet, err := getSheet(r, false)
+	if err != nil {
+		writeError(w, err.Error())
+		return
+	}
+	sheets.GlobalSheet = sheet
+	if sheets.GlobalSheet.Id != 0 {
 		sheets.GlobalSheet.LoadSheet()
 	}
 	templ.Handler(index(sheets.GlobalSheet, sheets.SheetMap)).ServeHTTP(w, r)
@@ -115,18 +130,11 @@ func handleSetColPref(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleModal(w http.ResponseWriter, r *http.Request) {
-	sheet := sheets.Sheet{}
-	sheetIdStr := r.URL.Query().Get("sheet_id")
-	if sheetIdStr != "" {
-		sheetId, err := strconv.ParseInt(sheetIdStr, 10, 64)
-		var ok bool
-		sheet, ok = sheets.SheetMap[sheetId]
-		if err != nil || !ok {
-			writeError(w, "Invalid sheet ID")
-			return
-		}
+	sheet, err := getSheet(r, false)
+	if err != nil {
+		writeError(w, err.Error())
+		return
 	}
-
 	tableName := r.FormValue("table_name")
 	if tableName != "" {
 		sheet.SetTable(tableName)
@@ -134,22 +142,17 @@ func handleModal(w http.ResponseWriter, r *http.Request) {
 
 	fkeyOidStrs, ok := r.Form["fkey"]
 	if ok {
-		for _, fkeyOidStr := range fkeyOidStrs {
-			oid, err := strconv.Atoi(fkeyOidStr)
-			if err != nil {
+		sheet.JoinOids = make([]int64, len(fkeyOidStrs))
+		for i, fkeyOidStr := range fkeyOidStrs {
+			oid, err := strconv.ParseInt(fkeyOidStr, 10, 64)
+			_, ok := sheet.Table.Fkeys[oid]
+			if err != nil || !ok {
 				writeError(w, "Invalid fkey Oid")
 				return
 			}
-			fkey, ok := sheet.Table.FkeysFrom[oid]
-			if !ok {
-				fkey, ok = sheet.Table.FkeysTo[oid]
-			}
-			if !ok {
-				writeError(w, "Invalid fkey Oid")
-				return
-			}
-			sheet.Joins[oid] = fkey
+			sheet.JoinOids[i] = oid
 		}
+		sheet.SaveSheet()
 	}
 
 	_, addJoin := r.Form["add_join"]

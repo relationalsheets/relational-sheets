@@ -18,6 +18,8 @@ type TableNames struct {
 }
 
 type ForeignKey struct {
+	Oid            int64
+	isFrom         bool
 	otherTableName string
 	sourceColNames []string
 	targetColNames []string
@@ -36,8 +38,7 @@ type Table struct {
 	TableNames
 	HasPrimaryKey bool
 	Cols          map[string]Column
-	FkeysFrom     map[int]ForeignKey
-	FkeysTo       map[int]ForeignKey
+	Fkeys         map[int64]ForeignKey
 	RowCount      int
 	Oid           int64
 }
@@ -54,8 +55,8 @@ func (table Table) FullName() string {
 	return fmt.Sprintf("%s.%s", table.SchemaName, table.TableName)
 }
 
-func (fkey ForeignKey) ToString(isSource bool) string {
-	if isSource {
+func (fkey ForeignKey) ToString() string {
+	if fkey.isFrom {
 		return strings.Join(fkey.sourceColNames, ",") + "->" + fkey.otherTableName + "." + strings.Join(fkey.targetColNames, ",")
 	} else {
 		return fkey.otherTableName + "." + strings.Join(fkey.sourceColNames, ",") + "->" + strings.Join(fkey.targetColNames, ",")
@@ -132,8 +133,7 @@ func (table *Table) loadCols() {
 }
 
 func (t *Table) loadConstraints() {
-	t.FkeysFrom = make(map[int]ForeignKey)
-	t.FkeysTo = make(map[int]ForeignKey)
+	t.Fkeys = make(map[int64]ForeignKey)
 	tablesByOid := make(map[int64]Table)
 	for _, t := range Tables {
 		tablesByOid[t.Oid] = t
@@ -150,7 +150,7 @@ func (t *Table) loadConstraints() {
 
 	// Query the foreign keys, but returns IDs instead of column names
 	rawFkeys := make([]struct {
-		Oid       int
+		Oid       int64
 		Conrelid  int64
 		Confrelid int64
 		// PostgreSQL integers are 64-bit, so there is no IntArray type
@@ -215,15 +215,16 @@ func (t *Table) loadConstraints() {
 
 	// Populate t.FkeysFrom and t.FkeysTo
 	for _, rawFkey := range rawFkeys {
-		var sourceColNames, targetColNames []string
+		fkey := ForeignKey{Oid: rawFkey.Oid}
 		var otherTableOid int64
 		if rawFkey.Conrelid == t.Oid {
+			fkey.isFrom = true
 			otherTableOid = rawFkey.Confrelid
 			for _, attnum := range rawFkey.Conkey {
-				sourceColNames = append(sourceColNames, idsToNames[[2]int64{rawFkey.Conrelid, attnum}])
+				fkey.sourceColNames = append(fkey.sourceColNames, idsToNames[[2]int64{rawFkey.Conrelid, attnum}])
 			}
 			for _, attnum := range rawFkey.Confkey {
-				targetColNames = append(sourceColNames, idsToNames[[2]int64{rawFkey.Confrelid, attnum}])
+				fkey.targetColNames = append(fkey.targetColNames, idsToNames[[2]int64{rawFkey.Confrelid, attnum}])
 			}
 		} else {
 			if rawFkey.Confrelid != t.Oid {
@@ -232,33 +233,23 @@ func (t *Table) loadConstraints() {
 
 			otherTableOid = rawFkey.Conrelid
 			for _, attnum := range rawFkey.Conkey {
-				targetColNames = append(targetColNames, idsToNames[[2]int64{rawFkey.Conrelid, attnum}])
+				fkey.targetColNames = append(fkey.targetColNames, idsToNames[[2]int64{rawFkey.Conrelid, attnum}])
 			}
 			for _, attnum := range rawFkey.Confkey {
-				sourceColNames = append(sourceColNames, idsToNames[[2]int64{rawFkey.Confrelid, attnum}])
+				fkey.sourceColNames = append(fkey.sourceColNames, idsToNames[[2]int64{rawFkey.Confrelid, attnum}])
 			}
 		}
 
-		otherTableName := ""
 		for _, t2 := range Tables {
 			if t2.Oid == otherTableOid {
-				otherTableName = t2.FullName()
+				fkey.otherTableName = t2.FullName()
 			}
 		}
-		if otherTableName == "" {
+		if fkey.otherTableName == "" {
 			panic(fmt.Sprintf("Unexpected table oid %d", otherTableOid))
 		}
 
-		fkey := ForeignKey{
-			otherTableName,
-			sourceColNames,
-			targetColNames,
-		}
-		if rawFkey.Conrelid == t.Oid {
-			t.FkeysFrom[rawFkey.Oid] = fkey
-		} else {
-			t.FkeysTo[rawFkey.Oid] = fkey
-		}
+		t.Fkeys[rawFkey.Oid] = fkey
 	}
 }
 

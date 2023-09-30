@@ -14,7 +14,7 @@ import (
 	"strconv"
 )
 
-func fkeySelect(table sheets.Table, selected int) templ.Component {
+func fkeySelect(table sheets.Table, selected int64) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -31,12 +31,12 @@ func fkeySelect(table sheets.Table, selected int) templ.Component {
 		if err != nil {
 			return err
 		}
-		for oid, fkey := range table.FkeysFrom {
+		for oid, fkey := range table.Fkeys {
 			_, err = templBuffer.WriteString("<option value=\"")
 			if err != nil {
 				return err
 			}
-			_, err = templBuffer.WriteString(templ.EscapeString(strconv.Itoa(oid)))
+			_, err = templBuffer.WriteString(templ.EscapeString(strconv.FormatInt(oid, 10)))
 			if err != nil {
 				return err
 			}
@@ -54,41 +54,8 @@ func fkeySelect(table sheets.Table, selected int) templ.Component {
 			if err != nil {
 				return err
 			}
-			var var_2 string = fkey.ToString(true)
+			var var_2 string = fkey.ToString()
 			_, err = templBuffer.WriteString(templ.EscapeString(var_2))
-			if err != nil {
-				return err
-			}
-			_, err = templBuffer.WriteString("</option>")
-			if err != nil {
-				return err
-			}
-		}
-		for oid, fkey := range table.FkeysTo {
-			_, err = templBuffer.WriteString("<option value=\"")
-			if err != nil {
-				return err
-			}
-			_, err = templBuffer.WriteString(templ.EscapeString(strconv.Itoa(oid)))
-			if err != nil {
-				return err
-			}
-			_, err = templBuffer.WriteString("\"")
-			if err != nil {
-				return err
-			}
-			if oid == selected {
-				_, err = templBuffer.WriteString(" selected")
-				if err != nil {
-					return err
-				}
-			}
-			_, err = templBuffer.WriteString(">")
-			if err != nil {
-				return err
-			}
-			var var_3 string = fkey.ToString(false)
-			_, err = templBuffer.WriteString(templ.EscapeString(var_3))
 			if err != nil {
 				return err
 			}
@@ -116,17 +83,17 @@ func modal(sheet sheets.Sheet, tables []sheets.Table, addJoin bool) templ.Compon
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_4 := templ.GetChildren(ctx)
-		if var_4 == nil {
-			var_4 = templ.NopComponent
+		var_3 := templ.GetChildren(ctx)
+		if var_3 == nil {
+			var_3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, err = templBuffer.WriteString("<div id=\"modal\" class=\"modal is-active\" hx-target=\"body\" hx-swap=\"beforeend\" hx-include=\"select\"><div class=\"modal-content box\"><div id=\"table-fkey-config\"><label>")
+		_, err = templBuffer.WriteString("<div id=\"modal\" class=\"modal is-active\" hx-target=\"#modal\"><div class=\"modal-content box\"><div id=\"table-fkey-config\" hx-include=\"select\"><label>")
 		if err != nil {
 			return err
 		}
-		var_5 := `Tables`
-		_, err = templBuffer.WriteString(var_5)
+		var_4 := `Tables`
+		_, err = templBuffer.WriteString(var_4)
 		if err != nil {
 			return err
 		}
@@ -157,8 +124,8 @@ func modal(sheet sheets.Sheet, tables []sheets.Table, addJoin bool) templ.Compon
 			if err != nil {
 				return err
 			}
-			var var_6 string = table.FullName()
-			_, err = templBuffer.WriteString(templ.EscapeString(var_6))
+			var var_5 string = table.FullName()
+			_, err = templBuffer.WriteString(templ.EscapeString(var_5))
 			if err != nil {
 				return err
 			}
@@ -171,7 +138,7 @@ func modal(sheet sheets.Sheet, tables []sheets.Table, addJoin bool) templ.Compon
 		if err != nil {
 			return err
 		}
-		for oid, _ := range sheet.Joins {
+		for _, oid := range sheet.JoinOids {
 			err = fkeySelect(sheet.Table, oid).Render(ctx, templBuffer)
 			if err != nil {
 				return err
@@ -187,21 +154,29 @@ func modal(sheet sheets.Sheet, tables []sheets.Table, addJoin bool) templ.Compon
 		if err != nil {
 			return err
 		}
-		var_7 := `+ Join`
+		var_6 := `+ Join`
+		_, err = templBuffer.WriteString(var_6)
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("</button></div></div><div class=\"flex full-width mt center\"><button hx-post=\"/sheet\" hx-target=\"#table\" onclick=\"htmx.toggleClass(document.getElementById(&#39;modal&#39;), &#39;is-active&#39;)\" name=\"sheet_id\" value=\"")
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString(templ.EscapeString(strconv.Itoa(sheet.Id)))
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("\" class=\"button is-primary\">")
+		if err != nil {
+			return err
+		}
+		var_7 := `Ok`
 		_, err = templBuffer.WriteString(var_7)
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</button></div></div><div class=\"flex full-width mt center\"><button hx-post=\"/sheet\" class=\"button is-primary\">")
-		if err != nil {
-			return err
-		}
-		var_8 := `Ok`
-		_, err = templBuffer.WriteString(var_8)
-		if err != nil {
-			return err
-		}
-		_, err = templBuffer.WriteString("</button></div></div><div class=\"modal-close\"></div></div>")
+		_, err = templBuffer.WriteString("</button></div></div><button class=\"modal-close\"></button></div>")
 		if err != nil {
 			return err
 		}
