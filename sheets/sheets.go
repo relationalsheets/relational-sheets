@@ -109,8 +109,9 @@ func LoadSheets() {
 }
 
 func (s *Sheet) LoadSheet() {
-	SetCols(&s.table)
-	SetConstraints(&s.table)
+	s.table = tableMap[s.TableFullName()]
+	s.table.loadCols()
+	s.table.loadConstraints()
 	s.loadPrefs()
 	s.LoadCells(100, 0)
 	s.loadExtraCols()

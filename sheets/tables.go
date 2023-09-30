@@ -3,8 +3,10 @@ package sheets
 import (
 	"errors"
 	"fmt"
+	"github.com/lib/pq"
 	"log"
 	"sort"
+	"strconv"
 	"strings"
 
 	"golang.org/x/exp/maps"
@@ -15,10 +17,10 @@ type TableNames struct {
 	TableName  string `db:"tablename"`
 }
 
-type Constraint struct {
-	Name           string
-	ConstraintType string
-	Def            string
+type ForeignKey struct {
+	otherTableName string
+	SourceColNames []string
+	TargetColNames []string
 }
 
 type Column struct {
@@ -34,8 +36,10 @@ type Table struct {
 	TableNames
 	HasPrimaryKey bool
 	Cols          map[string]Column
-	Constraints   []Constraint
+	FkeysFrom     []ForeignKey
+	FkeysTo       []ForeignKey
 	RowCount      int
+	Oid           int64
 }
 
 type Cell struct {
@@ -84,7 +88,10 @@ func LoadTables() {
 	err := conn.Select(&Tables, `
 		SELECT COALESCE(tablename, '') tablename
 			, COALESCE(schemaname, '') schemaname
+			, oid
 		FROM pg_catalog.pg_tables
+		LEFT JOIN pg_catalog.pg_class
+			ON relname = tablename AND relkind = 'r'
 		WHERE schemaname != 'pg_catalog'
 			AND schemaname != 'information_schema'
 			AND schemaname != 'db_interface'
@@ -96,7 +103,7 @@ func LoadTables() {
 	}
 }
 
-func SetCols(table *Table) {
+func (table *Table) loadCols() {
 	cols := make([]Column, 0, 100)
 	err := conn.Select(&cols, `
 		SELECT column_name "name"
@@ -116,36 +123,125 @@ func SetCols(table *Table) {
 	}
 }
 
-func SetConstraints(table *Table) {
-	table.Constraints = make([]Constraint, 0, 10)
-	err := conn.Select(&table.Constraints, `
-		SELECT x.conname "name"
-			, x.contype constrainttype
-			, pg_get_constraintdef(x.oid) def
-		FROM pg_catalog.pg_constraint x
-		INNER JOIN pg_catalog.pg_class pk ON x.conrelid!=0 AND x.conrelid=pk.oid
-		INNER JOIN pg_catalog.pg_class fk ON x.confrelid!=0 AND x.confrelid=fk.oid
-		WHERE pk.relname = $1
-			AND pk.relnamespace = $2::regnamespace`,
-		table.TableName,
-		table.SchemaName)
-	Check(err)
-	log.Printf("Retrieved %d constraints from %s", len(table.Constraints), table.FullName())
+func (t *Table) loadConstraints() {
+	t.FkeysFrom = make([]ForeignKey, 0, 10)
+	t.FkeysTo = make([]ForeignKey, 0, 10)
+	tablesByOid := make(map[int64]Table)
+	for _, t := range Tables {
+		tablesByOid[t.Oid] = t
+	}
 
-	for _, constraint := range table.Constraints {
-		if constraint.ConstraintType == "p" {
-			columnPart := strings.Replace(constraint.Def, "PRIMARY KEY", "", 1)
-			primaryKeyColNames := strings.Split(strings.Trim(columnPart, "() "), ", ")
-			for key, col := range table.Cols {
-				for _, name := range primaryKeyColNames {
-					if col.Name == name {
-						col.IsPrimaryKey = true
-						table.Cols[key] = col
-						log.Printf("Primary key found: %s", col.Name)
-					}
-				}
+	// Query the primary keys, but returns IDs instead of column names
+	pKeyAttNums := []int64{}
+	err := conn.Get(&pKeyAttNums, `
+		SELECT conkey
+		FROM pg_catalog.pg_constraint
+		WHERE conrelid = $1
+			AND contype = 'p'`,
+		t.Oid)
+
+	// Query the foreign keys, but returns IDs instead of column names
+	rawFkeys := make([]struct {
+		Conrelid  int64
+		Confrelid int64
+		Conkey    pq.Int64Array
+		Confkey   pq.Int64Array
+	}, 0, 20)
+	err = conn.Select(&rawFkeys, `
+		SELECT conrelid
+			, confrelid
+			, conkey
+			, confkey
+		FROM pg_catalog.pg_constraint
+		WHERE (conrelid = $1 OR confrelid = $1)
+			AND contype = 'f'`,
+		t.Oid)
+	Check(err)
+	log.Printf("Retrieved %d fkeys relating to %s (%d): %+v", len(rawFkeys), t.FullName(), t.Oid, rawFkeys)
+
+	// Get the names for each column referenced in an fkey
+	idsToNames := make(map[[2]int64]string)
+	relIds := make([]string, 1, 20)
+	relIds[0] = strconv.FormatInt(t.Oid, 10)
+	for _, rawFkey := range rawFkeys {
+		// may add duplicates but that's OK
+		relIds = append(
+			append(relIds,
+				strconv.FormatInt(rawFkey.Conrelid, 10)),
+			strconv.FormatInt(rawFkey.Confrelid, 10))
+	}
+	query := fmt.Sprintf(`
+		SELECT attrelid
+		    , attnum
+		    , attname
+		FROM pg_catalog.pg_attribute
+		WHERE attrelid IN (%s)`,
+		strings.Join(relIds, ","))
+	log.Println("Executing: " + query)
+	rows, err := conn.Query(query)
+	Check(err)
+	for rows.Next() {
+		var relId, attNum int64
+		var colName string
+		err := rows.Scan(&relId, &attNum, &colName)
+		Check(err)
+		idsToNames[[2]int64{relId, attNum}] = colName
+	}
+
+	// Flag the primary keys in t.Cols
+	if len(pKeyAttNums) > 0 {
+		for _, attNum := range pKeyAttNums {
+			colName := idsToNames[[2]int64{t.Oid, attNum}]
+			col := t.Cols[colName]
+			col.IsPrimaryKey = true
+			t.Cols[colName] = col
+		}
+		log.Printf("Retrieved primary key for %s", t.FullName())
+	} else {
+		log.Printf("No primary key for %s", t.FullName())
+	}
+
+	// Populate t.FkeysFrom and t.FkeysTo
+	for _, rawFkey := range rawFkeys {
+		var sourceColNames, targetColNames []string
+		var otherTableOid int64
+		if rawFkey.Conrelid == t.Oid {
+			otherTableOid = rawFkey.Confrelid
+			for _, attnum := range rawFkey.Conkey {
+				sourceColNames = append(sourceColNames, idsToNames[[2]int64{rawFkey.Conrelid, attnum}])
 			}
-			break
+			for _, attnum := range rawFkey.Confkey {
+				targetColNames = append(sourceColNames, idsToNames[[2]int64{rawFkey.Confrelid, attnum}])
+			}
+		} else {
+			if rawFkey.Confrelid != t.Oid {
+				panic("SQL WHERE clause violated -- unexpected table oid")
+			}
+
+			otherTableOid = rawFkey.Conrelid
+			for _, attnum := range rawFkey.Conkey {
+				targetColNames = append(targetColNames, idsToNames[[2]int64{rawFkey.Conrelid, attnum}])
+			}
+			for _, attnum := range rawFkey.Confkey {
+				sourceColNames = append(sourceColNames, idsToNames[[2]int64{rawFkey.Confrelid, attnum}])
+			}
+		}
+
+		otherTableName := ""
+		for _, t2 := range Tables {
+			if t2.Oid == otherTableOid {
+				otherTableName = t2.FullName()
+			}
+		}
+		if otherTableName == "" {
+			panic(fmt.Sprintf("Unexpected table oid %d", otherTableOid))
+		}
+
+		fkey := ForeignKey{otherTableName, sourceColNames, targetColNames}
+		if rawFkey.Conrelid == t.Oid {
+			t.FkeysFrom = append(t.FkeysFrom, fkey)
+		} else {
+			t.FkeysTo = append(t.FkeysFrom, fkey)
 		}
 	}
 }

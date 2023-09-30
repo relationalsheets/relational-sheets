@@ -190,7 +190,7 @@ func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 	})
 }
 
-func sheet(name string, cols []sheets.Column, ExtraCols []sheets.SheetColumn, rowCount int) templ.Component {
+func sheetTable(name string, cols []sheets.Column, ExtraCols []sheets.SheetColumn, rowCount int) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -389,6 +389,6 @@ func sheet(name string, cols []sheets.Column, ExtraCols []sheets.SheetColumn, ro
 	})
 }
 
-func RenderSheet(s sheets.Sheet) templ.Component {
-	return sheet(s.TableFullName(), s.OrderedCols(), s.ExtraCols, s.RowCount())
+func renderSheet(s sheets.Sheet) templ.Component {
+	return sheetTable(s.TableFullName(), s.OrderedCols(), s.ExtraCols, s.RowCount())
 }

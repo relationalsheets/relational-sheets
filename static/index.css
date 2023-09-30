@@ -1,3 +1,4 @@
+/* general styles */
 .is-null {
     background-color: #eee;
 }
@@ -12,27 +13,37 @@
 }
 .flex {
     display: flex;
+    align-items: center;
 }
-
 button,select,.select,input {
     border-radius: 0 !important;
     border: 0;
-    height: 100%;
     min-width: 60px;
+    background-color: white;
+    cursor: pointer;
+    font-size: 1rem;
+}
+button[disabled] {
+    cursor: initial;
+}
+label {
+    margin-right: 1em;
+    font-size: 1rem;
+    font-weight: bold;
 }
 
+/* toolbar styles */
 #toolbar {
+    height: 48px;
     display: flex;
+    justify-content: space-between;
 }
-#sheet-select {
-    flex-grow: 1;
+.toolbar-group {
     display: flex;
-    align-items: stretch;
-}
-.table-select {
-    float: right;
+    align-items: center;
 }
 
+/* Table styles */
 .scrollable {
     overflow: auto;
 }

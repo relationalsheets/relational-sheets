@@ -6,6 +6,7 @@ require (
 	github.com/a-h/templ v0.2.334
 	github.com/jackc/pgx/v5 v5.4.3
 	github.com/jmoiron/sqlx v1.3.5
+	github.com/lib/pq v1.2.0
 	github.com/xuri/efp v0.0.0-20230802181842-ad255f2331ca
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 )

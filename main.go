@@ -17,6 +17,7 @@ func main() {
 	sheets.LoadSheets()
 
 	http.HandleFunc("/sheet", handleSheet)
+	http.HandleFunc("/modal", handleModal)
 	http.HandleFunc("/table", handleSetTable)
 	http.HandleFunc("/add-row", handleAddRow)
 	http.HandleFunc("/add-column", handleAddCol)

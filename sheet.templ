@@ -42,7 +42,7 @@ templ extraCell(i, j int, cell sheets.SheetCell) {
     </td>
 }
 
-templ sheet(name string, cols []sheets.Column, ExtraCols []sheets.SheetColumn, rowCount int) {
+templ sheetTable(name string, cols []sheets.Column, ExtraCols []sheets.SheetColumn, rowCount int) {
     <thead>
         <tr id="header-row">
             <th>
@@ -117,6 +117,6 @@ templ sheet(name string, cols []sheets.Column, ExtraCols []sheets.SheetColumn, r
     </tbody>
 }
 
-func RenderSheet(s sheets.Sheet) templ.Component {
-    return sheet(s.TableFullName(), s.OrderedCols(), s.ExtraCols, s.RowCount())
+func renderSheet(s sheets.Sheet) templ.Component {
+    return sheetTable(s.TableFullName(), s.OrderedCols(), s.ExtraCols, s.RowCount())
 }

@@ -14,7 +14,7 @@ import (
 	"fmt"
 )
 
-func sheetSelect(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) templ.Component {
+func toolbar(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -27,60 +27,58 @@ func sheetSelect(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) templ.Compon
 			var_1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, err = templBuffer.WriteString("<button hx-post=\"/sheet\" hx-prompt=\"Sheet name\" hx-target=\"#sheet-select\">")
+		_, err = templBuffer.WriteString("<div class=\"toolbar-group\"><button hx-get=\"/table\" hx-target=\"#table\" hx-trigger=\"click,load\"")
 		if err != nil {
 			return err
 		}
-		var_2 := `New`
+		if sheet.TableFullName() != "" {
+			_, err = templBuffer.WriteString(" disabled")
+			if err != nil {
+				return err
+			}
+		}
+		_, err = templBuffer.WriteString("><img src=\"/static/icons/cached_FILL0_wght400_GRAD0_opsz24.svg\"></button><button hx-get=\"/modal\" hx-target=\"body\" hx-swap=\"beforeend\" name=\"sheet_id\" value=\"")
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString(templ.EscapeString(fmt.Sprintf("%d", sheet.Id)))
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("\">")
+		if err != nil {
+			return err
+		}
+		var_2 := `Edit`
 		_, err = templBuffer.WriteString(var_2)
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</button><div class=\"dropdown is-hoverable\"><div class=\"dropdown-trigger\"><button class=\"button\" aria-haspopup=\"true\" aria-controls=\"dropdown-menu\">")
+		_, err = templBuffer.WriteString("</button><div class=\"dropdown is-hoverable\"><div class=\"dropdown-trigger\"><button aria-haspopup=\"true\" aria-controls=\"dropdown-menu\">")
 		if err != nil {
 			return err
 		}
-		if sheet.Id == 0 {
-			_, err = templBuffer.WriteString("<span>")
-			if err != nil {
-				return err
-			}
-			var_3 := `Select Sheet`
-			_, err = templBuffer.WriteString(var_3)
-			if err != nil {
-				return err
-			}
-			_, err = templBuffer.WriteString("</span>")
-			if err != nil {
-				return err
-			}
-		} else {
-			_, err = templBuffer.WriteString("<span>")
-			if err != nil {
-				return err
-			}
-			var_4 := `Current Sheet: `
-			_, err = templBuffer.WriteString(var_4)
-			if err != nil {
-				return err
-			}
-			var var_5 string = sheet.VisibleName()
-			_, err = templBuffer.WriteString(templ.EscapeString(var_5))
-			if err != nil {
-				return err
-			}
-			_, err = templBuffer.WriteString("</span>")
-			if err != nil {
-				return err
-			}
+		var_3 := `Open`
+		_, err = templBuffer.WriteString(var_3)
+		if err != nil {
+			return err
 		}
-		_, err = templBuffer.WriteString("</button></div><div class=\"dropdown-menu\"><div class=\"dropdown-content\">")
+		_, err = templBuffer.WriteString("</button></div><div class=\"dropdown-menu\"><div class=\"dropdown-content\"><a hx-get=\"/modal\" hx-target=\"body\" hx-swap=\"beforeend\" class=\"dropdown-item\">")
+		if err != nil {
+			return err
+		}
+		var_4 := `+ New`
+		_, err = templBuffer.WriteString(var_4)
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("</a>")
 		if err != nil {
 			return err
 		}
 		for _, s := range sheets {
-			var var_6 = []any{"dropdown-item", templ.KV("is-active", s.Id == sheet.Id)}
-			err = templ.RenderCSSItems(ctx, templBuffer, var_6...)
+			var var_5 = []any{"dropdown-item", templ.KV("is-active", s.Id == sheet.Id)}
+			err = templ.RenderCSSItems(ctx, templBuffer, var_5...)
 			if err != nil {
 				return err
 			}
@@ -88,8 +86,8 @@ func sheetSelect(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) templ.Compon
 			if err != nil {
 				return err
 			}
-			var var_7 templ.SafeURL = templ.SafeURL(fmt.Sprintf("/?sheet_id=%d", s.Id))
-			_, err = templBuffer.WriteString(templ.EscapeString(string(var_7)))
+			var var_6 templ.SafeURL = templ.SafeURL(fmt.Sprintf("/?sheet_id=%d", s.Id))
+			_, err = templBuffer.WriteString(templ.EscapeString(string(var_6)))
 			if err != nil {
 				return err
 			}
@@ -97,7 +95,7 @@ func sheetSelect(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) templ.Compon
 			if err != nil {
 				return err
 			}
-			_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_6).String()))
+			_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_5).String()))
 			if err != nil {
 				return err
 			}
@@ -105,8 +103,8 @@ func sheetSelect(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) templ.Compon
 			if err != nil {
 				return err
 			}
-			var var_8 string = s.VisibleName()
-			_, err = templBuffer.WriteString(templ.EscapeString(var_8))
+			var var_7 string = s.VisibleName()
+			_, err = templBuffer.WriteString(templ.EscapeString(var_7))
 			if err != nil {
 				return err
 			}
@@ -114,13 +112,13 @@ func sheetSelect(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) templ.Compon
 			if err != nil {
 				return err
 			}
-			var_9 := `- `
-			_, err = templBuffer.WriteString(var_9)
+			var_8 := `- `
+			_, err = templBuffer.WriteString(var_8)
 			if err != nil {
 				return err
 			}
-			var var_10 string = fmt.Sprintf("%d", s.Id)
-			_, err = templBuffer.WriteString(templ.EscapeString(var_10))
+			var var_9 string = fmt.Sprintf("%d", s.Id)
+			_, err = templBuffer.WriteString(templ.EscapeString(var_9))
 			if err != nil {
 				return err
 			}
@@ -129,7 +127,25 @@ func sheetSelect(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) templ.Compon
 				return err
 			}
 		}
-		_, err = templBuffer.WriteString("</div></div></div>")
+		_, err = templBuffer.WriteString("</div></div></div></div><div class=\"toolbar-group\">")
+		if err != nil {
+			return err
+		}
+		var var_10 string = sheet.VisibleName()
+		_, err = templBuffer.WriteString(templ.EscapeString(var_10))
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("</div><div class=\"toolbar-group\"><button disabled>")
+		if err != nil {
+			return err
+		}
+		var_11 := `Share`
+		_, err = templBuffer.WriteString(var_11)
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("</button></div>")
 		if err != nil {
 			return err
 		}
@@ -140,7 +156,7 @@ func sheetSelect(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) templ.Compon
 	})
 }
 
-func index(sheet sheets.Sheet, sheets map[int64]sheets.Sheet, tables []sheets.Table) templ.Component {
+func index(sheet sheets.Sheet, sheets map[int64]sheets.Sheet) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -148,21 +164,12 @@ func index(sheet sheets.Sheet, sheets map[int64]sheets.Sheet, tables []sheets.Ta
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_11 := templ.GetChildren(ctx)
-		if var_11 == nil {
-			var_11 = templ.NopComponent
+		var_12 := templ.GetChildren(ctx)
+		if var_12 == nil {
+			var_12 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		_, err = templBuffer.WriteString("<!doctype html><html><head><script src=\"https://unpkg.com/htmx.org@1.9.5\">")
-		if err != nil {
-			return err
-		}
-		var_12 := ``
-		_, err = templBuffer.WriteString(var_12)
-		if err != nil {
-			return err
-		}
-		_, err = templBuffer.WriteString("</script><script src=\"https://unpkg.com/htmx.org/dist/ext/response-targets.js\">")
 		if err != nil {
 			return err
 		}
@@ -171,61 +178,24 @@ func index(sheet sheets.Sheet, sheets map[int64]sheets.Sheet, tables []sheets.Ta
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</script><script src=\"/static/index.js\"></script><link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css\"><link rel=\"stylesheet\" href=\"/static/index.css\"></head><body><div id=\"toolbar\"><div id=\"sheet-select\">")
+		_, err = templBuffer.WriteString("</script><script src=\"https://unpkg.com/htmx.org/dist/ext/response-targets.js\">")
 		if err != nil {
 			return err
 		}
-		err = sheetSelect(sheet, sheets).Render(ctx, templBuffer)
-		if err != nil {
-			return err
-		}
-		_, err = templBuffer.WriteString("</div><div class=\"select table-select\"><select name=\"table_name\" hx-get=\"/table\" hx-target=\"#table\" hx-trigger=\"click,load\"><option value=\"\">")
-		if err != nil {
-			return err
-		}
-		var_14 := `Table`
+		var_14 := ``
 		_, err = templBuffer.WriteString(var_14)
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</option>")
+		_, err = templBuffer.WriteString("</script><script src=\"/static/index.js\"></script><link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css\"><link rel=\"stylesheet\" href=\"/static/index.css\"></head><body><div id=\"toolbar\">")
 		if err != nil {
 			return err
 		}
-		for _, table := range tables {
-			_, err = templBuffer.WriteString("<option value=\"")
-			if err != nil {
-				return err
-			}
-			_, err = templBuffer.WriteString(templ.EscapeString(table.FullName()))
-			if err != nil {
-				return err
-			}
-			_, err = templBuffer.WriteString("\"")
-			if err != nil {
-				return err
-			}
-			if table.FullName() == sheet.TableFullName() {
-				_, err = templBuffer.WriteString(" selected")
-				if err != nil {
-					return err
-				}
-			}
-			_, err = templBuffer.WriteString(">")
-			if err != nil {
-				return err
-			}
-			var var_15 string = table.FullName()
-			_, err = templBuffer.WriteString(templ.EscapeString(var_15))
-			if err != nil {
-				return err
-			}
-			_, err = templBuffer.WriteString("</option>")
-			if err != nil {
-				return err
-			}
+		err = toolbar(sheet, sheets).Render(ctx, templBuffer)
+		if err != nil {
+			return err
 		}
-		_, err = templBuffer.WriteString("</select></div></div><div class=\"scrollable\"><table id=\"table\" hx-trigger=\"click\" hx-target=\"#table\" hx-ext=\"response-targets\"></table></div></body></html>")
+		_, err = templBuffer.WriteString("</div><div class=\"scrollable\"><table id=\"table\" hx-trigger=\"click\" hx-target=\"#table\" hx-ext=\"response-targets\"></table></div></body></html>")
 		if err != nil {
 			return err
 		}

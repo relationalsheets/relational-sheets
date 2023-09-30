@@ -19,7 +19,7 @@ func handleSheet(w http.ResponseWriter, r *http.Request) {
 	sheet := sheets.Sheet{Name: sheetName}
 	sheet.SaveSheet()
 	sheets.GlobalSheet = sheet
-	templ.Handler(sheetSelect(sheets.GlobalSheet, sheets.SheetMap)).ServeHTTP(w, r)
+	templ.Handler(toolbar(sheets.GlobalSheet, sheets.SheetMap)).ServeHTTP(w, r)
 }
 
 func handleAddCol(w http.ResponseWriter, r *http.Request) {
@@ -52,17 +52,19 @@ func reRenderSheet(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "No table name provided")
 		return
 	}
-	handler := templ.Handler(RenderSheet(sheets.GlobalSheet))
+	handler := templ.Handler(renderSheet(sheets.GlobalSheet))
 	handler.ServeHTTP(w, r)
 }
 
 func handleSetTable(w http.ResponseWriter, r *http.Request) {
-	tableName := r.URL.Query().Get("table_name")
-	if tableName == "" {
-		writeError(w, "No table name provided")
-		return
+	if r.Method == "POST" {
+		tableName := r.FormValue("table_name")
+		if tableName == "" {
+			writeError(w, "No table name provided")
+			return
+		}
+		sheets.GlobalSheet.SetTable(tableName)
 	}
-	sheets.GlobalSheet.SetTable(tableName)
 
 	reRenderSheet(w, r)
 }
@@ -97,7 +99,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 		sheets.GlobalSheet = sheets.SheetMap[sheetId]
 		sheets.GlobalSheet.LoadSheet()
 	}
-	templ.Handler(index(sheets.GlobalSheet, sheets.SheetMap, sheets.Tables)).ServeHTTP(w, r)
+	templ.Handler(index(sheets.GlobalSheet, sheets.SheetMap)).ServeHTTP(w, r)
 }
 
 func handleSetColPref(w http.ResponseWriter, r *http.Request) {
@@ -110,4 +112,21 @@ func handleSetColPref(w http.ResponseWriter, r *http.Request) {
 	sheets.GlobalSheet.LoadCells(100, 0)
 
 	reRenderSheet(w, r)
+}
+
+func handleModal(w http.ResponseWriter, r *http.Request) {
+	sheetIdStr := r.URL.Query().Get("sheet_id")
+	if sheetIdStr == "" {
+		templ.Handler(modal(sheets.Sheet{}, sheets.Tables)).ServeHTTP(w, r)
+		return
+	}
+
+	sheetId, err := strconv.ParseInt(sheetIdStr, 10, 64)
+	sheet, ok := sheets.SheetMap[sheetId]
+	if err != nil || !ok {
+		writeError(w, "Invalid sheet ID")
+		return
+	}
+
+	templ.Handler(modal(sheet, sheets.Tables)).ServeHTTP(w, r)
 }
