@@ -45,6 +45,28 @@ templ toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) {
             </div>
           </div>
         </div>
+
+        <button disabled>
+          Export
+        </button>
+
+        <div class="dropdown is-hoverable">
+          <div class="dropdown-trigger">
+            <button aria-haspopup="true" aria-controls="dropdown-menu">
+                Insert
+            </button>
+          </div>
+          <div class="dropdown-menu">
+            <div class="dropdown-content">
+                <a hx-post="/add-column"
+                   hx-target="#table"
+                   hx-trigger="click"
+                   class="dropdown-item">
+                    Column
+                </a>
+            </div>
+          </div>
+        </div>
     </div>
 
     <div class="toolbar-group">

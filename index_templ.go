@@ -127,12 +127,39 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 				return err
 			}
 		}
-		_, err = templBuffer.WriteString("</div></div></div></div><div class=\"toolbar-group\">")
+		_, err = templBuffer.WriteString("</div></div></div><button disabled>")
 		if err != nil {
 			return err
 		}
-		var var_10 string = sheet.VisibleName()
-		_, err = templBuffer.WriteString(templ.EscapeString(var_10))
+		var_10 := `Export`
+		_, err = templBuffer.WriteString(var_10)
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("</button><div class=\"dropdown is-hoverable\"><div class=\"dropdown-trigger\"><button aria-haspopup=\"true\" aria-controls=\"dropdown-menu\">")
+		if err != nil {
+			return err
+		}
+		var_11 := `Insert`
+		_, err = templBuffer.WriteString(var_11)
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("</button></div><div class=\"dropdown-menu\"><div class=\"dropdown-content\"><a hx-post=\"/add-column\" hx-target=\"#table\" hx-trigger=\"click\" class=\"dropdown-item\">")
+		if err != nil {
+			return err
+		}
+		var_12 := `Column`
+		_, err = templBuffer.WriteString(var_12)
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("</a></div></div></div></div><div class=\"toolbar-group\">")
+		if err != nil {
+			return err
+		}
+		var var_13 string = sheet.VisibleName()
+		_, err = templBuffer.WriteString(templ.EscapeString(var_13))
 		if err != nil {
 			return err
 		}
@@ -140,8 +167,8 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		var_11 := `Share`
-		_, err = templBuffer.WriteString(var_11)
+		var_14 := `Share`
+		_, err = templBuffer.WriteString(var_14)
 		if err != nil {
 			return err
 		}
@@ -164,17 +191,17 @@ func index(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_12 := templ.GetChildren(ctx)
-		if var_12 == nil {
-			var_12 = templ.NopComponent
+		var_15 := templ.GetChildren(ctx)
+		if var_15 == nil {
+			var_15 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		_, err = templBuffer.WriteString("<!doctype html><html><head><script src=\"https://unpkg.com/htmx.org@1.9.5\">")
 		if err != nil {
 			return err
 		}
-		var_13 := ``
-		_, err = templBuffer.WriteString(var_13)
+		var_16 := ``
+		_, err = templBuffer.WriteString(var_16)
 		if err != nil {
 			return err
 		}
@@ -182,8 +209,8 @@ func index(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		var_14 := ``
-		_, err = templBuffer.WriteString(var_14)
+		var_17 := ``
+		_, err = templBuffer.WriteString(var_17)
 		if err != nil {
 			return err
 		}

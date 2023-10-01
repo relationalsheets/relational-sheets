@@ -20,13 +20,6 @@ templ extraColName(i int, name string) {
            hx-swap="none" />
 }
 
-templ addColButton() {
-    <button id="add-col-button"
-        hx-post="/add-column">
-        + Col
-    </button>
-}
-
 templ extraCell(i, j int, cell sheets.SheetCell) {
     <td class={ "extra-cell", templ.KV("is-null", !cell.NotNull) }>
         <input name="formula"
@@ -58,7 +51,6 @@ templ sheetTable(name string, cols []sheets.Column, ExtraCols []sheets.SheetColu
                 } else {
                 <div class="flex">
                     @colName(col.Name)
-                    @addColButton()
                 </div>
                 }
             </th>
@@ -72,7 +64,6 @@ templ sheetTable(name string, cols []sheets.Column, ExtraCols []sheets.SheetColu
             <th>
                 <div class="flex">
                     @extraColName(i, col.Name)
-                    @addColButton()
                 </div>
             </th>
             }

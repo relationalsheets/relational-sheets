@@ -1,5 +1,8 @@
+- [ ] Store table names instead of tables on Sheet
+- [ ] Move "+ Row" and "+ Col" to single "Insert" select in toolbar
+- [ ] Make columns take up enough space that table is at least 100% wide
 - [ ] Support column dependencies
-- [ ] Support joins
+- [ ] Support querying via joins
 - [ ] Improve toolbar CSS
 - [ ] Improve x scroll experience
 - [ ] Filtering
