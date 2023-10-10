@@ -23,6 +23,7 @@ type ForeignKey struct {
 	otherTableName string
 	sourceColNames []string
 	targetColNames []string
+	def            string
 }
 
 type Column struct {
@@ -63,30 +64,32 @@ func (fkey ForeignKey) ToString() string {
 	}
 }
 
-func (sheet Sheet) OrderedColNames() []string {
-	colNames := make([]string, 0, len(sheet.Table.Cols))
-	indices := make([]int, 0, len(sheet.Table.Cols))
-	for _, col := range sheet.Table.Cols {
-		if !sheet.prefsMap[col.Name].Hide {
-			colNames = append(colNames, col.Name)
-			indices = append(indices, col.Index)
+func (sheet Sheet) OrderedTableJoinAndCols() ([]string, []string, [][]Column) {
+	tableNames := make([]string, 1+len(sheet.JoinOids))
+	joinDefs := make([]string, len(sheet.JoinOids))
+	cols := make([][]Column, len(tableNames))
+	table := sheet.Table
+	for i := 0; i <= len(sheet.JoinOids); i++ {
+		tableNames[i] = table.FullName()
+		cols[i] = make([]Column, 0, len(table.Cols))
+		for _, col := range table.Cols {
+			if !sheet.prefsMap[col.Name].Hide {
+				cols[i] = append(cols[i], table.Cols[col.Name])
+			}
 		}
+		if i < len(sheet.JoinOids) {
+			joinOid := sheet.JoinOids[i]
+			join := table.Fkeys[joinOid]
+			joinDefs[i] = join.def
+			table = tableMap[join.otherTableName]
+		}
+		sort.SliceStable(cols, func(j, k int) bool {
+			indexJ := sheet.prefsMap[table.FullName()+"."+cols[i][j].Name].Index | cols[i][j].Index
+			indexK := sheet.prefsMap[table.FullName()+"."+cols[i][k].Name].Index | cols[i][k].Index
+			return indexJ < indexK
+		})
 	}
-	sort.SliceStable(colNames, func(i, j int) bool {
-		indexI := sheet.prefsMap[colNames[i]].Index | indices[i]
-		indexJ := sheet.prefsMap[colNames[j]].Index | indices[j]
-		return indexI < indexJ
-	})
-	return colNames
-}
-
-func (sheet Sheet) OrderedCols() []Column {
-	colNames := sheet.OrderedColNames()
-	cols := make([]Column, len(colNames))
-	for i, name := range colNames {
-		cols[i] = sheet.Table.Cols[name]
-	}
-	return cols
+	return tableNames, joinDefs, cols
 }
 
 func (sheet Sheet) GetCol(name string) Column {
@@ -153,6 +156,7 @@ func (t *Table) loadConstraints() {
 		Oid       int64
 		Conrelid  int64
 		Confrelid int64
+		Def       string
 		// PostgreSQL integers are 64-bit, so there is no IntArray type
 		// This is why we use int64 for most ints here
 		Conkey  pq.Int64Array
@@ -164,6 +168,7 @@ func (t *Table) loadConstraints() {
 			, confrelid
 			, conkey
 			, confkey
+			, pg_get_constraintdef(oid) as def
 		FROM pg_catalog.pg_constraint
 		WHERE (conrelid = $1 OR confrelid = $1)
 			AND contype = 'f'`,
@@ -253,51 +258,69 @@ func (t *Table) loadConstraints() {
 	}
 }
 
-func (sheet *Sheet) LoadCells(limit int, offset int) {
-	colNames := sheet.OrderedColNames()
+func (sheet *Sheet) LoadRows(limit int, offset int) {
+	tableNames, joinDefs, cols := sheet.OrderedTableJoinAndCols()
 	// TODO: Check if table.TableName and column names are valid somewhere
-	casts := make([]string, 0, len(colNames))
-	for _, name := range colNames {
-		col := sheet.Table.Cols[name]
-		col.Cells = make([]Cell, limit)
-		sheet.Table.Cols[name] = col
+	casts := make([]string, 0)
+	for i, tableName := range tableNames {
+		table := tableMap[tableName]
+		table.Cols = make(map[string]Column)
 
-		cast := fmt.Sprintf("\"%s\"::text, \"%s\" IS NOT NULL", name, name)
-		casts = append(casts, cast)
+		for _, col := range cols[i] {
+			col.Cells = make([]Cell, limit)
+			table.Cols[col.Name] = col
+
+			name := table.FullName() + "." + col.Name
+			cast := fmt.Sprintf("%s::text, %s IS NOT NULL", name, name)
+			casts = append(casts, cast)
+		}
 	}
 
+	fromClause := "FROM " + tableNames[0]
+	for _, join := range joinDefs {
+		fromClause += " JOIN " + join
+	}
 	query := fmt.Sprintf(
-		"SELECT %s FROM %s LIMIT $1 OFFSET $2",
+		"SELECT %s %s LIMIT $1 OFFSET $2",
 		strings.Join(casts, ", "),
-		sheet.Table.FullName())
+		fromClause)
 	log.Printf("Executing: %s", query)
 	rows, err := conn.Queryx(query, limit, offset)
 	Check(err)
 
-	sheet.Table.RowCount = 0
+	sheet.RowCount = 0
 	for rows.Next() {
 		scanResult, err := rows.SliceScan()
 		Check(err)
-		for i := 0; i < len(casts); i++ {
-			val, _ := scanResult[2*i].(string)
-			sheet.Table.Cols[colNames[i]].Cells[sheet.Table.RowCount] = Cell{
-				val, scanResult[2*i+1].(bool),
+		index := 0
+		for _, tableName := range tableNames {
+			for _, col := range tableMap[tableName].Cols {
+				val := scanResult[2*index].(string)
+				col.Cells[sheet.RowCount] = Cell{
+					val, scanResult[2*index+1].(bool),
+				}
+				index++
 			}
 		}
-		sheet.Table.RowCount++
+		sheet.RowCount++
 	}
 	log.Printf("Retrieved %d rows from %s", sheet.Table.RowCount, sheet.Table.FullName())
 	Check(rows.Close())
 }
 
-func (sheet *Sheet) InsertRow(values map[string]string) error {
-	colNames := sheet.OrderedColNames()
-	valueLabels := make([]string, 0, len(colNames))
+func (sheet *Sheet) InsertRow(tableName string, values map[string]string) error {
+	tableNames, _, cols := sheet.OrderedTableJoinAndCols()
+	valueLabels := make([]string, 0)
 	nonEmptyValues := make(map[string]interface{})
-	for _, name := range colNames {
-		if values[name] != "" {
-			nonEmptyValues[name] = values[name]
-			valueLabels = append(valueLabels, ":"+name)
+	for i, tname := range tableNames {
+		if tname != tableName {
+			continue
+		}
+		for _, col := range cols[i] {
+			if values[col.Name] != "" {
+				nonEmptyValues[col.Name] = values[col.Name]
+				valueLabels = append(valueLabels, ":"+col.Name)
+			}
 		}
 	}
 	if len(nonEmptyValues) == 0 {
@@ -306,7 +329,7 @@ func (sheet *Sheet) InsertRow(values map[string]string) error {
 
 	query := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES (%s)",
-		sheet.Table.FullName(),
+		tableName,
 		strings.Join(maps.Keys(nonEmptyValues), ", "),
 		strings.Join(valueLabels, ", "))
 	log.Println("Executing:", query)

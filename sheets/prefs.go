@@ -5,6 +5,7 @@ import (
 )
 
 type Pref struct {
+	TableName  string // Only used for convenient loading
 	ColumnName string // Only used for convenient loading
 	Hide       bool
 	Editable   bool
@@ -13,15 +14,16 @@ type Pref struct {
 
 func InitPrefsTable() {
 	conn.MustExec(`
-		CREATE SCHEMA IF NOT EXISTS db_interface;
+		DROP TABLE db_interface.column_prefs;
 		CREATE TABLE IF NOT EXISTS db_interface.column_prefs (
 			id SERIAL PRIMARY KEY
 			, sheet_id INT NOT NULL
+			, tablename VARCHAR(255) NOT NULL
 			, columnname VARCHAR(255) NOT NULL
 			, hide boolean NOT NULL DEFAULT false
 			, editable boolean NOT NULL DEFAULT false
 			, index int NOT NULL
-			, UNIQUE(sheet_id, columnname)
+			, UNIQUE(sheet_id, tablename, columnname)
 			, CONSTRAINT fk_sheets
 				FOREIGN KEY (sheet_id)
 					REFERENCES db_interface.sheets(id)
@@ -37,14 +39,15 @@ func (sheet *Sheet) SetPref(colName string, hide bool) {
 	conn.MustExec(`
 		INSERT INTO db_interface.column_prefs (
 			sheet_id
+			, tablename
 			, columnname
 			, hide
 			, editable
 			, index
 		) VALUES (
-			$1, $2, $3, $4, $5
+			$1, $2, $3, $4, $5, $6
 		)
-		ON CONFLICT ("sheet_id", "columnname") DO
+		ON CONFLICT ("sheet_id", "tablename", "columnname") DO
 		UPDATE SET hide = $3
 			, editable = $4
 			, index = $5`,
@@ -58,7 +61,8 @@ func (sheet *Sheet) SetPref(colName string, hide bool) {
 func (s *Sheet) loadPrefs() {
 	prefs := []Pref{}
 	err := conn.Select(&prefs, `
-		SELECT columnname
+		SELECT tablename
+		    , columnname
 			, hide
 			, editable
 			, index
@@ -69,6 +73,6 @@ func (s *Sheet) loadPrefs() {
 	log.Printf("Retrieved %d column prefs", len(prefs))
 	s.prefsMap = make(map[string]Pref)
 	for _, pref := range prefs {
-		s.prefsMap[pref.ColumnName] = pref
+		s.prefsMap[pref.TableName+"."+pref.ColumnName] = pref
 	}
 }

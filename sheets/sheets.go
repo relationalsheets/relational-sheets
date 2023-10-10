@@ -22,6 +22,7 @@ type Sheet struct {
 	JoinOids  pq.Int64Array
 	prefsMap  map[string]Pref
 	ExtraCols []SheetColumn
+	RowCount  int
 }
 
 var SheetMap = make(map[int]Sheet)
@@ -36,12 +37,9 @@ func (s Sheet) VisibleName() string {
 	return s.Name
 }
 
-func (s Sheet) RowCount() int {
-	return s.Table.RowCount
-}
-
 func initSheetsTable() {
 	conn.MustExec(`
+		CREATE SCHEMA IF NOT EXISTS db_interface;
 		CREATE TABLE IF NOT EXISTS db_interface.sheets (
 			id SERIAL PRIMARY KEY
 			, "name" VARCHAR(255) NOT NULL
@@ -121,7 +119,7 @@ func (s *Sheet) LoadSheet() {
 	s.Table.loadCols()
 	s.Table.loadConstraints()
 	s.loadPrefs()
-	s.LoadCells(100, 0)
+	s.LoadRows(100, 0)
 	s.loadExtraCols()
 }
 

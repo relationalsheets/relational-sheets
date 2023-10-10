@@ -3,6 +3,7 @@ package main
 import (
 	"acb/db-interface/sheets"
     "fmt"
+    "strconv"
 )
 
 templ colName(name string) {
@@ -35,8 +36,15 @@ templ extraCell(i, j int, cell sheets.SheetCell) {
     </td>
 }
 
-templ sheetTable(name string, cols []sheets.Column, ExtraCols []sheets.SheetColumn, rowCount int) {
+templ sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column) {
     <thead>
+        <tr>
+            for i, tableName := range tableNames {
+                <th colspan={ strconv.Itoa(len(cols[i])) }>
+                    { tableName }
+                </th>
+            }
+        </tr>
         <tr id="header-row">
             <th>
                 <button onclick="htmx.removeClass(htmx.find('#new-row'), 'hide')
@@ -44,29 +52,17 @@ templ sheetTable(name string, cols []sheets.Column, ExtraCols []sheets.SheetColu
                     + Row
                 </button>
             </th>
-        for i, col := range cols {
+        for _, tcols := range cols {
+        for _, col := range tcols {
             <th class={ templ.KV("is-pkey", col.IsPrimaryKey) }>
-                if len(ExtraCols) > 0 || i + 1 < len(cols) {
-                    @colName(col.Name)
-                } else {
-                <div class="flex">
-                    @colName(col.Name)
-                </div>
-                }
+                @colName(col.Name)
             </th>
         }
-        for i, col := range ExtraCols {
-            if i + 1 < len(ExtraCols) {
+        }
+        for i, col := range sheet.ExtraCols {
             <th>
                 @extraColName(i, col.Name)
             </th>
-            } else {
-            <th>
-                <div class="flex">
-                    @extraColName(i, col.Name)
-                </div>
-            </th>
-            }
         }
         </tr>
     </thead>
@@ -79,10 +75,12 @@ templ sheetTable(name string, cols []sheets.Column, ExtraCols []sheets.SheetColu
                     Add
                 </button>
             </td>
-        for _, col := range cols {
+        for _, tcols := range cols {
+        for _, col := range tcols {
             <td style="border-bottom: none">
                 <input name={ "column-" + col.Name }/>
             </td>
+        }
         }
         </tr>
         <tr id="new-row-err-container" class="hide">
@@ -92,22 +90,20 @@ templ sheetTable(name string, cols []sheets.Column, ExtraCols []sheets.SheetColu
                 class="has-text-danger">
             </td>
         </tr>
-    for j := 0; j < rowCount; j++ {
+    for j := 0; j < sheet.RowCount; j++ {
         <tr class="body-row">
             <td></td>
-        for _, col := range cols {
+        for _, tcols := range cols {
+        for _, col := range tcols {
             <td class={ templ.KV("is-null", !col.Cells[j].NotNull) }>
                 <span>{ col.Cells[j].Value }</span>
             </td>
         }
-        for i, extraCol := range ExtraCols {
+        }
+        for i, extraCol := range sheet.ExtraCols {
             @extraCell(i, j, extraCol.Cells[j])
         }
         </tr>
     }
     </tbody>
-}
-
-func renderSheet(s sheets.Sheet) templ.Component {
-    return sheetTable(s.TableFullName(), s.OrderedCols(), s.ExtraCols, s.RowCount())
 }

@@ -68,7 +68,9 @@ func reRenderSheet(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "No table name provided")
 		return
 	}
-	handler := templ.Handler(renderSheet(sheets.GlobalSheet))
+	tableNames, _, cols := sheets.GlobalSheet.OrderedTableJoinAndCols()
+	component := sheetTable(sheets.GlobalSheet, tableNames, cols)
+	handler := templ.Handler(component)
 	handler.ServeHTTP(w, r)
 }
 
@@ -94,8 +96,8 @@ func handleAddRow(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err := sheets.GlobalSheet.InsertRow(values)
-	sheets.GlobalSheet.LoadCells(100, 0)
+	err := sheets.GlobalSheet.InsertRow(r.FormValue("table_name"), values)
+	sheets.GlobalSheet.LoadRows(100, 0)
 	if err != nil {
 		writeError(w, err.Error())
 		return
@@ -124,7 +126,7 @@ func handleSetColPref(w http.ResponseWriter, r *http.Request) {
 	}
 	hide := r.FormValue("hide") == "true"
 	sheets.GlobalSheet.SetPref(colName, hide)
-	sheets.GlobalSheet.LoadCells(100, 0)
+	sheets.GlobalSheet.LoadRows(100, 0)
 
 	reRenderSheet(w, r)
 }
