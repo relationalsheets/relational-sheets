@@ -9,3 +9,4 @@
 - [ ] Removing extra columns
 - [ ] Add example database
 - [ ] Edit existing DB cells if pkey exists
+- [ ] Reduce the amount of copying by using pointers

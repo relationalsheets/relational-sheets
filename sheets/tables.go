@@ -63,6 +63,18 @@ func (fkey ForeignKey) ToString() string {
 	}
 }
 
+func (fkey ForeignKey) toJoinClause(tableName string) string {
+	pairs := make([]string, len(fkey.sourceColNames))
+	for i, sourceCol := range fkey.sourceColNames {
+		if fkey.isFrom {
+			pairs[i] = tableName + "." + sourceCol + " = " + fkey.otherTableName + "." + fkey.targetColNames[i]
+		} else {
+			pairs[i] = fkey.otherTableName + "." + sourceCol + " = " + tableName + "." + fkey.targetColNames[i]
+		}
+	}
+	return "JOIN " + tableName + " ON " + strings.Join(pairs, ",")
+}
+
 func (sheet Sheet) OrderedTableJoinAndCols() ([]string, []string, [][]Column) {
 	tableNames := make([]string, 1+len(sheet.JoinOids))
 	joinDefs := make([]string, len(sheet.JoinOids))
@@ -70,12 +82,14 @@ func (sheet Sheet) OrderedTableJoinAndCols() ([]string, []string, [][]Column) {
 	table := sheet.Table
 	for i := 0; i <= len(sheet.JoinOids); i++ {
 		tableNames[i] = table.FullName()
+		table.loadCols()
 		cols[i] = make([]Column, 0, len(table.Cols))
 		for _, col := range table.Cols {
 			if !sheet.prefsMap[col.Name].Hide {
 				cols[i] = append(cols[i], table.Cols[col.Name])
 			}
 		}
+		table.loadConstraints()
 		if i < len(sheet.JoinOids) {
 			joinOid := sheet.JoinOids[i]
 			join := table.Fkeys[joinOid]
@@ -133,6 +147,8 @@ func (table *Table) loadCols() {
 	for _, col := range cols {
 		table.Cols[col.Name] = col
 	}
+
+	TableMap[table.FullName()] = *table
 }
 
 func (t *Table) loadConstraints() {
@@ -220,7 +236,7 @@ func (t *Table) loadConstraints() {
 
 	// Populate t.FkeysFrom and t.FkeysTo
 	for _, rawFkey := range rawFkeys {
-		fkey := ForeignKey{Oid: rawFkey.Oid}
+		fkey := ForeignKey{Oid: rawFkey.Oid, def: rawFkey.Def}
 		var otherTableOid int64
 		if rawFkey.Conrelid == t.Oid {
 			fkey.isFrom = true
@@ -256,10 +272,12 @@ func (t *Table) loadConstraints() {
 
 		t.Fkeys[rawFkey.Oid] = fkey
 	}
+
+	TableMap[t.FullName()] = *t
 }
 
 func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
-	tableNames, joinDefs, cols := sheet.OrderedTableJoinAndCols()
+	tableNames, _, cols := sheet.OrderedTableJoinAndCols()
 	cells := make([][][]Cell, len(tableNames))
 	for _, tableName := range tableNames {
 		table := TableMap[tableName]
@@ -281,8 +299,10 @@ func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
 	}
 
 	fromClause := "FROM " + tableNames[0]
-	for _, join := range joinDefs {
-		fromClause += " JOIN " + join
+	for i, joinOid := range sheet.JoinOids {
+		tableName := tableNames[i+1]
+		fkey := TableMap[tableName].Fkeys[joinOid]
+		fromClause += " " + fkey.toJoinClause(tableName)
 	}
 	query := fmt.Sprintf(
 		"SELECT %s %s LIMIT $1 OFFSET $2",
