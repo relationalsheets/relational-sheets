@@ -68,7 +68,7 @@ func reRenderSheet(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "No table name provided")
 		return
 	}
-	tableNames, _, cols := sheets.GlobalSheet.OrderedTableJoinAndCols()
+	tableNames, cols := sheets.GlobalSheet.OrderedTablesAndCols()
 	cells := sheets.GlobalSheet.LoadRows(100, 0)
 	component := sheetTable(sheets.GlobalSheet, tableNames, cols, cells)
 	handler := templ.Handler(component)

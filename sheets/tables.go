@@ -23,7 +23,6 @@ type ForeignKey struct {
 	otherTableName string
 	sourceColNames []string
 	targetColNames []string
-	def            string
 }
 
 type Column struct {
@@ -75,9 +74,8 @@ func (fkey ForeignKey) toJoinClause(tableName string) string {
 	return "JOIN " + tableName + " ON " + strings.Join(pairs, ",")
 }
 
-func (sheet Sheet) OrderedTableJoinAndCols() ([]string, []string, [][]Column) {
+func (sheet Sheet) OrderedTablesAndCols() ([]string, [][]Column) {
 	tableNames := make([]string, 1+len(sheet.JoinOids))
-	joinDefs := make([]string, len(sheet.JoinOids))
 	cols := make([][]Column, len(tableNames))
 	table := sheet.Table
 	for i := 0; i <= len(sheet.JoinOids); i++ {
@@ -93,7 +91,6 @@ func (sheet Sheet) OrderedTableJoinAndCols() ([]string, []string, [][]Column) {
 		if i < len(sheet.JoinOids) {
 			joinOid := sheet.JoinOids[i]
 			join := table.Fkeys[joinOid]
-			joinDefs[i] = join.def
 			table = TableMap[join.otherTableName]
 		}
 		sort.SliceStable(cols[i], func(j, k int) bool {
@@ -102,7 +99,7 @@ func (sheet Sheet) OrderedTableJoinAndCols() ([]string, []string, [][]Column) {
 			return indexJ < indexK
 		})
 	}
-	return tableNames, joinDefs, cols
+	return tableNames, cols
 }
 
 func (sheet Sheet) GetCol(name string) Column {
@@ -172,7 +169,6 @@ func (t *Table) loadConstraints() {
 		Oid       int64
 		Conrelid  int64
 		Confrelid int64
-		Def       string
 		// PostgreSQL integers are 64-bit, so there is no IntArray type
 		// This is why we use int64 for most ints here
 		Conkey  pq.Int64Array
@@ -184,7 +180,6 @@ func (t *Table) loadConstraints() {
 			, confrelid
 			, conkey
 			, confkey
-			, pg_get_constraintdef(oid) as def
 		FROM pg_catalog.pg_constraint
 		WHERE (conrelid = $1 OR confrelid = $1)
 			AND contype = 'f'`,
@@ -236,7 +231,7 @@ func (t *Table) loadConstraints() {
 
 	// Populate t.FkeysFrom and t.FkeysTo
 	for _, rawFkey := range rawFkeys {
-		fkey := ForeignKey{Oid: rawFkey.Oid, def: rawFkey.Def}
+		fkey := ForeignKey{Oid: rawFkey.Oid}
 		var otherTableOid int64
 		if rawFkey.Conrelid == t.Oid {
 			fkey.isFrom = true
@@ -277,7 +272,7 @@ func (t *Table) loadConstraints() {
 }
 
 func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
-	tableNames, _, cols := sheet.OrderedTableJoinAndCols()
+	tableNames, cols := sheet.OrderedTablesAndCols()
 	cells := make([][][]Cell, len(tableNames))
 	for _, tableName := range tableNames {
 		table := TableMap[tableName]
@@ -337,7 +332,7 @@ func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
 }
 
 func (sheet *Sheet) InsertRow(tableName string, values map[string]string) error {
-	tableNames, _, cols := sheet.OrderedTableJoinAndCols()
+	tableNames, cols := sheet.OrderedTablesAndCols()
 	valueLabels := make([]string, 0)
 	nonEmptyValues := make(map[string]interface{})
 	for i, tname := range tableNames {
