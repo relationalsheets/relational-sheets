@@ -17,7 +17,7 @@ templ fkeySelect(table sheets.Table, selected int64) {
     </div>
 }
 
-templ modal(sheet sheets.Sheet, tables []sheets.Table, addJoin bool) {
+templ modal(sheet sheets.Sheet, tables map[string]sheets.Table, addJoin bool) {
     <div id="modal" class="modal is-active" hx-target="#modal">
         <div class="modal-content box">
             <div id="table-fkey-config" hx-include="select">

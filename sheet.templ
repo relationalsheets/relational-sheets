@@ -36,7 +36,7 @@ templ extraCell(i, j int, cell sheets.SheetCell) {
     </td>
 }
 
-templ sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column) {
+templ sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column, cells [][][]sheets.Cell) {
     <thead>
         <tr>
             for i, tableName := range tableNames {
@@ -93,10 +93,10 @@ templ sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column
     for j := 0; j < sheet.RowCount; j++ {
         <tr class="body-row">
             <td></td>
-        for _, tcols := range cols {
-        for _, col := range tcols {
-            <td class={ templ.KV("is-null", !col.Cells[j].NotNull) }>
-                <span>{ col.Cells[j].Value }</span>
+        for _, tableCols := range cells {
+        for _, cells := range tableCols {
+            <td class={ templ.KV("is-null", !cells[j].NotNull) }>
+                <span>{ cells[j].Value }</span>
             </td>
         }
         }

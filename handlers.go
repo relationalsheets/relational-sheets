@@ -69,7 +69,8 @@ func reRenderSheet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tableNames, _, cols := sheets.GlobalSheet.OrderedTableJoinAndCols()
-	component := sheetTable(sheets.GlobalSheet, tableNames, cols)
+	cells := sheets.GlobalSheet.LoadRows(100, 0)
+	component := sheetTable(sheets.GlobalSheet, tableNames, cols, cells)
 	handler := templ.Handler(component)
 	handler.ServeHTTP(w, r)
 }
@@ -158,5 +159,5 @@ func handleModal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, addJoin := r.Form["add_join"]
-	templ.Handler(modal(sheet, sheets.Tables, addJoin)).ServeHTTP(w, r)
+	templ.Handler(modal(sheet, sheets.TableMap, addJoin)).ServeHTTP(w, r)
 }

@@ -158,7 +158,7 @@ func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 	})
 }
 
-func sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column) templ.Component {
+func sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column, cells [][][]sheets.Cell) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -300,9 +300,9 @@ func sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column)
 			if err != nil {
 				return err
 			}
-			for _, tcols := range cols {
-				for _, col := range tcols {
-					var var_12 = []any{templ.KV("is-null", !col.Cells[j].NotNull)}
+			for _, tableCols := range cells {
+				for _, cells := range tableCols {
+					var var_12 = []any{templ.KV("is-null", !cells[j].NotNull)}
 					err = templ.RenderCSSItems(ctx, templBuffer, var_12...)
 					if err != nil {
 						return err
@@ -319,7 +319,7 @@ func sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column)
 					if err != nil {
 						return err
 					}
-					var var_13 string = col.Cells[j].Value
+					var var_13 string = cells[j].Value
 					_, err = templBuffer.WriteString(templ.EscapeString(var_13))
 					if err != nil {
 						return err

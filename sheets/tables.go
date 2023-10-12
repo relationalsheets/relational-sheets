@@ -49,8 +49,7 @@ type Cell struct {
 	NotNull bool
 }
 
-var Tables = make([]Table, 0, 20)
-var tableMap = make(map[string]Table)
+var TableMap = make(map[string]Table)
 
 func (table Table) FullName() string {
 	return fmt.Sprintf("%s.%s", table.SchemaName, table.TableName)
@@ -81,9 +80,9 @@ func (sheet Sheet) OrderedTableJoinAndCols() ([]string, []string, [][]Column) {
 			joinOid := sheet.JoinOids[i]
 			join := table.Fkeys[joinOid]
 			joinDefs[i] = join.def
-			table = tableMap[join.otherTableName]
+			table = TableMap[join.otherTableName]
 		}
-		sort.SliceStable(cols, func(j, k int) bool {
+		sort.SliceStable(cols[i], func(j, k int) bool {
 			indexJ := sheet.prefsMap[table.FullName()+"."+cols[i][j].Name].Index | cols[i][j].Index
 			indexK := sheet.prefsMap[table.FullName()+"."+cols[i][k].Name].Index | cols[i][k].Index
 			return indexJ < indexK
@@ -97,7 +96,8 @@ func (sheet Sheet) GetCol(name string) Column {
 }
 
 func LoadTables() {
-	err := conn.Select(&Tables, `
+	tables := make([]Table, 0)
+	err := conn.Select(&tables, `
 		SELECT COALESCE(tablename, '') tablename
 			, COALESCE(schemaname, '') schemaname
 			, oid
@@ -109,10 +109,10 @@ func LoadTables() {
 			AND schemaname != 'db_interface'
 		ORDER BY schemaname, tablename DESC`)
 	Check(err)
-	log.Printf("Retrieved %d Tables", len(Tables))
-	for _, table := range Tables {
-		tableMap[table.FullName()] = table
+	for _, table := range tables {
+		TableMap[table.FullName()] = table
 	}
+	log.Printf("Retrieved %d Tables", len(TableMap))
 }
 
 func (table *Table) loadCols() {
@@ -138,8 +138,8 @@ func (table *Table) loadCols() {
 func (t *Table) loadConstraints() {
 	t.Fkeys = make(map[int64]ForeignKey)
 	tablesByOid := make(map[int64]Table)
-	for _, t := range Tables {
-		tablesByOid[t.Oid] = t
+	for _, table := range TableMap {
+		tablesByOid[table.Oid] = table
 	}
 
 	// Query the primary keys, but returns IDs instead of column names
@@ -245,7 +245,7 @@ func (t *Table) loadConstraints() {
 			}
 		}
 
-		for _, t2 := range Tables {
+		for _, t2 := range TableMap {
 			if t2.Oid == otherTableOid {
 				fkey.otherTableName = t2.FullName()
 			}
@@ -258,18 +258,22 @@ func (t *Table) loadConstraints() {
 	}
 }
 
-func (sheet *Sheet) LoadRows(limit int, offset int) {
+func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
 	tableNames, joinDefs, cols := sheet.OrderedTableJoinAndCols()
+	cells := make([][][]Cell, len(tableNames))
+	for _, tableName := range tableNames {
+		table := TableMap[tableName]
+		table.loadCols()
+		table.loadConstraints()
+		TableMap[tableName] = table
+	}
 	// TODO: Check if table.TableName and column names are valid somewhere
 	casts := make([]string, 0)
 	for i, tableName := range tableNames {
-		table := tableMap[tableName]
-		table.Cols = make(map[string]Column)
-
-		for _, col := range cols[i] {
-			col.Cells = make([]Cell, limit)
-			table.Cols[col.Name] = col
-
+		table := TableMap[tableName]
+		cells[i] = make([][]Cell, len(cols[i]))
+		for j, col := range cols[i] {
+			cells[i][j] = make([]Cell, limit)
 			name := table.FullName() + "." + col.Name
 			cast := fmt.Sprintf("%s::text, %s IS NOT NULL", name, name)
 			casts = append(casts, cast)
@@ -291,21 +295,25 @@ func (sheet *Sheet) LoadRows(limit int, offset int) {
 	sheet.RowCount = 0
 	for rows.Next() {
 		scanResult, err := rows.SliceScan()
+		log.Printf("row: %v", scanResult)
 		Check(err)
 		index := 0
-		for _, tableName := range tableNames {
-			for _, col := range tableMap[tableName].Cols {
-				val := scanResult[2*index].(string)
-				col.Cells[sheet.RowCount] = Cell{
-					val, scanResult[2*index+1].(bool),
+		for i, _ := range tableNames {
+			for j, _ := range cols[i] {
+				val := ""
+				isNotNull := scanResult[2*index+1].(bool)
+				if isNotNull {
+					val = scanResult[2*index].(string)
 				}
+				cells[i][j][sheet.RowCount] = Cell{val, isNotNull}
 				index++
 			}
 		}
 		sheet.RowCount++
 	}
-	log.Printf("Retrieved %d rows from %s", sheet.Table.RowCount, sheet.Table.FullName())
+	log.Printf("Retrieved %d rows from %s", sheet.RowCount, sheet.Table.FullName())
 	Check(rows.Close())
+	return cells
 }
 
 func (sheet *Sheet) InsertRow(tableName string, values map[string]string) error {

@@ -115,7 +115,7 @@ func LoadSheets() {
 }
 
 func (s *Sheet) LoadSheet() {
-	s.Table = tableMap[s.TableFullName()]
+	s.Table = TableMap[s.TableFullName()]
 	s.Table.loadCols()
 	s.Table.loadConstraints()
 	s.loadPrefs()
@@ -124,7 +124,7 @@ func (s *Sheet) LoadSheet() {
 }
 
 func (s *Sheet) SetTable(name string) {
-	s.Table = tableMap[name]
+	s.Table = TableMap[name]
 	s.SaveSheet()
 	s.LoadSheet()
 }
