@@ -79,41 +79,46 @@ label {
 
 /* Table styles */
 .scrollable {
-    overflow: auto;
+    height: calc(100vh - 48px);
+    overflow-x: scroll;
 }
 table {
     width: max-content;
+    border-spacing: 0;
+    border-collapse: separate;
 }
 thead {
-    border-bottom: 3px solid gray;
-}
-#new-row-err-container > td {
-    margin-top: 4px;
-}
-tr:not(:first-of-type) th, tr:not(:first-of-type) td {
-    border-top-width: 1px;
-}
-tr:not(:last-of-type) td {
-    border-bottom-width: 1px;
-}
-th:not(:first-of-type), td:not(:first-of-type) {
-    border-left-width: 1px;
-}
-th:not(:last-of-type), td:not(:last-of-type) {
-    border-right-width: 1px;
-}
-thead tr:first-of-type {
-    height: 60px;
+    background-color: white;
     position: sticky;
+    top: 0;
+}
+thead tr {
+    height: 40px;
+}
+thead tr:last-of-type {
+    height: 60px;
 }
 th, td {
     height: 100%;
     max-width: 300px;
     max-height: 200px;
     word-break: break-all;
-    border-style: solid;
-    border-color: black;
-    border-width: 0;
+    border: 1px solid black;
+    border-left: none;
+    border-top: none;
+    padding: 4px;
+}
+th:last-of-type, td:last-of-type {
+    border-right: none;
+}
+tr:last-of-type th, tr:last-of-type th {
+    border-bottom: none;
+}
+thead tr:last-of-type th {
+    border-bottom: 3px solid gray;
+}
+#new-row-err-container > td {
+    margin-top: 4px;
 }
 td span, th span {
     padding: 4px;
