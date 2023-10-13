@@ -21,8 +21,11 @@
 .mt {
     margin-top: 1em;
 }
+.maround {
+    margin: 0.5em;
+}
 .center {
-    justify-content: center;
+    justify-content: space-around;
 }
 button,select,.select,input {
     border-radius: 0 !important;
@@ -83,6 +86,9 @@ table {
 }
 thead {
     border-bottom: 3px solid gray;
+}
+#new-row-err-container > td {
+    margin-top: 4px;
 }
 tr:not(:first-of-type) th, tr:not(:first-of-type) td {
     border-top-width: 1px;

@@ -36,7 +36,7 @@ templ extraCell(i, j int, cell sheets.SheetCell) {
     </td>
 }
 
-templ sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column, cells [][][]sheets.Cell) {
+templ sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column, cells [][][]sheets.Cell, numCols int) {
     <thead>
         <tr>
             for i, tableName := range tableNames {
@@ -46,12 +46,6 @@ templ sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column
             }
         </tr>
         <tr id="header-row">
-            <th>
-                <button onclick="htmx.removeClass(htmx.find('#new-row'), 'hide')
-                                 htmx.removeClass(htmx.find('#new-row-err-container'), 'hide')">
-                    + Row
-                </button>
-            </th>
         for _, tcols := range cols {
         for _, col := range tcols {
             <th class={ templ.KV("is-pkey", col.IsPrimaryKey) }>
@@ -68,31 +62,31 @@ templ sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column
     </thead>
     <tbody>
         <tr id="new-row" class="hide">
-            <td style="border-bottom: none">
-                <button hx-post="/add-row"
-                        hx-include="#new-row"
-                        hx-target-400="#new-row-err">
-                    Add
-                </button>
-            </td>
-        for _, tcols := range cols {
+        for i, tcols := range cols {
         for _, col := range tcols {
             <td style="border-bottom: none">
-                <input name={ "column-" + col.Name }/>
+                <input name={ "column-" + tableNames[i] + " " + col.Name }/>
             </td>
         }
         }
         </tr>
         <tr id="new-row-err-container" class="hide">
-            <td id="new-row-err"
-                colspan={ fmt.Sprintf("%d", len(cols)) }
-                style="border-top: none"
-                class="has-text-danger">
+            <td colspan={ fmt.Sprintf("%d", numCols) }
+                style="border-top: none">
+                <div class="flex center">
+                    <button hx-post="/add-row"
+                            hx-include="#new-row"
+                            hx-target-400="#new-row-err"
+                            class="button is-light maround">
+                        Add
+                    </button>
+                    <span id="new-row-err" class="has-text-danger">
+                    </span>
+                </div>
             </td>
         </tr>
     for j := 0; j < sheet.RowCount; j++ {
         <tr class="body-row">
-            <td></td>
         for _, tableCols := range cells {
         for _, cells := range tableCols {
             <td class={ templ.KV("is-null", !cells[j].NotNull) }>

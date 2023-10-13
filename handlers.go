@@ -70,7 +70,11 @@ func reRenderSheet(w http.ResponseWriter, r *http.Request) {
 	}
 	tableNames, cols := sheets.GlobalSheet.OrderedTablesAndCols()
 	cells := sheets.GlobalSheet.LoadRows(100, 0)
-	component := sheetTable(sheets.GlobalSheet, tableNames, cols, cells)
+	numCols := 0
+	for _, tcols := range cols {
+		numCols += len(tcols)
+	}
+	component := sheetTable(sheets.GlobalSheet, tableNames, cols, cells, numCols)
 	handler := templ.Handler(component)
 	handler.ServeHTTP(w, r)
 }
@@ -113,11 +117,11 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err.Error())
 		return
 	}
-	sheets.GlobalSheet = sheet
-	if sheets.GlobalSheet.Id != 0 {
-		sheets.GlobalSheet.LoadSheet()
+	if sheet.Id != 0 {
+		sheet.LoadSheet()
 	}
-	templ.Handler(index(sheets.GlobalSheet, sheets.SheetMap)).ServeHTTP(w, r)
+	sheets.GlobalSheet = sheet
+	templ.Handler(index(sheet, sheets.SheetMap)).ServeHTTP(w, r)
 }
 
 func handleSetColPref(w http.ResponseWriter, r *http.Request) {

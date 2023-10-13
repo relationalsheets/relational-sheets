@@ -56,7 +56,7 @@ func (s *Sheet) loadCells() {
 		}
 	}
 
-	log.Println("Loaded custom column Cells")
+	log.Println("Loaded custom column cells")
 }
 
 func (s *Sheet) loadExtraCols() {

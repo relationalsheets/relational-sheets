@@ -56,6 +56,9 @@ func InitSheetsTables() {
 }
 
 func (s Sheet) TableFullName() string {
+	if s.Table == nil {
+		return ""
+	}
 	return s.Table.FullName()
 }
 
@@ -118,6 +121,7 @@ func LoadSheets() {
 }
 
 func (s *Sheet) LoadSheet() {
+	log.Printf("Loading sheet %d", s.Id)
 	s.Table = TableMap[s.TableFullName()]
 	s.loadPrefs()
 	s.LoadRows(100, 0)
