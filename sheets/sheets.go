@@ -18,7 +18,7 @@ type SheetColumn struct {
 type Sheet struct {
 	Name      string
 	Id        int
-	Table     Table
+	Table     *Table
 	JoinOids  pq.Int64Array
 	prefsMap  map[string]Pref
 	ExtraCols []SheetColumn
@@ -96,6 +96,7 @@ func (s *Sheet) SaveSheet() {
 }
 
 func LoadSheets() {
+	loadTables()
 	rows, err := conn.Query(`
 		SELECT id
 		     , "name"
@@ -106,8 +107,10 @@ func LoadSheets() {
 	Check(err)
 	for rows.Next() {
 		sheet := Sheet{}
-		err = rows.Scan(&sheet.Id, &sheet.Name, &sheet.Table.TableName, &sheet.Table.SchemaName, &sheet.JoinOids)
+		var tableName, schemaName string
+		err = rows.Scan(&sheet.Id, &sheet.Name, &tableName, &schemaName, &sheet.JoinOids)
 		Check(err)
+		sheet.Table = TableMap[schemaName+"."+tableName]
 		SheetMap[sheet.Id] = sheet
 		log.Printf("Loaded sheet: %+v", sheet)
 	}
@@ -116,8 +119,6 @@ func LoadSheets() {
 
 func (s *Sheet) LoadSheet() {
 	s.Table = TableMap[s.TableFullName()]
-	s.Table.loadCols()
-	s.Table.loadConstraints()
 	s.loadPrefs()
 	s.LoadRows(100, 0)
 	s.loadExtraCols()

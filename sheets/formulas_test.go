@@ -19,7 +19,7 @@ func setupDB() func() {
 			, (5, 6)
 		`)
 	CreateAggregates()
-	LoadTables()
+	loadTables()
 
 	return func() {
 		conn.MustExec("DROP TABLE IF EXISTS db_interface_test.foo")

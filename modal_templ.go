@@ -14,7 +14,7 @@ import (
 	"strconv"
 )
 
-func fkeySelect(table sheets.Table, selected int64) templ.Component {
+func fkeySelect(table *sheets.Table, selected int64) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -75,7 +75,7 @@ func fkeySelect(table sheets.Table, selected int64) templ.Component {
 	})
 }
 
-func modal(sheet sheets.Sheet, tables map[string]sheets.Table, addJoin bool) templ.Component {
+func modal(sheet sheets.Sheet, tables map[string]*sheets.Table, addJoin bool) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {

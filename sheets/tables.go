@@ -48,7 +48,7 @@ type Cell struct {
 	NotNull bool
 }
 
-var TableMap = make(map[string]Table)
+var TableMap = make(map[string]*Table)
 
 func (table Table) FullName() string {
 	return fmt.Sprintf("%s.%s", table.SchemaName, table.TableName)
@@ -66,9 +66,9 @@ func (fkey ForeignKey) toJoinClause(tableName string) string {
 	pairs := make([]string, len(fkey.sourceColNames))
 	for i, sourceCol := range fkey.sourceColNames {
 		if fkey.isFrom {
-			pairs[i] = tableName + "." + sourceCol + " = " + fkey.otherTableName + "." + fkey.targetColNames[i]
-		} else {
 			pairs[i] = fkey.otherTableName + "." + sourceCol + " = " + tableName + "." + fkey.targetColNames[i]
+		} else {
+			pairs[i] = tableName + "." + sourceCol + " = " + fkey.otherTableName + "." + fkey.targetColNames[i]
 		}
 	}
 	return "JOIN " + tableName + " ON " + strings.Join(pairs, ",")
@@ -106,7 +106,7 @@ func (sheet Sheet) GetCol(name string) Column {
 	return sheet.Table.Cols[name]
 }
 
-func LoadTables() {
+func loadTables() {
 	tables := make([]Table, 0)
 	err := conn.Select(&tables, `
 		SELECT COALESCE(tablename, '') tablename
@@ -120,8 +120,9 @@ func LoadTables() {
 			AND schemaname != 'db_interface'
 		ORDER BY schemaname, tablename DESC`)
 	Check(err)
-	for _, table := range tables {
-		TableMap[table.FullName()] = table
+	for i, table := range tables {
+		log.Printf("Loading table %s", table.FullName())
+		TableMap[table.FullName()] = &tables[i]
 	}
 	log.Printf("Retrieved %d Tables", len(TableMap))
 }
@@ -144,16 +145,10 @@ func (table *Table) loadCols() {
 	for _, col := range cols {
 		table.Cols[col.Name] = col
 	}
-
-	TableMap[table.FullName()] = *table
 }
 
 func (t *Table) loadConstraints() {
 	t.Fkeys = make(map[int64]ForeignKey)
-	tablesByOid := make(map[int64]Table)
-	for _, table := range TableMap {
-		tablesByOid[table.Oid] = table
-	}
 
 	// Query the primary keys, but returns IDs instead of column names
 	pKeyAttNums := []int64{}
@@ -267,8 +262,6 @@ func (t *Table) loadConstraints() {
 
 		t.Fkeys[rawFkey.Oid] = fkey
 	}
-
-	TableMap[t.FullName()] = *t
 }
 
 func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
@@ -278,7 +271,6 @@ func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
 		table := TableMap[tableName]
 		table.loadCols()
 		table.loadConstraints()
-		TableMap[tableName] = table
 	}
 	// TODO: Check if table.TableName and column names are valid somewhere
 	casts := make([]string, 0)

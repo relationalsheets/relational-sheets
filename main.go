@@ -13,7 +13,6 @@ func main() {
 	sheets.InitPrefsTable()
 	sheets.CreateAggregates()
 
-	sheets.LoadTables()
 	sheets.LoadSheets()
 
 	http.HandleFunc("/sheet", handleSheet)
