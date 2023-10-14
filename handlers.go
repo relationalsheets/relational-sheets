@@ -101,8 +101,13 @@ func handleAddRow(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err := sheets.GlobalSheet.InsertRow(r.FormValue("table_name"), values)
-	sheets.GlobalSheet.LoadRows(100, 0)
+	tx := sheets.Begin()
+	_, err := sheets.GlobalSheet.InsertRow(tx, r.FormValue("table_name"), values, []string{})
+	if err != nil {
+		writeError(w, err.Error())
+		return
+	}
+	err = tx.Commit()
 	if err != nil {
 		writeError(w, err.Error())
 		return

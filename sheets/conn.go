@@ -15,3 +15,7 @@ func Open() *sqlx.DB {
 	Check(err)
 	return conn
 }
+
+func Begin() *sqlx.Tx {
+	return conn.MustBegin()
+}

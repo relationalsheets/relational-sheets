@@ -33,7 +33,7 @@ func parseFormula(formula string) []Token {
 	}
 	parser := efp.ExcelParser()
 	parsed := parser.Parse(formula[1:])
-	log.Println(parser.PrettyPrint())
+	//log.Println(parser.PrettyPrint())
 
 	tokens := make([]Token, len(parsed))
 	for i, token := range parsed {
@@ -142,7 +142,11 @@ func (s *Sheet) evalToken(token Token) (Token, error) {
 		if index < 0 {
 			return Token{}, errors.New("negative indices not allowed")
 		}
-		col, ok := s.Table.Cols[colName]
+		col := Column{}
+		ok := false
+		if s.Table != nil {
+			col, ok = s.Table.Cols[colName]
+		}
 		if ok {
 			if index >= s.Table.RowCount {
 				return Token{}, errors.New("row index out of range")
@@ -212,7 +216,10 @@ func (s *Sheet) evalAssociativeFunc(fDefs SQLAndGoFunc, arguments [][]Token) (To
 			if err != nil {
 				return Token{}, err
 			}
-			_, colExists := s.Table.Cols[colName]
+			colExists := false
+			if s.Table != nil {
+				_, colExists = s.Table.Cols[colName]
+			}
 			if colExists {
 				colExpression := "\"" + colName + "\""
 				if fDefs.sqlCast != "" {
@@ -266,7 +273,7 @@ func (s *Sheet) evalAssociativeFunc(fDefs SQLAndGoFunc, arguments [][]Token) (To
 }
 
 func (s *Sheet) evalLogicalExpression(tokens []Token) (bool, error) {
-	log.Printf("Evaluating logical expression: %+v", tokens)
+	//log.Printf("Evaluating logical expression: %+v", tokens)
 
 	operator := ""
 	first, second := []Token{}, []Token{}
@@ -336,7 +343,10 @@ func (s *Sheet) evalAverage(arguments [][]Token) (Token, error) {
 			if err != nil {
 				return Token{}, err
 			}
-			_, colExists := s.Table.Cols[colName]
+			colExists := false
+			if s.Table != nil {
+				_, colExists = s.Table.Cols[colName]
+			}
 			if colExists {
 				query := fmt.Sprintf(
 					"SELECT SUM(sq.val), COUNT(*) FROM (SELECT \"%s\" AS val FROM %s LIMIT $1 OFFSET $2) sq",
@@ -389,7 +399,7 @@ func (s *Sheet) evalAverage(arguments [][]Token) (Token, error) {
 
 func (s *Sheet) evalFunction(fName string, arguments [][]Token) (Token, error) {
 	fName = strings.ToUpper(fName)
-	log.Printf("Evaluating: %s(%+v)", fName, arguments)
+	//log.Printf("Evaluating: %s(%+v)", fName, arguments)
 
 	fDefs, isAssociativeFunc := associativeFuncs[fName]
 	if isAssociativeFunc {
@@ -455,7 +465,7 @@ func (s *Sheet) evalTokens(tokens []Token) (Token, error) {
 			}
 
 			val, err := s.evalTokens(tokens[i+1 : end])
-			log.Printf("Subexpression: %d:%d", i+1, end)
+			//log.Printf("Subexpression: %d:%d", i+1, end)
 			if err != nil {
 				return Token{}, err
 			}
@@ -465,7 +475,7 @@ func (s *Sheet) evalTokens(tokens []Token) (Token, error) {
 				tokens[i+j+1] = nt
 			}
 			tokens = tokens[:len(tokens)+i-end]
-			log.Printf("After evaluating subexpression: %+v", tokens)
+			//log.Printf("After evaluating subexpression: %+v", tokens)
 			return s.evalTokens(tokens)
 		}
 	}
@@ -506,7 +516,7 @@ func (s *Sheet) evalTokens(tokens []Token) (Token, error) {
 				tokens[i+j+1] = nt
 			}
 			tokens = tokens[:len(tokens)+i-end]
-			log.Printf("After evaluating function: %+v", tokens)
+			//log.Printf("After evaluating function: %+v", tokens)
 			return s.evalTokens(tokens)
 		}
 	}

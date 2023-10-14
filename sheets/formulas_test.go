@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func setupDB() func() {
+func setupFormulasDB() func() {
 	Open()
 	conn.MustExec("CREATE SCHEMA IF NOT EXISTS db_interface_test")
 	conn.MustExec(
@@ -22,7 +22,7 @@ func setupDB() func() {
 	loadTables()
 
 	return func() {
-		conn.MustExec("DROP TABLE IF EXISTS db_interface_test.foo")
+		conn.MustExec("DROP TABLE IF EXISTS db_interface_test.foo CASCADE")
 		Check(conn.Close())
 	}
 }
@@ -105,7 +105,7 @@ func TestEvalWithExtraCols(t *testing.T) {
 }
 
 func TestEvalWithDB(t *testing.T) {
-	teardown := setupDB()
+	teardown := setupFormulasDB()
 	defer teardown()
 
 	sheet := Sheet{}
