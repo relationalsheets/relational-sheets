@@ -9,34 +9,47 @@ func setupTablesDB() func() {
 	Open()
 	conn.MustExec("CREATE SCHEMA IF NOT EXISTS db_interface_test")
 	conn.MustExec(
-		`CREATE TABLE IF NOT EXISTS db_interface_test.t1 (
+		`CREATE TABLE IF NOT EXISTS db_interface_test.customers (
     		id SERIAL PRIMARY KEY
-			, bar VARCHAR(255)
-			, baz INT
+			, name VARCHAR(255)
 		)`)
 	conn.MustExec(
-		`CREATE TABLE IF NOT EXISTS db_interface_test.t2 (
+		`CREATE TABLE IF NOT EXISTS db_interface_test.orders (
     		id SERIAL PRIMARY KEY 
-			, bar VARCHAR(255)
-            , t1_id INT REFERENCES db_interface_test.t1(id)
+			, total DECIMAL
+            , status VARCHAR(255)
+            , customer_id INT REFERENCES db_interface_test.customers(id)
+		)`)
+	conn.MustExec(
+		`CREATE TABLE IF NOT EXISTS db_interface_test.products (
+    		id SERIAL PRIMARY KEY 
+			, name VARCHAR(255)
+            , price DECIMAL
+		)`)
+	conn.MustExec(
+		`CREATE TABLE IF NOT EXISTS db_interface_test.order_products (
+			order_id INT REFERENCES  db_interface_test.orders(id)
+			, product_id INT REFERENCES  db_interface_test.products(id)
 		)`)
 	loadTables()
 
 	return func() {
-		conn.MustExec("DROP TABLE IF EXISTS db_interface_test.t1 CASCADE")
-		conn.MustExec("DROP TABLE IF EXISTS db_interface_test.t2 CASCADE")
+		conn.MustExec("DROP TABLE IF EXISTS db_interface_test.customers CASCADE")
+		conn.MustExec("DROP TABLE IF EXISTS db_interface_test.orders CASCADE")
+		conn.MustExec("DROP TABLE IF EXISTS db_interface_test.products CASCADE")
+		conn.MustExec("DROP TABLE IF EXISTS db_interface_test.order_products CASCADE")
 		Check(conn.Close())
 	}
 }
 
-func TestInsertRow(t *testing.T) {
+func TestSingleTableSheet(t *testing.T) {
 	teardown := setupTablesDB()
 	defer teardown()
 
-	tableName := "db_interface_test.t1"
+	tableName := "db_interface_test.customers"
 	sheet := Sheet{Table: TableMap[tableName]}
 	tx := Begin()
-	row, err := sheet.InsertRow(tx, tableName, map[string]string{"bar": "test"}, []string{"id"})
+	row, err := sheet.InsertRow(tx, tableName, map[string]string{"name": "test"}, []string{"id"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,20 +63,46 @@ func TestInsertRow(t *testing.T) {
 	}
 }
 
-func TestInsertRows(t *testing.T) {
+func TestMultiTableSheet(t *testing.T) {
 	teardown := setupTablesDB()
 	defer teardown()
 
-	tableName := "db_interface_test.t1"
-	tableName2 := "db_interface_test.t2"
-	table := TableMap[tableName]
-	table.loadConstraints()
-	sheet := Sheet{Table: table}
-	sheet.JoinOids = maps.Keys(table.Fkeys)
+	customers := TableMap["db_interface_test.customers"]
+	customers.loadConstraints()
+	orders := TableMap["db_interface_test.orders"]
+	orders.loadConstraints()
+	products := TableMap["db_interface_test.products"]
+	products.loadConstraints()
+	order_products := TableMap["db_interface_test.order_products"]
+	order_products.loadConstraints()
+	sheet := Sheet{Table: customers}
+	// Join orders
+	sheet.JoinOids = maps.Keys(customers.Fkeys)
+	// Join order_products
+	for oid, fkey := range orders.Fkeys {
+		if fkey.otherTableName == order_products.FullName() {
+			sheet.JoinOids = append(sheet.JoinOids, oid)
+		}
+	}
+	// Join products
+	for oid, fkey := range order_products.Fkeys {
+		if fkey.otherTableName == products.FullName() {
+			sheet.JoinOids = append(sheet.JoinOids, oid)
+		}
+	}
 
+	// Test single insertion and set up data for next insertion
 	err := sheet.InsertMultipleRows(map[string]map[string]string{
-		tableName:  {"bar": "test"},
-		tableName2: {"bar": "test2"},
+		products.FullName(): {"name": "test"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = sheet.InsertMultipleRows(map[string]map[string]string{
+		customers.FullName():      {"name": "bob"},
+		orders.FullName():         {"total": "123.45", "status": "unfilled"},
+		order_products.FullName(): {"product_id": "1"},
 	})
 	if err != nil {
 		t.Fatal(err)

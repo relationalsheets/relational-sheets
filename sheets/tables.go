@@ -437,35 +437,27 @@ func (sheet *Sheet) sortedTablesAndReqCols(tablesUsed map[string]bool) ([]string
 		join := table.Fkeys[joinOid]
 		log.Printf("Join info: %v", join)
 		if join.isFrom {
-			if !tablesUsed[join.otherTableName] && tablesUsed[table.FullName()] {
-				return nil, nil, fmt.Errorf("table %s depends on table %s", table.FullName(), join.otherTableName)
-			}
-			if tablesUsed[join.otherTableName] {
+			if tablesUsed[join.otherTableName] && tablesUsed[table.FullName()] {
 				outgoingEdges[join.otherTableName][table.FullName()] = true
 				for i, colName := range join.targetColNames {
 					addToNestedMap(requiredCols, join.otherTableName, colName, table.FullName(), join.sourceColNames[i])
 				}
-			}
-			if tablesUsed[table.FullName()] {
 				incomingEdges[table.FullName()][join.otherTableName] = true
 			}
 		} else {
-			if tablesUsed[join.otherTableName] && !tablesUsed[table.FullName()] {
-				return nil, nil, fmt.Errorf("table %s depends on table %s", join.otherTableName, table.FullName())
-			}
-			if tablesUsed[table.FullName()] {
+			if tablesUsed[join.otherTableName] && tablesUsed[table.FullName()] {
 				outgoingEdges[table.FullName()][join.otherTableName] = true
 				for i, colName := range join.sourceColNames {
 					addToNestedMap(requiredCols, table.FullName(), colName, join.otherTableName, join.targetColNames[i])
 				}
-			}
-			if tablesUsed[join.otherTableName] {
 				incomingEdges[join.otherTableName][table.FullName()] = true
 			}
 		}
 		table = TableMap[join.otherTableName]
 	}
 
+	log.Printf("Outgoing: %v", outgoingEdges)
+	log.Printf("Incoming: %v", incomingEdges)
 	tableNames, err := topoSort(outgoingEdges, incomingEdges)
 	return tableNames, requiredCols, err
 }
@@ -480,6 +472,7 @@ func (sheet *Sheet) InsertMultipleRows(values map[string]map[string]string) erro
 			}
 		}
 	}
+	log.Printf("Tables used: %v", tablesUsed)
 	tableNames, requiredCols, err := sheet.sortedTablesAndReqCols(tablesUsed)
 	log.Printf("Sorted tables: %v", tableNames)
 	log.Printf("Required cols: %v", requiredCols)
