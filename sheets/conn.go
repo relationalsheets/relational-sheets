@@ -19,3 +19,7 @@ func Open() *sqlx.DB {
 func Begin() *sqlx.Tx {
 	return conn.MustBegin()
 }
+
+func Commit(tx *sqlx.Tx) {
+	Check(tx.Commit())
+}

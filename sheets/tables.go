@@ -74,20 +74,20 @@ func (fkey ForeignKey) toJoinClause(tableName string) string {
 	return "JOIN " + tableName + " ON " + strings.Join(pairs, ",")
 }
 
-func (sheet Sheet) OrderedTablesAndCols() ([]string, [][]Column) {
+func (sheet Sheet) OrderedTablesAndCols(tx *sqlx.Tx) ([]string, [][]Column) {
 	tableNames := make([]string, 1+len(sheet.JoinOids))
 	cols := make([][]Column, len(tableNames))
 	table := sheet.Table
 	for i := 0; i <= len(sheet.JoinOids); i++ {
 		tableNames[i] = table.FullName()
-		table.loadCols()
+		table.loadCols(tx)
 		cols[i] = make([]Column, 0, len(table.Cols))
 		for _, col := range table.Cols {
 			if !sheet.prefsMap[col.Name].Hide {
 				cols[i] = append(cols[i], table.Cols[col.Name])
 			}
 		}
-		table.loadConstraints()
+		table.loadConstraints(tx)
 		if i < len(sheet.JoinOids) {
 			joinOid := sheet.JoinOids[i]
 			join, ok := table.Fkeys[joinOid]
@@ -132,12 +132,17 @@ func loadTables() {
 	log.Printf("Retrieved %d Tables", len(TableMap))
 }
 
-func (table *Table) loadCols() {
+func (table *Table) loadCols(tx *sqlx.Tx) {
+	if tx == nil {
+		tx = Begin()
+		defer Commit(tx)
+	}
+
 	if len(table.Cols) > 0 {
 		return
 	}
 	cols := make([]Column, 0, 100)
-	err := conn.Select(&cols, `
+	err := tx.Select(&cols, `
 		SELECT column_name "name"
 			   , is_nullable = 'YES' isnullable
 			   , data_type datatype
@@ -155,7 +160,12 @@ func (table *Table) loadCols() {
 	}
 }
 
-func (t *Table) loadConstraints() {
+func (t *Table) loadConstraints(tx *sqlx.Tx) {
+	if tx == nil {
+		tx = Begin()
+		defer Commit(tx)
+	}
+
 	if len(t.Fkeys) > 0 {
 		return
 	}
@@ -163,7 +173,7 @@ func (t *Table) loadConstraints() {
 
 	// Query the primary keys, but returns IDs instead of column names
 	pKeyAttNums := []int64{}
-	err := conn.Get(&pKeyAttNums, `
+	err := tx.Get(&pKeyAttNums, `
 		SELECT conkey
 		FROM pg_catalog.pg_constraint
 		WHERE conrelid = $1
@@ -180,7 +190,7 @@ func (t *Table) loadConstraints() {
 		Conkey  pq.Int64Array
 		Confkey pq.Int64Array
 	}, 0, 20)
-	err = conn.Select(&rawFkeys, `
+	err = tx.Select(&rawFkeys, `
 		SELECT oid
 		    , conrelid
 			, confrelid
@@ -212,7 +222,7 @@ func (t *Table) loadConstraints() {
 		WHERE attrelid IN (%s)`,
 		strings.Join(relIds, ","))
 	log.Println("Executing: " + query)
-	rows, err := conn.Query(query)
+	rows, err := tx.Query(query)
 	Check(err)
 	for rows.Next() {
 		var relId, attNum int64
@@ -276,7 +286,7 @@ func (t *Table) loadConstraints() {
 }
 
 func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
-	tableNames, cols := sheet.OrderedTablesAndCols()
+	tableNames, cols := sheet.OrderedTablesAndCols(nil)
 	cells := make([][][]Cell, len(tableNames))
 	// TODO: Check if table.TableName and column names are valid somewhere
 	casts := make([]string, 0)
@@ -330,7 +340,7 @@ func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
 }
 
 func (sheet *Sheet) InsertRow(tx *sqlx.Tx, tableName string, values map[string]string, returning []string) ([]interface{}, error) {
-	tableNames, cols := sheet.OrderedTablesAndCols()
+	tableNames, cols := sheet.OrderedTablesAndCols(nil)
 	valueLabels := make([]string, 0)
 	nonEmptyValues := make(map[string]interface{})
 	for i, tname := range tableNames {
@@ -378,28 +388,32 @@ func (sheet *Sheet) InsertRow(tx *sqlx.Tx, tableName string, values map[string]s
 	return result, err
 }
 
-func addToNestedMap[V any](m map[string]map[string]map[string]V, k1, k2, k3 string, v V) {
+func addToNestedMap[V any](m map[string]map[string]V, k1, k2 string, v V) {
+	_, ok := m[k1]
+	if !ok {
+		m[k1] = make(map[string]V)
+	}
+	m[k1][k2] = v
+}
+
+func addToNestedMap2[V any](m map[string]map[string]map[string]V, k1, k2, k3 string, v V) {
 	_, ok := m[k1]
 	if !ok {
 		m[k1] = make(map[string]map[string]V)
 	}
-	_, ok = m[k1][k2]
-	if !ok {
-		m[k1][k2] = make(map[string]V)
-	}
-	m[k1][k2][k3] = v
+	addToNestedMap(m[k1], k2, k3, v)
 }
 
-func topoSort(outgoingEdges map[string]map[string]bool, incomingEdges map[string]map[string]bool) ([]string, error) {
+func topoSort(nodes map[string]bool, outgoingEdges, incomingEdges map[string]map[string]bool) ([]string, error) {
 	// Kahn's algorithm: https://en.wikipedia.org/wiki/Topological_sorting#Kahn's_algorithm
-	s := make([]string, 0, len(outgoingEdges))
-	for n, incoming := range incomingEdges {
-		if len(incoming) == 0 {
+	s := make([]string, 0, len(nodes))
+	for n, _ := range nodes {
+		if len(incomingEdges[n]) == 0 {
 			s = append(s, n)
 		}
 	}
 
-	l := make([]string, 0, len(outgoingEdges))
+	l := make([]string, 0, len(nodes))
 	for len(s) > 0 {
 		n := s[0]
 		s = s[1:]
@@ -415,50 +429,46 @@ func topoSort(outgoingEdges map[string]map[string]bool, incomingEdges map[string
 
 	for _, outgoing := range outgoingEdges {
 		if len(outgoing) > 0 {
-			return nil, errors.New("cycle detected")
+			return l, fmt.Errorf("cycle detected: %v", outgoingEdges)
 		}
 	}
 
 	return l, nil
 }
 
-func (sheet *Sheet) sortedTablesAndReqCols(tablesUsed map[string]bool) ([]string, map[string]map[string]map[string]string, error) {
+func (sheet *Sheet) sortedTablesAndReqCols() ([]string, map[string]map[string]map[string]string, error) {
+	nodes := make(map[string]bool)
 	outgoingEdges := make(map[string]map[string]bool)
 	incomingEdges := make(map[string]map[string]bool)
 	// {tableName: {colName: {otherTableName: colName}}}}
 	requiredCols := make(map[string]map[string]map[string]string)
-	for tableName, _ := range tablesUsed {
-		outgoingEdges[tableName] = make(map[string]bool)
-		incomingEdges[tableName] = make(map[string]bool)
-	}
 	table := sheet.Table
+	nodes[table.FullName()] = true
 	log.Printf("Join oids: %v", sheet.JoinOids)
 	for _, joinOid := range sheet.JoinOids {
 		join := table.Fkeys[joinOid]
 		log.Printf("Join info: %v", join)
 		if join.isFrom {
-			if tablesUsed[join.otherTableName] && tablesUsed[table.FullName()] {
-				outgoingEdges[join.otherTableName][table.FullName()] = true
-				for i, colName := range join.targetColNames {
-					addToNestedMap(requiredCols, join.otherTableName, colName, table.FullName(), join.sourceColNames[i])
-				}
-				incomingEdges[table.FullName()][join.otherTableName] = true
+			addToNestedMap(outgoingEdges, join.otherTableName, table.FullName(), true)
+			addToNestedMap(incomingEdges, table.FullName(), join.otherTableName, true)
+			for i, colName := range join.targetColNames {
+				addToNestedMap2(requiredCols, join.otherTableName, colName, table.FullName(), join.sourceColNames[i])
 			}
 		} else {
-			if tablesUsed[join.otherTableName] && tablesUsed[table.FullName()] {
-				outgoingEdges[table.FullName()][join.otherTableName] = true
-				for i, colName := range join.sourceColNames {
-					addToNestedMap(requiredCols, table.FullName(), colName, join.otherTableName, join.targetColNames[i])
-				}
-				incomingEdges[join.otherTableName][table.FullName()] = true
+			addToNestedMap(outgoingEdges, table.FullName(), join.otherTableName, true)
+			addToNestedMap(incomingEdges, join.otherTableName, table.FullName(), true)
+			for i, colName := range join.sourceColNames {
+				addToNestedMap2(requiredCols, table.FullName(), colName, join.otherTableName, join.targetColNames[i])
 			}
 		}
 		table = TableMap[join.otherTableName]
+		nodes[join.otherTableName] = true
 	}
 
+	log.Printf("Nodes: %v", nodes)
 	log.Printf("Outgoing: %v", outgoingEdges)
 	log.Printf("Incoming: %v", incomingEdges)
-	tableNames, err := topoSort(outgoingEdges, incomingEdges)
+	tableNames, err := topoSort(nodes, outgoingEdges, incomingEdges)
 	return tableNames, requiredCols, err
 }
 
@@ -473,7 +483,7 @@ func (sheet *Sheet) InsertMultipleRows(values map[string]map[string]string) erro
 		}
 	}
 	log.Printf("Tables used: %v", tablesUsed)
-	tableNames, requiredCols, err := sheet.sortedTablesAndReqCols(tablesUsed)
+	tableNames, requiredCols, err := sheet.sortedTablesAndReqCols()
 	log.Printf("Sorted tables: %v", tableNames)
 	log.Printf("Required cols: %v", requiredCols)
 	if err != nil {
@@ -481,18 +491,32 @@ func (sheet *Sheet) InsertMultipleRows(values map[string]map[string]string) erro
 	}
 
 	tx := Begin()
+	defer Commit(tx)
 	for _, tableName := range tableNames {
-		// We can assume tableValues is non-empty since we filtered to tablesUsed in sortedTablesAndReqCols
+		// Note that prior insertions may have made values[tableName] non-empty, e.g. for join
+		// tables for many-to-many relationships.
+		isEmpty := true
+		for _, value := range values[tableName] {
+			if value != "" {
+				isEmpty = false
+				break
+			}
+		}
+		if isEmpty {
+			continue
+		}
+
 		tableRequiredCols := maps.Keys(requiredCols[tableName])
 		row, err := sheet.InsertRow(tx, tableName, values[tableName], tableRequiredCols)
 		if err != nil {
+			Check(tx.Rollback())
 			return err
 		}
 		for i, colName := range tableRequiredCols {
 			for otherTableName, colToSet := range requiredCols[tableName][colName] {
-				values[otherTableName][colToSet] = row[i].(string)
+				addToNestedMap(values, otherTableName, colToSet, row[i].(string))
 			}
 		}
 	}
-	return tx.Commit()
+	return nil
 }

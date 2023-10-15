@@ -68,13 +68,13 @@ func TestMultiTableSheet(t *testing.T) {
 	defer teardown()
 
 	customers := TableMap["db_interface_test.customers"]
-	customers.loadConstraints()
+	customers.loadConstraints(nil)
 	orders := TableMap["db_interface_test.orders"]
-	orders.loadConstraints()
+	orders.loadConstraints(nil)
 	products := TableMap["db_interface_test.products"]
-	products.loadConstraints()
+	products.loadConstraints(nil)
 	order_products := TableMap["db_interface_test.order_products"]
-	order_products.loadConstraints()
+	order_products.loadConstraints(nil)
 	sheet := Sheet{Table: customers}
 	// Join orders
 	sheet.JoinOids = maps.Keys(customers.Fkeys)
@@ -99,6 +99,7 @@ func TestMultiTableSheet(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Test insertion with an existing product
 	err = sheet.InsertMultipleRows(map[string]map[string]string{
 		customers.FullName():      {"name": "bob"},
 		orders.FullName():         {"total": "123.45", "status": "unfilled"},
@@ -106,5 +107,19 @@ func TestMultiTableSheet(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	// Test insertion with a new product
+	values := map[string]map[string]string{
+		customers.FullName(): {"name": "bob"},
+		orders.FullName():    {"total": "123.45", "status": "unfilled"},
+		products.FullName():  {"name": "test"},
+	}
+	err = sheet.InsertMultipleRows(values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if values["order_products"]["product_id"] != values["product"]["id"] {
+		t.Error("Order not linked to inserted product")
 	}
 }
