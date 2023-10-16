@@ -48,6 +48,8 @@ func TestSingleTableSheet(t *testing.T) {
 
 	tableName := "db_interface_test.customers"
 	sheet := Sheet{Table: TableMap[tableName]}
+
+	// Insert
 	tx := Begin()
 	row, err := sheet.InsertRow(tx, tableName, map[string]string{"name": "test"}, []string{"id"})
 	if err != nil {
@@ -60,6 +62,14 @@ func TestSingleTableSheet(t *testing.T) {
 	id, _ := row[0].(string)
 	if id != "1" {
 		t.Fatalf("Unexpected ID returned: %v", row[0])
+	}
+
+	// Update
+	err = TableMap[tableName].updateRow(map[string]string{
+		"name": "test2",
+	})
+	if err != nil {
+		t.Error(err)
 	}
 }
 

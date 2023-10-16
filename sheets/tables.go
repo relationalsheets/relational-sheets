@@ -133,14 +133,16 @@ func loadTables() {
 }
 
 func (table *Table) loadCols(tx *sqlx.Tx) {
+	if len(table.Cols) > 0 {
+		return
+	}
+	table.Cols = make(map[string]Column)
+
 	if tx == nil {
 		tx = Begin()
 		defer Commit(tx)
 	}
 
-	if len(table.Cols) > 0 {
-		return
-	}
 	cols := make([]Column, 0, 100)
 	err := tx.Select(&cols, `
 		SELECT column_name "name"
@@ -154,31 +156,34 @@ func (table *Table) loadCols(tx *sqlx.Tx) {
 		table.SchemaName)
 	Check(err)
 	log.Printf("Retrieved %d columns from %s", len(cols), table.FullName())
-	table.Cols = make(map[string]Column)
 	for _, col := range cols {
 		table.Cols[col.Name] = col
 	}
 }
 
 func (t *Table) loadConstraints(tx *sqlx.Tx) {
+	if len(t.Fkeys) > 0 {
+		return
+	}
+	log.Printf("Loading constraints for table %s (%d)", t.FullName(), t.Oid)
+	t.Fkeys = make(map[int64]ForeignKey)
+
 	if tx == nil {
 		tx = Begin()
 		defer Commit(tx)
 	}
 
-	if len(t.Fkeys) > 0 {
-		return
-	}
-	t.Fkeys = make(map[int64]ForeignKey)
-
 	// Query the primary keys, but returns IDs instead of column names
-	pKeyAttNums := []int64{}
+	pKeyAttNums := pq.Int64Array{}
 	err := tx.Get(&pKeyAttNums, `
 		SELECT conkey
 		FROM pg_catalog.pg_constraint
 		WHERE conrelid = $1
 			AND contype = 'p'`,
 		t.Oid)
+	if err != nil && err.Error() != "sql: no rows in result set" {
+		panic(err)
+	}
 
 	// Query the foreign keys, but returns IDs instead of column names
 	rawFkeys := make([]struct {
@@ -233,6 +238,7 @@ func (t *Table) loadConstraints(tx *sqlx.Tx) {
 	}
 
 	// Flag the primary keys in t.Cols
+	t.loadCols(tx)
 	if len(pKeyAttNums) > 0 {
 		for _, attNum := range pKeyAttNums {
 			colName := idsToNames[[2]int64{t.Oid, attNum}]
@@ -240,6 +246,7 @@ func (t *Table) loadConstraints(tx *sqlx.Tx) {
 			col.IsPrimaryKey = true
 			t.Cols[colName] = col
 		}
+		t.HasPrimaryKey = true
 		log.Printf("Retrieved primary key for %s", t.FullName())
 	} else {
 		log.Printf("No primary key for %s", t.FullName())
@@ -340,22 +347,14 @@ func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
 }
 
 func (sheet *Sheet) InsertRow(tx *sqlx.Tx, tableName string, values map[string]string, returning []string) ([]interface{}, error) {
-	tableNames, cols := sheet.OrderedTablesAndCols(nil)
-	valueLabels := make([]string, 0)
-	nonEmptyValues := make(map[string]interface{})
-	for i, tname := range tableNames {
-		if tname != tableName {
-			continue
-		}
-		for _, col := range cols[i] {
-			if values[col.Name] != "" {
-				nonEmptyValues[col.Name] = values[col.Name]
-				valueLabels = append(valueLabels, ":"+col.Name)
-			}
-		}
-	}
+	nonEmptyValues := prepareValues(values, false)
 	if len(nonEmptyValues) == 0 {
 		return nil, errors.New("All fields are empty")
+	}
+
+	valueLabels := make([]string, len(nonEmptyValues))
+	for i, key := range maps.Keys(nonEmptyValues) {
+		valueLabels[i] = ":" + key
 	}
 
 	returningCasts := make([]string, len(returning))
@@ -472,17 +471,28 @@ func (sheet *Sheet) sortedTablesAndReqCols() ([]string, map[string]map[string]ma
 	return tableNames, requiredCols, err
 }
 
-func (sheet *Sheet) InsertMultipleRows(values map[string]map[string]string) error {
-	tablesUsed := make(map[string]bool)
-	for tableName, tableValues := range values {
-		for _, value := range tableValues {
-			if value != "" {
-				tablesUsed[tableName] = true
-				break
-			}
+func isEmpty[K comparable](m map[K]string) bool {
+	for _, value := range m {
+		if value != "" {
+			return false
 		}
 	}
-	log.Printf("Tables used: %v", tablesUsed)
+	return true
+}
+
+func prepareValues(values map[string]string, allowEmpty bool) map[string]interface{} {
+	nonEmptyValues := make(map[string]interface{})
+	for key, value := range values {
+		if value != "" {
+			nonEmptyValues[key] = value
+		} else if allowEmpty {
+			nonEmptyValues[key] = nil
+		}
+	}
+	return nonEmptyValues
+}
+
+func (sheet *Sheet) InsertMultipleRows(values map[string]map[string]string) error {
 	tableNames, requiredCols, err := sheet.sortedTablesAndReqCols()
 	log.Printf("Sorted tables: %v", tableNames)
 	log.Printf("Required cols: %v", requiredCols)
@@ -495,14 +505,7 @@ func (sheet *Sheet) InsertMultipleRows(values map[string]map[string]string) erro
 	for _, tableName := range tableNames {
 		// Note that prior insertions may have made values[tableName] non-empty, e.g. for join
 		// tables for many-to-many relationships.
-		isEmpty := true
-		for _, value := range values[tableName] {
-			if value != "" {
-				isEmpty = false
-				break
-			}
-		}
-		if isEmpty {
+		if isEmpty(values[tableName]) {
 			continue
 		}
 
@@ -516,6 +519,41 @@ func (sheet *Sheet) InsertMultipleRows(values map[string]map[string]string) erro
 			for otherTableName, colToSet := range requiredCols[tableName][colName] {
 				addToNestedMap(values, otherTableName, colToSet, row[i].(string))
 			}
+		}
+	}
+	return nil
+}
+
+func (table *Table) updateRow(values map[string]string) error {
+	table.loadConstraints(nil)
+	if !table.HasPrimaryKey {
+		return errors.New("Cannot update table without primary key: " + table.FullName())
+	}
+
+	assignments := make([]string, len(values))
+	for i, key := range maps.Keys(values) {
+		assignments[i] = key + " = :" + key
+	}
+	query := fmt.Sprintf(
+		"UPDATE %s SET %s",
+		table.FullName(),
+		strings.Join(assignments, ", "))
+	prepared := prepareValues(values, true)
+	log.Println("Executing:", query)
+	log.Println("Values:", prepared)
+	_, err := conn.NamedExec(query, prepared)
+	return err
+}
+
+func (sheet *Sheet) UpdateRows(values map[string]map[string]string) error {
+	for tableName, tableValues := range values {
+		if isEmpty(tableValues) {
+			continue
+		}
+		table := TableMap[tableName]
+		err := table.updateRow(tableValues)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
