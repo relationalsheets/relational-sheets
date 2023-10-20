@@ -27,17 +27,6 @@ func getSheet(r *http.Request, required bool) (sheets.Sheet, error) {
 	return sheets.Sheet{}, nil
 }
 
-func handleSheet(w http.ResponseWriter, r *http.Request) {
-	sheet, err := getSheet(r, true)
-	if err != nil {
-		writeError(w, err.Error())
-		return
-	}
-	sheet.LoadSheet()
-	sheets.GlobalSheet = sheet
-	reRenderSheet(w, r)
-}
-
 func handleAddCol(w http.ResponseWriter, r *http.Request) {
 	sheets.GlobalSheet.AddColumn("")
 	reRenderSheet(w, r)
@@ -147,26 +136,30 @@ func handleModal(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err.Error())
 		return
 	}
+	if sheet.Id != 0 {
+		sheets.GlobalSheet = sheet
+	}
+
 	tableName := r.FormValue("table_name")
 	if tableName != "" {
-		sheet.SetTable(tableName)
+		sheets.GlobalSheet.SetTable(tableName)
 	}
 
 	fkeyOidStrs, ok := r.Form["fkey"]
 	if ok {
-		sheet.JoinOids = make([]int64, len(fkeyOidStrs))
+		sheets.GlobalSheet.JoinOids = make([]int64, len(fkeyOidStrs))
 		for i, fkeyOidStr := range fkeyOidStrs {
 			oid, err := strconv.ParseInt(fkeyOidStr, 10, 64)
-			_, ok := sheet.Table.Fkeys[oid]
+			_, ok := sheets.GlobalSheet.Table.Fkeys[oid]
 			if err != nil || !ok {
 				writeError(w, "Invalid fkey Oid")
 				return
 			}
-			sheet.JoinOids[i] = oid
+			sheets.GlobalSheet.JoinOids[i] = oid
 		}
-		sheet.SaveSheet()
+		sheets.GlobalSheet.SaveSheet()
 	}
 
 	_, addJoin := r.Form["add_join"]
-	templ.Handler(modal(sheet, sheets.TableMap, addJoin)).ServeHTTP(w, r)
+	templ.Handler(modal(sheets.GlobalSheet, sheets.TableMap, addJoin)).ServeHTTP(w, r)
 }

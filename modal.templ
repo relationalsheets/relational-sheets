@@ -49,14 +49,10 @@ templ modal(sheet sheets.Sheet, tables map[string]*sheets.Table, addJoin bool) {
             </div>
 
             <div class="flex full-width mt center">
-                <button hx-post="/sheet"
-                        hx-target="#table"
-                        onclick="htmx.toggleClass(document.getElementById('modal'), 'is-active')"
-                        name="sheet_id"
-                        value={ strconv.Itoa(sheet.Id) }
-                        class="button is-primary">
+                <a href={ templ.SafeURL("?sheet_id=" + strconv.Itoa(sheet.Id)) }
+                   class="button is-primary">
                     Ok
-                </button>
+                </a>
             </div>
         </div>
 

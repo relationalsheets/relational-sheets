@@ -66,9 +66,9 @@ func (fkey ForeignKey) toJoinClause(tableName string) string {
 	pairs := make([]string, len(fkey.sourceColNames))
 	for i, sourceCol := range fkey.sourceColNames {
 		if fkey.isFrom {
-			pairs[i] = fkey.otherTableName + "." + sourceCol + " = " + tableName + "." + fkey.targetColNames[i]
-		} else {
 			pairs[i] = tableName + "." + sourceCol + " = " + fkey.otherTableName + "." + fkey.targetColNames[i]
+		} else {
+			pairs[i] = fkey.otherTableName + "." + sourceCol + " = " + tableName + "." + fkey.targetColNames[i]
 		}
 	}
 	return "JOIN " + tableName + " ON " + strings.Join(pairs, ",")
@@ -352,8 +352,9 @@ func (sheet *Sheet) InsertRow(tx *sqlx.Tx, tableName string, values map[string]s
 		return nil, errors.New("All fields are empty")
 	}
 
+	keys := maps.Keys(nonEmptyValues)
 	valueLabels := make([]string, len(nonEmptyValues))
-	for i, key := range maps.Keys(nonEmptyValues) {
+	for i, key := range keys {
 		valueLabels[i] = ":" + key
 	}
 
@@ -365,7 +366,7 @@ func (sheet *Sheet) InsertRow(tx *sqlx.Tx, tableName string, values map[string]s
 	query := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES (%s)",
 		tableName,
-		strings.Join(maps.Keys(nonEmptyValues), ", "),
+		strings.Join(keys, ", "),
 		strings.Join(valueLabels, ", "))
 	if len(returningCasts) > 0 {
 		query += " RETURNING " + strings.Join(returningCasts, ", ")
@@ -511,10 +512,7 @@ func (sheet *Sheet) InsertMultipleRows(values map[string]map[string]string) erro
 
 		tableRequiredCols := maps.Keys(requiredCols[tableName])
 		row, err := sheet.InsertRow(tx, tableName, values[tableName], tableRequiredCols)
-		if err != nil {
-			Check(tx.Rollback())
-			return err
-		}
+		Check(err)
 		for i, colName := range tableRequiredCols {
 			for otherTableName, colToSet := range requiredCols[tableName][colName] {
 				addToNestedMap(values, otherTableName, colToSet, row[i].(string))

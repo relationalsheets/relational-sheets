@@ -159,11 +159,12 @@ func modal(sheet sheets.Sheet, tables map[string]*sheets.Table, addJoin bool) te
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</button></div></div><div class=\"flex full-width mt center\"><button hx-post=\"/sheet\" hx-target=\"#table\" onclick=\"htmx.toggleClass(document.getElementById(&#39;modal&#39;), &#39;is-active&#39;)\" name=\"sheet_id\" value=\"")
+		_, err = templBuffer.WriteString("</button></div></div><div class=\"flex full-width mt center\"><a href=\"")
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString(templ.EscapeString(strconv.Itoa(sheet.Id)))
+		var var_7 templ.SafeURL = templ.SafeURL("?sheet_id=" + strconv.Itoa(sheet.Id))
+		_, err = templBuffer.WriteString(templ.EscapeString(string(var_7)))
 		if err != nil {
 			return err
 		}
@@ -171,12 +172,12 @@ func modal(sheet sheets.Sheet, tables map[string]*sheets.Table, addJoin bool) te
 		if err != nil {
 			return err
 		}
-		var_7 := `Ok`
-		_, err = templBuffer.WriteString(var_7)
+		var_8 := `Ok`
+		_, err = templBuffer.WriteString(var_8)
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</button></div></div><button class=\"modal-close\"></button></div>")
+		_, err = templBuffer.WriteString("</a></div></div><button class=\"modal-close\"></button></div>")
 		if err != nil {
 			return err
 		}
