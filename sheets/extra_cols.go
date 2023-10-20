@@ -111,7 +111,7 @@ func (s *Sheet) SetCell(i, j int, formula string) SheetCell {
 
 func (s *Sheet) AddColumn(name string) {
 	if name == "" {
-		i := len(GlobalSheet.ExtraCols)
+		i := len(s.ExtraCols)
 		for i >= 0 {
 			name += defaultColNameChars[i%len(defaultColNameChars) : i%len(defaultColNameChars)+1]
 			i -= len(defaultColNameChars)
@@ -121,11 +121,11 @@ func (s *Sheet) AddColumn(name string) {
 
 	cells := make([]SheetCell, 100)
 	s.ExtraCols = append(s.ExtraCols, SheetColumn{name, cells})
-	s.saveCol(len(GlobalSheet.ExtraCols) - 1)
+	s.saveCol(len(s.ExtraCols) - 1)
 }
 
 func (s *Sheet) RenameCol(i int, name string) {
-	col := GlobalSheet.ExtraCols[i]
+	col := s.ExtraCols[i]
 	col.Name = name
 	s.ExtraCols[i] = col
 	s.saveCol(i)

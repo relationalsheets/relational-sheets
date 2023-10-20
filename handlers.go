@@ -27,61 +27,75 @@ func getSheet(r *http.Request, required bool) (sheets.Sheet, error) {
 	return sheets.Sheet{}, nil
 }
 
-func handleAddCol(w http.ResponseWriter, r *http.Request) {
-	sheets.GlobalSheet.AddColumn("")
-	reRenderSheet(w, r)
+func withSheet(f func(sheets.Sheet, http.ResponseWriter, *http.Request), required bool) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		sheet, err := getSheet(r, required)
+		if err != nil {
+			writeError(w, err.Error())
+			return
+		}
+		f(sheet, w, r)
+	}
 }
 
-func handleRenameCol(w http.ResponseWriter, r *http.Request) {
+func handleAddCol(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+	sheet.AddColumn("")
+	reRenderSheet(sheet, w, r)
+}
+
+func handleRenameCol(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 	colIndex, err := strconv.Atoi(r.FormValue("col_index"))
-	sheets.Check(err)
-	sheets.GlobalSheet.RenameCol(colIndex, r.FormValue("col_name"))
+	if err != nil {
+		writeError(w, err.Error())
+		return
+	}
+	sheet.RenameCol(colIndex, r.FormValue("col_name"))
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func handleSetCell(w http.ResponseWriter, r *http.Request) {
+func handleSetCell(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 	i, err := strconv.Atoi(r.FormValue("i"))
 	sheets.Check(err)
 	j, err := strconv.Atoi(r.FormValue("j"))
 	sheets.Check(err)
 	formula := r.FormValue("formula")
 
-	cell := sheets.GlobalSheet.SetCell(i, j, formula)
+	cell := sheet.SetCell(i, j, formula)
 
 	handler := templ.Handler(extraCell(i, j, cell))
 	handler.ServeHTTP(w, r)
 }
 
-func reRenderSheet(w http.ResponseWriter, r *http.Request) {
-	if sheets.GlobalSheet.TableFullName() == "" {
+func reRenderSheet(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+	if sheet.TableFullName() == "" {
 		writeError(w, "No table name provided")
 		return
 	}
-	tableNames, cols := sheets.GlobalSheet.OrderedTablesAndCols(nil)
-	cells := sheets.GlobalSheet.LoadRows(100, 0)
+	tableNames, cols := sheet.OrderedTablesAndCols(nil)
+	cells := sheet.LoadRows(100, 0)
 	numCols := 0
 	for _, tcols := range cols {
 		numCols += len(tcols)
 	}
-	component := sheetTable(sheets.GlobalSheet, tableNames, cols, cells, numCols)
+	component := sheetTable(sheet, tableNames, cols, cells, numCols)
 	handler := templ.Handler(component)
 	handler.ServeHTTP(w, r)
 }
 
-func handleSetTable(w http.ResponseWriter, r *http.Request) {
+func handleSetTable(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		tableName := r.FormValue("table_name")
 		if tableName == "" {
 			writeError(w, "No table name provided")
 			return
 		}
-		sheets.GlobalSheet.SetTable(tableName)
+		sheet.SetTable(tableName)
 	}
 
-	reRenderSheet(w, r)
+	reRenderSheet(sheet, w, r)
 }
 
-func handleAddRow(w http.ResponseWriter, r *http.Request) {
+func handleAddRow(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 	values := make(map[string]string)
 	for key, value := range r.Form {
 		colName, found := strings.CutPrefix(key, "column-")
@@ -91,7 +105,7 @@ func handleAddRow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tx := sheets.Begin()
-	_, err := sheets.GlobalSheet.InsertRow(tx, r.FormValue("table_name"), values, []string{})
+	_, err := sheet.InsertRow(tx, r.FormValue("table_name"), values, []string{})
 	if err != nil {
 		writeError(w, err.Error())
 		return
@@ -102,71 +116,56 @@ func handleAddRow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reRenderSheet(w, r)
+	reRenderSheet(sheet, w, r)
 }
 
-func handleIndex(w http.ResponseWriter, r *http.Request) {
-	sheet, err := getSheet(r, false)
-	if err != nil {
-		writeError(w, err.Error())
-		return
-	}
+func handleIndex(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 	if sheet.Id != 0 {
 		sheet.LoadSheet()
 	}
-	sheets.GlobalSheet = sheet
 	templ.Handler(index(sheet, sheets.SheetMap)).ServeHTTP(w, r)
 }
 
-func handleSetColPref(w http.ResponseWriter, r *http.Request) {
+func handleSetColPref(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 	colName := r.FormValue("col_name")
 	if colName == "" {
 		writeError(w, "Missing required key: col_name")
 	}
 	hide := r.FormValue("hide") == "true"
-	sheets.GlobalSheet.SetPref(colName, hide)
-	sheets.GlobalSheet.LoadRows(100, 0)
+	sheet.SetPref(colName, hide)
+	sheet.LoadRows(100, 0)
 
-	reRenderSheet(w, r)
+	reRenderSheet(sheet, w, r)
 }
 
-func handleModal(w http.ResponseWriter, r *http.Request) {
-	sheet, err := getSheet(r, false)
-	if err != nil {
-		writeError(w, err.Error())
-		return
-	}
-	if sheet.Id != 0 {
-		sheets.GlobalSheet = sheet
-	}
-
+func handleModal(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 	tableName := r.FormValue("table_name")
 	if tableName != "" {
-		sheets.GlobalSheet.SetTable(tableName)
+		sheet.SetTable(tableName)
 	}
 
 	fkeyOidStrs, ok := r.Form["fkey"]
 	if ok {
-		sheets.GlobalSheet.JoinOids = make([]int64, len(fkeyOidStrs))
+		sheet.JoinOids = make([]int64, len(fkeyOidStrs))
 		for i, fkeyOidStr := range fkeyOidStrs {
 			oid, err := strconv.ParseInt(fkeyOidStr, 10, 64)
-			_, ok := sheets.GlobalSheet.Table.Fkeys[oid]
+			_, ok := sheet.Table.Fkeys[oid]
 			if err != nil || !ok {
 				writeError(w, "Invalid fkey Oid")
 				return
 			}
-			sheets.GlobalSheet.JoinOids[i] = oid
+			sheet.JoinOids[i] = oid
 		}
-		sheets.GlobalSheet.SaveSheet()
+		sheet.SaveSheet()
 	}
 
 	_, addJoin := r.Form["add_join"]
-	templ.Handler(modal(sheets.GlobalSheet, sheets.TableMap, addJoin)).ServeHTTP(w, r)
+	templ.Handler(modal(sheet, sheets.TableMap, addJoin)).ServeHTTP(w, r)
 }
 
-func handleSetName(w http.ResponseWriter, r *http.Request) {
-	sheets.GlobalSheet.Name = r.FormValue("name")
-	sheets.GlobalSheet.SaveSheet()
-	w.WriteHeader(204)
+func handleSetName(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+	sheet.Name = r.FormValue("name")
+	sheet.SaveSheet()
+	w.WriteHeader(http.StatusNoContent)
 	w.Write([]byte{})
 }

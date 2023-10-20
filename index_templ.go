@@ -37,15 +37,7 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 				return err
 			}
 		}
-		_, err = templBuffer.WriteString("><img src=\"/static/icons/cached_FILL0_wght400_GRAD0_opsz24.svg\"></button><button hx-get=\"/modal\" hx-target=\"#modal\" hx-swap=\"outerHTML\" name=\"sheet_id\" value=\"")
-		if err != nil {
-			return err
-		}
-		_, err = templBuffer.WriteString(templ.EscapeString(fmt.Sprintf("%d", sheet.Id)))
-		if err != nil {
-			return err
-		}
-		_, err = templBuffer.WriteString("\">")
+		_, err = templBuffer.WriteString("><img src=\"/static/icons/cached_FILL0_wght400_GRAD0_opsz24.svg\"></button><button hx-get=\"/modal\" hx-target=\"#modal\" hx-swap=\"outerHTML\">")
 		if err != nil {
 			return err
 		}
@@ -222,7 +214,7 @@ func index(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</script><script src=\"/static/index.js\"></script><link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css\"><link rel=\"stylesheet\" href=\"/static/index.css\"></head><body><div id=\"toolbar\">")
+		_, err = templBuffer.WriteString("</script><script src=\"/static/index.js\"></script><link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css\"><link rel=\"stylesheet\" href=\"/static/index.css\"></head><body hx-include=\"[name=sheet_id]\"><div id=\"toolbar\">")
 		if err != nil {
 			return err
 		}
@@ -230,7 +222,15 @@ func index(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</div><div class=\"scrollable\"><table id=\"table\" hx-trigger=\"click\" hx-target=\"#table\" hx-ext=\"response-targets\"></table></div><div id=\"modal\"></div></body></html>")
+		_, err = templBuffer.WriteString("</div><div class=\"scrollable\"><table id=\"table\" hx-trigger=\"click\" hx-target=\"#table\" hx-ext=\"response-targets\"></table></div><div id=\"modal\"></div><input name=\"sheet_id\" type=\"hidden\" value=\"")
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString(templ.EscapeString(fmt.Sprintf("%d", sheet.Id)))
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("\"></body></html>")
 		if err != nil {
 			return err
 		}

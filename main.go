@@ -15,19 +15,19 @@ func main() {
 
 	sheets.LoadSheets()
 
-	http.HandleFunc("/modal", handleModal)
-	http.HandleFunc("/table", handleSetTable)
-	http.HandleFunc("/add-row", handleAddRow)
-	http.HandleFunc("/add-column", handleAddCol)
-	http.HandleFunc("/rename-column", handleRenameCol)
-	http.HandleFunc("/set-column-prefs", handleSetColPref)
-	http.HandleFunc("/set-cell", handleSetCell)
-	http.HandleFunc("/set-name", handleSetName)
+	http.HandleFunc("/modal", withSheet(handleModal, false))
+	http.HandleFunc("/table", withSheet(handleSetTable, true))
+	http.HandleFunc("/add-row", withSheet(handleAddRow, true))
+	http.HandleFunc("/add-column", withSheet(handleAddCol, true))
+	http.HandleFunc("/rename-column", withSheet(handleRenameCol, true))
+	http.HandleFunc("/set-column-prefs", withSheet(handleSetColPref, true))
+	http.HandleFunc("/set-cell", withSheet(handleSetCell, true))
+	http.HandleFunc("/set-name", withSheet(handleSetName, true))
 
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
-	http.HandleFunc("/", handleIndex)
+	http.HandleFunc("/", withSheet(handleIndex, false))
 
 	http.ListenAndServe(":8080", nil)
 }

@@ -26,7 +26,6 @@ type Sheet struct {
 }
 
 var SheetMap = make(map[int]Sheet)
-var GlobalSheet Sheet
 
 const defaultColNameChars string = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -121,7 +120,7 @@ func LoadSheets() {
 }
 
 func (s *Sheet) LoadSheet() {
-	log.Printf("Loading sheet %d", s.Id)
+	log.Printf("Loading sheet %d for table %s", s.Id, s.TableFullName())
 	s.Table = TableMap[s.TableFullName()]
 	s.loadPrefs()
 	s.LoadRows(100, 0)

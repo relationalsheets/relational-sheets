@@ -16,9 +16,7 @@ templ toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) {
 
         <button hx-get="/modal"
                 hx-target="#modal"
-                hx-swap="outerHTML"
-                name="sheet_id"
-                value={ fmt.Sprintf("%d", sheet.Id) }>
+                hx-swap="outerHTML">
             Edit
         </button>
 
@@ -97,7 +95,7 @@ templ index(sheet sheets.Sheet, sheets map[int]sheets.Sheet) {
             <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"/>
             <link rel="stylesheet" href="/static/index.css"/>
         </head>
-        <body>
+        <body hx-include="[name=sheet_id]">
             <div id="toolbar">
                 @toolbar(sheet, sheets)
             </div>
@@ -112,6 +110,10 @@ templ index(sheet sheets.Sheet, sheets map[int]sheets.Sheet) {
 
             <div id="modal">
             </div>
+
+            <input name="sheet_id"
+                   type="hidden"
+                   value={ fmt.Sprintf("%d", sheet.Id) }/>
         </body>
     </html>
 }
