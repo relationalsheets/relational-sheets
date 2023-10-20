@@ -163,3 +163,10 @@ func handleModal(w http.ResponseWriter, r *http.Request) {
 	_, addJoin := r.Form["add_join"]
 	templ.Handler(modal(sheets.GlobalSheet, sheets.TableMap, addJoin)).ServeHTTP(w, r)
 }
+
+func handleSetName(w http.ResponseWriter, r *http.Request) {
+	sheets.GlobalSheet.Name = r.FormValue("name")
+	sheets.GlobalSheet.SaveSheet()
+	w.WriteHeader(204)
+	w.Write([]byte{})
+}

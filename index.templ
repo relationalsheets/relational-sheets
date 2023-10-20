@@ -75,7 +75,9 @@ templ toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) {
     </div>
 
     <div class="toolbar-group">
-        { sheet.VisibleName() }
+        <input hx-post="/set-name"
+               name="name"
+               value={ sheet.VisibleName() }/>
     </div>
 
     <div class="toolbar-group">

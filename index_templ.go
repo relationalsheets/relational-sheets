@@ -163,21 +163,20 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</a></div></div></div></div><div class=\"toolbar-group\">")
+		_, err = templBuffer.WriteString("</a></div></div></div></div><div class=\"toolbar-group\"><input hx-post=\"/set-name\" name=\"name\" value=\"")
 		if err != nil {
 			return err
 		}
-		var var_14 string = sheet.VisibleName()
-		_, err = templBuffer.WriteString(templ.EscapeString(var_14))
+		_, err = templBuffer.WriteString(templ.EscapeString(sheet.VisibleName()))
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</div><div class=\"toolbar-group\"><button disabled>")
+		_, err = templBuffer.WriteString("\"></div><div class=\"toolbar-group\"><button disabled>")
 		if err != nil {
 			return err
 		}
-		var_15 := `Share`
-		_, err = templBuffer.WriteString(var_15)
+		var_14 := `Share`
+		_, err = templBuffer.WriteString(var_14)
 		if err != nil {
 			return err
 		}
@@ -200,17 +199,17 @@ func index(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_16 := templ.GetChildren(ctx)
-		if var_16 == nil {
-			var_16 = templ.NopComponent
+		var_15 := templ.GetChildren(ctx)
+		if var_15 == nil {
+			var_15 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		_, err = templBuffer.WriteString("<!doctype html><html><head><script src=\"https://unpkg.com/htmx.org@1.9.5\">")
 		if err != nil {
 			return err
 		}
-		var_17 := ``
-		_, err = templBuffer.WriteString(var_17)
+		var_16 := ``
+		_, err = templBuffer.WriteString(var_16)
 		if err != nil {
 			return err
 		}
@@ -218,8 +217,8 @@ func index(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		var_18 := ``
-		_, err = templBuffer.WriteString(var_18)
+		var_17 := ``
+		_, err = templBuffer.WriteString(var_17)
 		if err != nil {
 			return err
 		}

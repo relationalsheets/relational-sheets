@@ -22,6 +22,7 @@ func main() {
 	http.HandleFunc("/rename-column", handleRenameCol)
 	http.HandleFunc("/set-column-prefs", handleSetColPref)
 	http.HandleFunc("/set-cell", handleSetCell)
+	http.HandleFunc("/set-name", handleSetName)
 
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
