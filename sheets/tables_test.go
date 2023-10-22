@@ -67,6 +67,8 @@ func TestSingleTableSheet(t *testing.T) {
 	// Update
 	err = TableMap[tableName].updateRow(map[string]string{
 		"name": "test2",
+	}, map[string]string{
+		"id": "1",
 	})
 	if err != nil {
 		t.Error(err)

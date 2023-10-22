@@ -139,5 +139,9 @@ th input {
     height: 100%;
 }
 td input {
-    width: 100%;
+    max-width: 100%;
+    background-color: transparent;
+}
+td input[size="0"] {
+    width: 100%
 }

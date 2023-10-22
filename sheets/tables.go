@@ -96,13 +96,11 @@ func (sheet Sheet) OrderedTablesAndCols(tx *sqlx.Tx) ([]string, [][]Column) {
 			}
 			table = TableMap[join.otherTableName]
 		}
-		if len(sheet.prefsMap) > 0 {
-			sort.SliceStable(cols[i], func(j, k int) bool {
-				indexJ := sheet.prefsMap[table.FullName()+"."+cols[i][j].Name].Index | cols[i][j].Index
-				indexK := sheet.prefsMap[table.FullName()+"."+cols[i][k].Name].Index | cols[i][k].Index
-				return indexJ < indexK
-			})
-		}
+		sort.SliceStable(cols[i], func(j, k int) bool {
+			indexJ := sheet.prefsMap[table.FullName()+"."+cols[i][j].Name].Index | cols[i][j].Index
+			indexK := sheet.prefsMap[table.FullName()+"."+cols[i][k].Name].Index | cols[i][k].Index
+			return indexJ < indexK
+		})
 	}
 	return tableNames, cols
 }
@@ -522,9 +520,8 @@ func (sheet *Sheet) InsertMultipleRows(values map[string]map[string]string) erro
 	return nil
 }
 
-func (table *Table) updateRow(values map[string]string) error {
-	table.loadConstraints(nil)
-	if !table.HasPrimaryKey {
+func (table *Table) updateRow(values map[string]string, primaryKeys map[string]string) error {
+	if len(primaryKeys) == 0 {
 		return errors.New("Cannot update table without primary key: " + table.FullName())
 	}
 
@@ -532,10 +529,16 @@ func (table *Table) updateRow(values map[string]string) error {
 	for i, key := range maps.Keys(values) {
 		assignments[i] = key + " = :" + key
 	}
+	whereClauses := make([]string, len(primaryKeys))
+	for i, key := range maps.Keys(primaryKeys) {
+		whereClauses[i] = key + " = :" + key
+		values[key] = primaryKeys[key]
+	}
 	query := fmt.Sprintf(
-		"UPDATE %s SET %s",
+		"UPDATE %s SET %s WHERE %s",
 		table.FullName(),
-		strings.Join(assignments, ", "))
+		strings.Join(assignments, ", "),
+		strings.Join(whereClauses, " AND "))
 	prepared := prepareValues(values, true)
 	log.Println("Executing:", query)
 	log.Println("Values:", prepared)
@@ -543,13 +546,14 @@ func (table *Table) updateRow(values map[string]string) error {
 	return err
 }
 
-func (sheet *Sheet) UpdateRows(values map[string]map[string]string) error {
+func (sheet *Sheet) UpdateRows(values map[string]map[string]string, primaryKeys map[string]map[string]string) error {
+	log.Printf("UpdateRows(%v, %v)", values, primaryKeys)
 	for tableName, tableValues := range values {
 		if isEmpty(tableValues) {
 			continue
 		}
 		table := TableMap[tableName]
-		err := table.updateRow(tableValues)
+		err := table.updateRow(tableValues, primaryKeys[tableName])
 		if err != nil {
 			return err
 		}

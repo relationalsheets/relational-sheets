@@ -22,6 +22,7 @@ func main() {
 	http.HandleFunc("/rename-column", withSheet(handleRenameCol, true))
 	http.HandleFunc("/set-column-prefs", withSheet(handleSetColPref, true))
 	http.HandleFunc("/set-cell", withSheet(handleSetCell, true))
+	http.HandleFunc("/set-extra-cell", withSheet(handleSetExtraCell, true))
 	http.HandleFunc("/set-name", withSheet(handleSetName, true))
 
 	fs := http.FileServer(http.Dir("static"))

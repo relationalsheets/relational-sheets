@@ -53,7 +53,7 @@ func handleRenameCol(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func handleSetCell(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+func handleSetExtraCell(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 	i, err := strconv.Atoi(r.FormValue("i"))
 	sheets.Check(err)
 	j, err := strconv.Atoi(r.FormValue("j"))
@@ -168,4 +168,25 @@ func handleSetName(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 	sheet.SaveSheet()
 	w.WriteHeader(http.StatusNoContent)
 	w.Write([]byte{})
+}
+
+func handleSetCell(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+	tableName := r.FormValue("table_name")
+	name := r.FormValue("col_name")
+	value := r.FormValue("value")
+	col := sheets.TableMap[tableName].Cols[name]
+	rowStr := r.FormValue("row")
+	row, err := strconv.Atoi(rowStr)
+	sheets.Check(err)
+	pkValues := map[string]string{}
+	for key, v := range r.Form {
+		pkColName, found := strings.CutPrefix(key, "pk-")
+		if found {
+			pkValues[pkColName] = v[0]
+		}
+	}
+
+	err = sheet.UpdateRows(map[string]map[string]string{tableName: {name: value}}, map[string]map[string]string{tableName: pkValues})
+	cell := tableCell(tableName, col, row, sheets.Cell{value, value != ""}, err)
+	templ.Handler(cell).ServeHTTP(w, r)
 }
