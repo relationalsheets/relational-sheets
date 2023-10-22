@@ -148,15 +148,7 @@ func tableCell(tableName string, col sheets.Column, row int, cell sheets.Cell, e
 				return err
 			}
 		}
-		_, err = templBuffer.WriteString(" size=\"")
-		if err != nil {
-			return err
-		}
-		_, err = templBuffer.WriteString(templ.EscapeString(strconv.Itoa(len(cell.Value))))
-		if err != nil {
-			return err
-		}
-		_, err = templBuffer.WriteString("\" class=\"")
+		_, err = templBuffer.WriteString(" size=\"1\" class=\"")
 		if err != nil {
 			return err
 		}
@@ -393,7 +385,16 @@ func sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column,
 					if err != nil {
 						return err
 					}
-					_, err = templBuffer.WriteString("\">")
+					_, err = templBuffer.WriteString("\"><span class=\"width-control\">")
+					if err != nil {
+						return err
+					}
+					var var_14 string = cells[j].Value
+					_, err = templBuffer.WriteString(templ.EscapeString(var_14))
+					if err != nil {
+						return err
+					}
+					_, err = templBuffer.WriteString("</span>")
 					if err != nil {
 						return err
 					}

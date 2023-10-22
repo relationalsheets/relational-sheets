@@ -30,7 +30,7 @@ templ tableCell(tableName string, col sheets.Column, row int, cell sheets.Cell, 
            hx-include={ fmt.Sprintf("[name=sheet_id],tr[data-row=\"%d\"] [data-table=\"%s\"][name^=pk-]", row, tableName) }
            value={ cell.Value }
            disabled?={ col.IsPrimaryKey }
-           size={ strconv.Itoa(len(cell.Value)) }
+           size="1"
            class={ templ.KV("is-danger", err != nil) } />
 }
 
@@ -103,6 +103,7 @@ templ sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column
         for i, tableCols := range cells {
         for k, cells := range tableCols {
             <td class={ templ.KV("is-null", !cells[j].NotNull) }>
+                <span class="width-control">{ cells[j].Value }</span>
                 @tableCell(tableNames[i], cols[i][k], j, cells[j], nil)
                 if cols[i][k].IsPrimaryKey && cells[j].NotNull {
                     <input name={ "pk-" + cols[i][k].Name }
