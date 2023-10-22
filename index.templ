@@ -10,7 +10,7 @@ templ toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) {
         <button hx-get="/table"
                 hx-target="#table"
                 hx-trigger="click,load"
-                disabled?={ sheet.TableFullName() != "" }>
+                disabled?={ sheet.TableFullName() == "" }>
             <img src="/static/icons/cached_FILL0_wght400_GRAD0_opsz24.svg"/>
         </button>
 

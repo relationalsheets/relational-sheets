@@ -31,7 +31,7 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		if sheet.TableFullName() != "" {
+		if sheet.TableFullName() == "" {
 			_, err = templBuffer.WriteString(" disabled")
 			if err != nil {
 				return err
