@@ -1,4 +1,3 @@
-- [ ] Make columns take up enough space that table is at least 100% wide
 - [ ] Support column dependencies
 - [ ] Support querying via joins
 - [ ] Filtering

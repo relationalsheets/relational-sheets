@@ -88,6 +88,7 @@ label {
 }
 table {
     width: max-content;
+    min-width: 100%;
     border-spacing: 0;
     border-collapse: separate;
 }
