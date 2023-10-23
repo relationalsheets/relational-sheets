@@ -71,7 +71,7 @@ func (fkey ForeignKey) toJoinClause(tableName string) string {
 			pairs[i] = fkey.otherTableName + "." + sourceCol + " = " + tableName + "." + fkey.targetColNames[i]
 		}
 	}
-	return "JOIN " + tableName + " ON " + strings.Join(pairs, ",")
+	return "LEFT JOIN " + tableName + " ON " + strings.Join(pairs, ",")
 }
 
 func (sheet Sheet) OrderedTablesAndCols(tx *sqlx.Tx) ([]string, [][]Column) {
