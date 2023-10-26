@@ -56,9 +56,10 @@ templ toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) {
           </div>
           <div class="dropdown-menu">
             <div class="dropdown-content">
-                <a class="dropdown-item"
-                   onclick="htmx.removeClass(htmx.find('#new-row'), 'hide')
-                            htmx.removeClass(htmx.find('#new-row-err-container'), 'hide')">
+                <a hx-get="/new-row"
+                   hx-target="tbody"
+                   hx-swap="afterbegin"
+                   class="dropdown-item">
                     Row
                 </a>
                 <a hx-post="/add-column"

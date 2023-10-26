@@ -22,16 +22,26 @@ templ extraColName(i int, name string) {
 }
 
 templ tableCell(tableName string, col sheets.Column, row int, cell sheets.Cell, err error) {
-    <input name="value"
-           hx-post="/set-cell"
-           hx-target="this"
-           hx-swap="outerHTML"
-           hx-vals={ fmt.Sprintf("{\"table_name\":\"%s\",\"col_name\":\"%s\",\"row\":%d}", tableName, col.Name, row) }
-           hx-include={ fmt.Sprintf("[name=sheet_id],tr[data-row=\"%d\"] [data-table=\"%s\"][name^=pk-]", row, tableName) }
-           value={ cell.Value }
-           disabled?={ col.IsPrimaryKey }
-           size="1"
-           class={ templ.KV("is-danger", err != nil) } />
+    if col.IsPrimaryKey {
+        <div hx-get="/new-row"
+             hx-trigger="click"
+             hx-vals={ fmt.Sprintf("{\"table_name\":\"%s\"}", tableName) }
+             hx-include={ fmt.Sprintf("[name=sheet_id],tr[data-row=\"%d\"] [data-table=\"%s\"][name^=pk-]", row, tableName) }
+             hx-target={ fmt.Sprintf("tr[data-row=\"%d\"]", row) }
+             hx-swap="afterend" >
+             { cell.Value }
+        </div>
+    } else {
+        <input name="value"
+               hx-post="/set-cell"
+               hx-target="this"
+               hx-swap="outerHTML"
+               hx-vals={ fmt.Sprintf("{\"table_name\":\"%s\",\"col_name\":\"%s\",\"row\":%d}", tableName, col.Name, row) }
+               hx-include={ fmt.Sprintf("[name=sheet_id],tr[data-row=\"%d\"] [data-table=\"%s\"][name^=pk-]", row, tableName) }
+               value={ cell.Value }
+               size="1"
+               class={ templ.KV("is-danger", err != nil) } />
+    }
 }
 
 templ extraCell(i, j int, cell sheets.SheetCell) {
@@ -47,6 +57,39 @@ templ extraCell(i, j int, cell sheets.SheetCell) {
             { cell.Value }
         </span>
     </td>
+}
+
+templ newRow(tableNames []string, tableIndex int, cols [][]sheets.Column, numCols int, cells []sheets.Cell, rowIndex int) {
+    <tr id="new-row">
+    for i, tcols := range cols {
+    for j, col := range tcols {
+        <td style="border-bottom: none"
+            class={ templ.KV("is-null", len(cells) > 0 && !cells[j].NotNull) }>
+            if tableIndex == i && len(cells) > 0 {
+                <span>{ cells[j].Value }</span>
+            } else {
+                <input name={ "column-" + tableNames[i] + " " + col.Name } />
+            }
+        </td>
+    }
+    }
+    </tr>
+    <tr id="new-row-err-container">
+        <td colspan={ fmt.Sprintf("%d", numCols) }
+            style="border-top: none">
+            <div class="flex center">
+                <button hx-post="/add-row"
+                        hx-include={ fmt.Sprintf("[name=sheet_id],#new-row,tr[data-row=\"%d\"] [data-table=\"%s\"][name^=pk-]", rowIndex, tableNames[tableIndex]) }
+                        hx-include="#new-row"
+                        hx-target-400="#new-row-err"
+                        class="button is-light maround">
+                    Add
+                </button>
+                <span id="new-row-err" class="has-text-danger">
+                </span>
+            </div>
+        </td>
+    </tr>
 }
 
 templ sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column, cells [][][]sheets.Cell, numCols int) {
@@ -74,30 +117,6 @@ templ sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column
         </tr>
     </thead>
     <tbody>
-        <tr id="new-row" class="hide">
-        for i, tcols := range cols {
-        for _, col := range tcols {
-            <td style="border-bottom: none">
-                <input name={ "column-" + tableNames[i] + " " + col.Name }/>
-            </td>
-        }
-        }
-        </tr>
-        <tr id="new-row-err-container" class="hide">
-            <td colspan={ fmt.Sprintf("%d", numCols) }
-                style="border-top: none">
-                <div class="flex center">
-                    <button hx-post="/add-row"
-                            hx-include="#new-row"
-                            hx-target-400="#new-row-err"
-                            class="button is-light maround">
-                        Add
-                    </button>
-                    <span id="new-row-err" class="has-text-danger">
-                    </span>
-                </div>
-            </td>
-        </tr>
     for j := 0; j < sheet.RowCount; j++ {
         <tr class="body-row" data-row={ strconv.Itoa(j) }>
         for i, tableCols := range cells {

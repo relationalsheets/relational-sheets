@@ -17,6 +17,7 @@ func main() {
 
 	http.HandleFunc("/modal", withSheet(handleModal, false))
 	http.HandleFunc("/table", withSheet(handleSetTable, true))
+	http.HandleFunc("/new-row", withSheet(handleNewRow, true))
 	http.HandleFunc("/add-row", withSheet(handleAddRow, true))
 	http.HandleFunc("/add-column", withSheet(handleAddCol, true))
 	http.HandleFunc("/rename-column", withSheet(handleRenameCol, true))

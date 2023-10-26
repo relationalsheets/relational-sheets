@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/a-h/templ"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -36,6 +37,18 @@ func withSheet(f func(sheets.Sheet, http.ResponseWriter, *http.Request), require
 		}
 		f(sheet, w, r)
 	}
+}
+
+func getPKs(r *http.Request) map[string]string {
+	pkValues := map[string]string{}
+	sheets.Check(r.ParseForm())
+	for key, v := range r.Form {
+		pkColName, found := strings.CutPrefix(key, "pk-")
+		if found {
+			pkValues[pkColName] = v[0]
+		}
+	}
+	return pkValues
 }
 
 func handleAddCol(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
@@ -95,22 +108,67 @@ func handleSetTable(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) 
 	reRenderSheet(sheet, w, r)
 }
 
-func handleAddRow(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
-	values := make(map[string]string)
-	for key, value := range r.Form {
-		colName, found := strings.CutPrefix(key, "column-")
-		if found {
-			values[colName] = value[0]
+func handleNewRow(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+	tableNames, cols := sheet.OrderedTablesAndCols(nil)
+	tableName := r.FormValue("table_name")
+	tableIndex := slices.Index(tableNames, tableName)
+	numCols := 0
+	for _, tcols := range cols {
+		numCols += len(tcols)
+	}
+
+	rowIndex := 0
+	row := []sheets.Cell{}
+	if tableIndex > -1 {
+		row = make([]sheets.Cell, len(cols[tableIndex]))
+	}
+	pks := getPKs(r)
+	if len(pks) > 0 {
+		if tableIndex == -1 {
+			writeError(w, "Unrecognized table")
+			return
+		}
+		// TODO: cache
+		cells := sheet.LoadRows(100, 0)[tableIndex]
+		for rowIndex, _ = range cells[0] {
+			match := true
+			for colIndex, col := range cols[tableIndex] {
+				row[colIndex] = cells[colIndex][rowIndex]
+				pkValue, ok := pks[col.Name]
+				if ok && pkValue != row[colIndex].Value {
+					match = false
+					break
+				}
+			}
+			if match {
+				break
+			}
 		}
 	}
 
-	tx := sheets.Begin()
-	_, err := sheet.InsertRow(tx, r.FormValue("table_name"), values, []string{})
-	if err != nil {
-		writeError(w, err.Error())
-		return
+	component := newRow(tableNames, tableIndex, cols, numCols, row, rowIndex)
+	templ.Handler(component).ServeHTTP(w, r)
+}
+
+func handleAddRow(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+	values := make(map[string]map[string]string)
+	for key, value := range r.Form {
+		name, found := strings.CutPrefix(key, "column-")
+		if found {
+			parts := strings.Split(name, " ")
+			if len(parts) != 2 {
+				writeError(w, "Unexpected field name: "+name)
+			}
+			submap, ok := values[parts[0]]
+			if !ok {
+				submap = make(map[string]string)
+				values[parts[0]] = submap
+			}
+			submap[parts[1]] = value[0]
+		}
 	}
-	err = tx.Commit()
+
+	err := sheet.InsertMultipleRows(values)
 	if err != nil {
 		writeError(w, err.Error())
 		return
@@ -178,15 +236,10 @@ func handleSetCell(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 	rowStr := r.FormValue("row")
 	row, err := strconv.Atoi(rowStr)
 	sheets.Check(err)
-	pkValues := map[string]string{}
-	for key, v := range r.Form {
-		pkColName, found := strings.CutPrefix(key, "pk-")
-		if found {
-			pkValues[pkColName] = v[0]
-		}
-	}
 
-	err = sheet.UpdateRows(map[string]map[string]string{tableName: {name: value}}, map[string]map[string]string{tableName: pkValues})
+	err = sheet.UpdateRows(
+		map[string]map[string]string{tableName: {name: value}},
+		map[string]map[string]string{tableName: getPKs(r)})
 	cell := tableCell(tableName, col, row, sheets.Cell{value, value != ""}, err)
 	templ.Handler(cell).ServeHTTP(w, r)
 }
