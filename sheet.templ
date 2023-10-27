@@ -6,11 +6,27 @@ import (
     "strconv"
 )
 
-templ colName(name string) {
-    <span hx-post="/set-column-prefs"
-        hx-vals={ fmt.Sprintf("js:{col_name:\"%s\",hide:shiftPressed}", name) }>
-        { name }
-    </span>
+templ sortIcon(ascending bool) {
+    if ascending {
+    <img src="/static/icons/arrow_upward_FILL0_wght400_GRAD0_opsz24.svg"/>
+    } else {
+    <img src="/static/icons/arrow_downward_FILL0_wght400_GRAD0_opsz24.svg"/>
+    }
+}
+
+templ colHeader(tableName string, col sheets.Column, pref sheets.Pref) {
+    <th class={ templ.KV("is-pkey", col.IsPrimaryKey) }
+        hx-post="/set-column-prefs"
+        hx-vals={ fmt.Sprintf("js:{table_name:\"%s\",col_name:\"%s\",hide:shiftPressed,sorton:\"%t\",ascending:\"%t\"}",
+                  tableName, col.Name, !pref.SortOn || !pref.Ascending, pref.SortOn && !pref.Ascending) } >
+        <div class="col-header">
+            <span>{ col.Name }</span>
+        if pref.SortOn {
+            @sortIcon(pref.Ascending)
+        }
+        </div>
+
+    </th>
 }
 
 templ extraColName(i int, name string) {
@@ -102,11 +118,9 @@ templ sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column
             }
         </tr>
         <tr id="header-row">
-        for _, tcols := range cols {
+        for i, tcols := range cols {
         for _, col := range tcols {
-            <th class={ templ.KV("is-pkey", col.IsPrimaryKey) }>
-                @colName(col.Name)
-            </th>
+            @colHeader(tableNames[i], col, sheet.PrefsMap[tableNames[i]+"."+col.Name])
         }
         }
         for i, col := range sheet.ExtraCols {

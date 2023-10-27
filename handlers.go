@@ -4,6 +4,7 @@ import (
 	"acb/db-interface/sheets"
 	"errors"
 	"github.com/a-h/templ"
+	"log"
 	"net/http"
 	"slices"
 	"strconv"
@@ -185,12 +186,19 @@ func handleIndex(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 }
 
 func handleSetColPref(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+	tableName := r.FormValue("table_name")
 	colName := r.FormValue("col_name")
 	if colName == "" {
 		writeError(w, "Missing required key: col_name")
 	}
-	hide := r.FormValue("hide") == "true"
-	sheet.SetPref(colName, hide)
+	pref := sheet.PrefsMap[tableName+"."+colName]
+	pref.TableName = tableName
+	pref.ColumnName = colName
+	pref.Hide = r.FormValue("hide") == "true"
+	pref.SortOn = r.FormValue("sorton") == "true"
+	pref.Ascending = r.FormValue("ascending") == "true"
+	log.Printf("saving pref: %v", pref)
+	sheet.SetPref(pref)
 	sheet.LoadRows(100, 0)
 
 	reRenderSheet(sheet, w, r)

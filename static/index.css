@@ -114,6 +114,11 @@ th, td {
     border-top: none;
     padding: 4px;
 }
+th > .col-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
 th:last-of-type, td:last-of-type {
     border-right: none;
 }

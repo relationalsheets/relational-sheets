@@ -83,7 +83,7 @@ func (sheet Sheet) OrderedTablesAndCols(tx *sqlx.Tx) ([]string, [][]Column) {
 		table.loadCols(tx)
 		cols[i] = make([]Column, 0, len(table.Cols))
 		for _, col := range table.Cols {
-			if !sheet.prefsMap[col.Name].Hide {
+			if !sheet.PrefsMap[col.Name].Hide {
 				cols[i] = append(cols[i], table.Cols[col.Name])
 			}
 		}
@@ -97,8 +97,8 @@ func (sheet Sheet) OrderedTablesAndCols(tx *sqlx.Tx) ([]string, [][]Column) {
 			table = TableMap[join.otherTableName]
 		}
 		sort.SliceStable(cols[i], func(j, k int) bool {
-			indexJ := sheet.prefsMap[table.FullName()+"."+cols[i][j].Name].Index | cols[i][j].Index
-			indexK := sheet.prefsMap[table.FullName()+"."+cols[i][k].Name].Index | cols[i][k].Index
+			indexJ := sheet.PrefsMap[table.FullName()+"."+cols[i][j].Name].Index | cols[i][j].Index
+			indexK := sheet.PrefsMap[table.FullName()+"."+cols[i][k].Name].Index | cols[i][k].Index
 			return indexJ < indexK
 		})
 	}
@@ -294,7 +294,8 @@ func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
 	tableNames, cols := sheet.OrderedTablesAndCols(nil)
 	cells := make([][][]Cell, len(tableNames))
 	// TODO: Check if table.TableName and column names are valid somewhere
-	casts := make([]string, 0)
+	casts := []string{}
+	orderClauses := []string{}
 	for i, tableName := range tableNames {
 		table := TableMap[tableName]
 		cells[i] = make([][]Cell, len(cols[i]))
@@ -303,6 +304,16 @@ func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
 			name := table.FullName() + "." + col.Name
 			cast := fmt.Sprintf("%s::text, %s IS NOT NULL", name, name)
 			casts = append(casts, cast)
+
+			pref := sheet.PrefsMap[tableName+"."+col.Name]
+			if pref.SortOn {
+				orderDirection := "DESC"
+				if pref.Ascending {
+					orderDirection = "ASC"
+				}
+				colOrder := tableName + "." + col.Name + " " + orderDirection
+				orderClauses = append(orderClauses, colOrder)
+			}
 		}
 	}
 
@@ -312,10 +323,11 @@ func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
 		fkey := TableMap[tableName].Fkeys[joinOid]
 		fromClause += " " + fkey.toJoinClause(tableName)
 	}
-	query := fmt.Sprintf(
-		"SELECT %s %s LIMIT $1 OFFSET $2",
-		strings.Join(casts, ", "),
-		fromClause)
+	query := "SELECT " + strings.Join(casts, ", ") + " " + fromClause
+	if len(orderClauses) > 0 {
+		query += " ORDER BY " + strings.Join(orderClauses, ", ")
+	}
+	query += " LIMIT $1 OFFSET $2"
 	log.Printf("Executing: %s", query)
 	rows, err := conn.Queryx(query, limit, offset)
 	Check(err)
@@ -323,7 +335,6 @@ func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
 	sheet.RowCount = 0
 	for rows.Next() {
 		scanResult, err := rows.SliceScan()
-		log.Printf("row: %v", scanResult)
 		Check(err)
 		index := 0
 		for i, _ := range tableNames {

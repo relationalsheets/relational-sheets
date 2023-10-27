@@ -15,7 +15,7 @@ import (
 	"strconv"
 )
 
-func colName(name string) templ.Component {
+func sortIcon(ascending bool) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -28,24 +28,79 @@ func colName(name string) templ.Component {
 			var_1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, err = templBuffer.WriteString("<span hx-post=\"/set-column-prefs\" hx-vals=\"")
+		if ascending {
+			_, err = templBuffer.WriteString("<img src=\"/static/icons/arrow_upward_FILL0_wght400_GRAD0_opsz24.svg\">")
+			if err != nil {
+				return err
+			}
+		} else {
+			_, err = templBuffer.WriteString("<img src=\"/static/icons/arrow_downward_FILL0_wght400_GRAD0_opsz24.svg\">")
+			if err != nil {
+				return err
+			}
+		}
+		if !templIsBuffer {
+			_, err = templBuffer.WriteTo(w)
+		}
+		return err
+	})
+}
+
+func colHeader(tableName string, col sheets.Column, pref sheets.Pref) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
+		templBuffer, templIsBuffer := w.(*bytes.Buffer)
+		if !templIsBuffer {
+			templBuffer = templ.GetBuffer()
+			defer templ.ReleaseBuffer(templBuffer)
+		}
+		ctx = templ.InitializeContext(ctx)
+		var_2 := templ.GetChildren(ctx)
+		if var_2 == nil {
+			var_2 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		var var_3 = []any{templ.KV("is-pkey", col.IsPrimaryKey)}
+		err = templ.RenderCSSItems(ctx, templBuffer, var_3...)
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString(templ.EscapeString(fmt.Sprintf("js:{col_name:\"%s\",hide:shiftPressed}", name)))
+		_, err = templBuffer.WriteString("<th class=\"")
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("\">")
+		_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_3).String()))
 		if err != nil {
 			return err
 		}
-		var var_2 string = name
-		_, err = templBuffer.WriteString(templ.EscapeString(var_2))
+		_, err = templBuffer.WriteString("\" hx-post=\"/set-column-prefs\" hx-vals=\"")
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString(templ.EscapeString(fmt.Sprintf("js:{table_name:\"%s\",col_name:\"%s\",hide:shiftPressed,sorton:\"%t\",ascending:\"%t\"}",
+			tableName, col.Name, !pref.SortOn || !pref.Ascending, pref.SortOn && !pref.Ascending)))
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("\"><div class=\"col-header\"><span>")
+		if err != nil {
+			return err
+		}
+		var var_4 string = col.Name
+		_, err = templBuffer.WriteString(templ.EscapeString(var_4))
 		if err != nil {
 			return err
 		}
 		_, err = templBuffer.WriteString("</span>")
+		if err != nil {
+			return err
+		}
+		if pref.SortOn {
+			err = sortIcon(pref.Ascending).Render(ctx, templBuffer)
+			if err != nil {
+				return err
+			}
+		}
+		_, err = templBuffer.WriteString("</div></th>")
 		if err != nil {
 			return err
 		}
@@ -64,9 +119,9 @@ func extraColName(i int, name string) templ.Component {
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_3 := templ.GetChildren(ctx)
-		if var_3 == nil {
-			var_3 = templ.NopComponent
+		var_5 := templ.GetChildren(ctx)
+		if var_5 == nil {
+			var_5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		_, err = templBuffer.WriteString("<input name=\"col_name\" hx-vals=\"")
@@ -104,9 +159,9 @@ func tableCell(tableName string, col sheets.Column, row int, cell sheets.Cell, e
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_4 := templ.GetChildren(ctx)
-		if var_4 == nil {
-			var_4 = templ.NopComponent
+		var_6 := templ.GetChildren(ctx)
+		if var_6 == nil {
+			var_6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		if col.IsPrimaryKey {
@@ -138,8 +193,8 @@ func tableCell(tableName string, col sheets.Column, row int, cell sheets.Cell, e
 			if err != nil {
 				return err
 			}
-			var var_5 string = cell.Value
-			_, err = templBuffer.WriteString(templ.EscapeString(var_5))
+			var var_7 string = cell.Value
+			_, err = templBuffer.WriteString(templ.EscapeString(var_7))
 			if err != nil {
 				return err
 			}
@@ -148,8 +203,8 @@ func tableCell(tableName string, col sheets.Column, row int, cell sheets.Cell, e
 				return err
 			}
 		} else {
-			var var_6 = []any{templ.KV("is-danger", err != nil)}
-			err = templ.RenderCSSItems(ctx, templBuffer, var_6...)
+			var var_8 = []any{templ.KV("is-danger", err != nil)}
+			err = templ.RenderCSSItems(ctx, templBuffer, var_8...)
 			if err != nil {
 				return err
 			}
@@ -181,7 +236,7 @@ func tableCell(tableName string, col sheets.Column, row int, cell sheets.Cell, e
 			if err != nil {
 				return err
 			}
-			_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_6).String()))
+			_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_8).String()))
 			if err != nil {
 				return err
 			}
@@ -205,13 +260,13 @@ func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_7 := templ.GetChildren(ctx)
-		if var_7 == nil {
-			var_7 = templ.NopComponent
+		var_9 := templ.GetChildren(ctx)
+		if var_9 == nil {
+			var_9 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var var_8 = []any{"extra-cell", templ.KV("is-null", !cell.NotNull)}
-		err = templ.RenderCSSItems(ctx, templBuffer, var_8...)
+		var var_10 = []any{"extra-cell", templ.KV("is-null", !cell.NotNull)}
+		err = templ.RenderCSSItems(ctx, templBuffer, var_10...)
 		if err != nil {
 			return err
 		}
@@ -219,7 +274,7 @@ func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_8).String()))
+		_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_10).String()))
 		if err != nil {
 			return err
 		}
@@ -243,8 +298,8 @@ func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 		if err != nil {
 			return err
 		}
-		var var_9 string = cell.Value
-		_, err = templBuffer.WriteString(templ.EscapeString(var_9))
+		var var_11 string = cell.Value
+		_, err = templBuffer.WriteString(templ.EscapeString(var_11))
 		if err != nil {
 			return err
 		}
@@ -267,9 +322,9 @@ func newRow(tableNames []string, tableIndex int, cols [][]sheets.Column, numCols
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_10 := templ.GetChildren(ctx)
-		if var_10 == nil {
-			var_10 = templ.NopComponent
+		var_12 := templ.GetChildren(ctx)
+		if var_12 == nil {
+			var_12 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		_, err = templBuffer.WriteString("<tr id=\"new-row\">")
@@ -278,8 +333,8 @@ func newRow(tableNames []string, tableIndex int, cols [][]sheets.Column, numCols
 		}
 		for i, tcols := range cols {
 			for j, col := range tcols {
-				var var_11 = []any{templ.KV("is-null", len(cells) > 0 && !cells[j].NotNull)}
-				err = templ.RenderCSSItems(ctx, templBuffer, var_11...)
+				var var_13 = []any{templ.KV("is-null", len(cells) > 0 && !cells[j].NotNull)}
+				err = templ.RenderCSSItems(ctx, templBuffer, var_13...)
 				if err != nil {
 					return err
 				}
@@ -287,7 +342,7 @@ func newRow(tableNames []string, tableIndex int, cols [][]sheets.Column, numCols
 				if err != nil {
 					return err
 				}
-				_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_11).String()))
+				_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_13).String()))
 				if err != nil {
 					return err
 				}
@@ -300,8 +355,8 @@ func newRow(tableNames []string, tableIndex int, cols [][]sheets.Column, numCols
 					if err != nil {
 						return err
 					}
-					var var_12 string = cells[j].Value
-					_, err = templBuffer.WriteString(templ.EscapeString(var_12))
+					var var_14 string = cells[j].Value
+					_, err = templBuffer.WriteString(templ.EscapeString(var_14))
 					if err != nil {
 						return err
 					}
@@ -349,8 +404,8 @@ func newRow(tableNames []string, tableIndex int, cols [][]sheets.Column, numCols
 		if err != nil {
 			return err
 		}
-		var_13 := `Add`
-		_, err = templBuffer.WriteString(var_13)
+		var_15 := `Add`
+		_, err = templBuffer.WriteString(var_15)
 		if err != nil {
 			return err
 		}
@@ -373,9 +428,9 @@ func sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column,
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_14 := templ.GetChildren(ctx)
-		if var_14 == nil {
-			var_14 = templ.NopComponent
+		var_16 := templ.GetChildren(ctx)
+		if var_16 == nil {
+			var_16 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		_, err = templBuffer.WriteString("<thead><tr>")
@@ -395,8 +450,8 @@ func sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column,
 			if err != nil {
 				return err
 			}
-			var var_15 string = tableName
-			_, err = templBuffer.WriteString(templ.EscapeString(var_15))
+			var var_17 string = tableName
+			_, err = templBuffer.WriteString(templ.EscapeString(var_17))
 			if err != nil {
 				return err
 			}
@@ -409,30 +464,9 @@ func sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column,
 		if err != nil {
 			return err
 		}
-		for _, tcols := range cols {
+		for i, tcols := range cols {
 			for _, col := range tcols {
-				var var_16 = []any{templ.KV("is-pkey", col.IsPrimaryKey)}
-				err = templ.RenderCSSItems(ctx, templBuffer, var_16...)
-				if err != nil {
-					return err
-				}
-				_, err = templBuffer.WriteString("<th class=\"")
-				if err != nil {
-					return err
-				}
-				_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_16).String()))
-				if err != nil {
-					return err
-				}
-				_, err = templBuffer.WriteString("\">")
-				if err != nil {
-					return err
-				}
-				err = colName(col.Name).Render(ctx, templBuffer)
-				if err != nil {
-					return err
-				}
-				_, err = templBuffer.WriteString("</th>")
+				err = colHeader(tableNames[i], col, sheet.PrefsMap[tableNames[i]+"."+col.Name]).Render(ctx, templBuffer)
 				if err != nil {
 					return err
 				}
@@ -471,8 +505,8 @@ func sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column,
 			}
 			for i, tableCols := range cells {
 				for k, cells := range tableCols {
-					var var_17 = []any{templ.KV("is-null", !cells[j].NotNull)}
-					err = templ.RenderCSSItems(ctx, templBuffer, var_17...)
+					var var_18 = []any{templ.KV("is-null", !cells[j].NotNull)}
+					err = templ.RenderCSSItems(ctx, templBuffer, var_18...)
 					if err != nil {
 						return err
 					}
@@ -480,7 +514,7 @@ func sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column,
 					if err != nil {
 						return err
 					}
-					_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_17).String()))
+					_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_18).String()))
 					if err != nil {
 						return err
 					}
@@ -488,8 +522,8 @@ func sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column,
 					if err != nil {
 						return err
 					}
-					var var_18 string = cells[j].Value
-					_, err = templBuffer.WriteString(templ.EscapeString(var_18))
+					var var_19 string = cells[j].Value
+					_, err = templBuffer.WriteString(templ.EscapeString(var_19))
 					if err != nil {
 						return err
 					}

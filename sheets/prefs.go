@@ -10,11 +10,12 @@ type Pref struct {
 	Hide       bool
 	Editable   bool
 	Index      int
+	SortOn     bool
+	Ascending  bool
 }
 
 func InitPrefsTable() {
 	conn.MustExec(`
-		DROP TABLE db_interface.column_prefs;
 		CREATE TABLE IF NOT EXISTS db_interface.column_prefs (
 			id SERIAL PRIMARY KEY
 			, sheet_id INT NOT NULL
@@ -23,6 +24,8 @@ func InitPrefsTable() {
 			, hide boolean NOT NULL DEFAULT false
 			, editable boolean NOT NULL DEFAULT false
 			, index int NOT NULL
+		    , sorton boolean NOT NULL
+		    , ascending boolean NOT NULL
 			, UNIQUE(sheet_id, tablename, columnname)
 			, CONSTRAINT fk_sheets
 				FOREIGN KEY (sheet_id)
@@ -31,10 +34,8 @@ func InitPrefsTable() {
 	log.Println("Column prefs table exists")
 }
 
-func (sheet *Sheet) SetPref(colName string, hide bool) {
-	pref := sheet.prefsMap[colName]
-	pref.Hide = hide
-	sheet.prefsMap[colName] = pref
+func (sheet *Sheet) SetPref(pref Pref) {
+	sheet.PrefsMap[pref.TableName+"."+pref.ColumnName] = pref
 
 	conn.MustExec(`
 		INSERT INTO db_interface.column_prefs (
@@ -44,18 +45,25 @@ func (sheet *Sheet) SetPref(colName string, hide bool) {
 			, hide
 			, editable
 			, index
+			, sorton
+			, ascending
 		) VALUES (
-			$1, $2, $3, $4, $5, $6
+			$1, $2, $3, $4, $5, $6, $7, $8
 		)
 		ON CONFLICT ("sheet_id", "tablename", "columnname") DO
-		UPDATE SET hide = $3
-			, editable = $4
-			, index = $5`,
+		UPDATE SET hide = $4
+			, editable = $5
+			, index = $6
+			, sorton = $7
+			, ascending = $8`,
 		sheet.Id,
-		colName,
+		pref.TableName,
+		pref.ColumnName,
 		pref.Hide,
 		pref.Editable,
-		pref.Index)
+		pref.Index,
+		pref.SortOn,
+		pref.Ascending)
 }
 
 func (s *Sheet) loadPrefs() {
@@ -66,13 +74,15 @@ func (s *Sheet) loadPrefs() {
 			, hide
 			, editable
 			, index
+			, sorton
+			, ascending
 		FROM db_interface.column_prefs
 		WHERE sheet_id = $1`,
 		s.Id)
 	Check(err)
 	log.Printf("Retrieved %d column prefs", len(prefs))
-	s.prefsMap = make(map[string]Pref)
+	s.PrefsMap = make(map[string]Pref)
 	for _, pref := range prefs {
-		s.prefsMap[pref.TableName+"."+pref.ColumnName] = pref
+		s.PrefsMap[pref.TableName+"."+pref.ColumnName] = pref
 	}
 }

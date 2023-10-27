@@ -20,7 +20,7 @@ type Sheet struct {
 	Id        int
 	Table     *Table
 	JoinOids  pq.Int64Array
-	prefsMap  map[string]Pref
+	PrefsMap  map[string]Pref
 	ExtraCols []SheetColumn
 	RowCount  int
 }
@@ -125,6 +125,7 @@ func (s *Sheet) LoadSheet() {
 	s.loadPrefs()
 	s.LoadRows(100, 0)
 	s.loadExtraCols()
+	SheetMap[s.Id] = *s
 }
 
 func (s *Sheet) SetTable(name string) {
