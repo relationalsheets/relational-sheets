@@ -333,25 +333,21 @@ func newRow(tableNames []string, tableIndex int, cols [][]sheets.Column, numCols
 		}
 		for i, tcols := range cols {
 			for j, col := range tcols {
-				var var_13 = []any{templ.KV("is-null", len(cells) > 0 && !cells[j].NotNull)}
-				err = templ.RenderCSSItems(ctx, templBuffer, var_13...)
-				if err != nil {
-					return err
-				}
-				_, err = templBuffer.WriteString("<td style=\"border-bottom: none\" class=\"")
-				if err != nil {
-					return err
-				}
-				_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_13).String()))
-				if err != nil {
-					return err
-				}
-				_, err = templBuffer.WriteString("\">")
-				if err != nil {
-					return err
-				}
 				if tableIndex == i && len(cells) > 0 {
-					_, err = templBuffer.WriteString("<span>")
+					var var_13 = []any{templ.KV("is-null", len(cells) > 0 && !cells[j].NotNull)}
+					err = templ.RenderCSSItems(ctx, templBuffer, var_13...)
+					if err != nil {
+						return err
+					}
+					_, err = templBuffer.WriteString("<td style=\"border-bottom: none\" class=\"")
+					if err != nil {
+						return err
+					}
+					_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_13).String()))
+					if err != nil {
+						return err
+					}
+					_, err = templBuffer.WriteString("\"><span>")
 					if err != nil {
 						return err
 					}
@@ -360,12 +356,12 @@ func newRow(tableNames []string, tableIndex int, cols [][]sheets.Column, numCols
 					if err != nil {
 						return err
 					}
-					_, err = templBuffer.WriteString("</span>")
+					_, err = templBuffer.WriteString("</span></td>")
 					if err != nil {
 						return err
 					}
 				} else {
-					_, err = templBuffer.WriteString("<input name=\"")
+					_, err = templBuffer.WriteString("<td style=\"border-bottom: none\"><input name=\"")
 					if err != nil {
 						return err
 					}
@@ -373,14 +369,10 @@ func newRow(tableNames []string, tableIndex int, cols [][]sheets.Column, numCols
 					if err != nil {
 						return err
 					}
-					_, err = templBuffer.WriteString("\">")
+					_, err = templBuffer.WriteString("\"></td>")
 					if err != nil {
 						return err
 					}
-				}
-				_, err = templBuffer.WriteString("</td>")
-				if err != nil {
-					return err
 				}
 			}
 		}

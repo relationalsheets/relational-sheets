@@ -79,14 +79,16 @@ templ newRow(tableNames []string, tableIndex int, cols [][]sheets.Column, numCol
     <tr id="new-row">
     for i, tcols := range cols {
     for j, col := range tcols {
+    if tableIndex == i && len(cells) > 0 {
         <td style="border-bottom: none"
             class={ templ.KV("is-null", len(cells) > 0 && !cells[j].NotNull) }>
-            if tableIndex == i && len(cells) > 0 {
-                <span>{ cells[j].Value }</span>
-            } else {
-                <input name={ "column-" + tableNames[i] + " " + col.Name } />
-            }
+            <span>{ cells[j].Value }</span>
         </td>
+    } else {
+        <td style="border-bottom: none">
+            <input name={ "column-" + tableNames[i] + " " + col.Name } />
+        </td>
+    }
     }
     }
     </tr>
