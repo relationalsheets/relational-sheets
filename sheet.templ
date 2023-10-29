@@ -100,7 +100,7 @@ templ newRow(tableNames []string, tableIndex int, cols [][]sheets.Column, numCol
                         hx-include={ fmt.Sprintf("[name=sheet_id],#new-row,tr[data-row=\"%d\"] [data-table=\"%s\"][name^=pk-]", rowIndex, tableNames[tableIndex]) }
                         hx-include="#new-row"
                         hx-target-400="#new-row-err"
-                        class="button is-light maround">
+                        class="button is-light">
                     Add
                 </button>
                 <span id="new-row-err" class="has-text-danger">

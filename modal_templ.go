@@ -14,7 +14,7 @@ import (
 	"strconv"
 )
 
-func fkeySelect(table *sheets.Table, selected int64) templ.Component {
+func fkeySelect(index int, sheet sheets.Sheet, tableNames []string, tables map[string]*sheets.Table, selected int64) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -27,41 +27,60 @@ func fkeySelect(table *sheets.Table, selected int64) templ.Component {
 			var_1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, err = templBuffer.WriteString("<div class=\"select fkey-select\"><select name=\"fkey\" hx-post=\"/modal\"><option value=\"\"></option>")
+		_, err = templBuffer.WriteString("<div class=\"select fkey-select\"><select name=\"")
 		if err != nil {
 			return err
 		}
-		for oid, fkey := range table.Fkeys {
-			_, err = templBuffer.WriteString("<option value=\"")
-			if err != nil {
-				return err
-			}
-			_, err = templBuffer.WriteString(templ.EscapeString(strconv.FormatInt(oid, 10)))
-			if err != nil {
-				return err
-			}
-			_, err = templBuffer.WriteString("\"")
-			if err != nil {
-				return err
-			}
-			if oid == selected {
-				_, err = templBuffer.WriteString(" selected")
+		_, err = templBuffer.WriteString(templ.EscapeString("fkey-" + strconv.Itoa(index)))
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("\" hx-post=\"/modal\"><option value=\"\">")
+		if err != nil {
+			return err
+		}
+		var_2 := `None`
+		_, err = templBuffer.WriteString(var_2)
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("</option>")
+		if err != nil {
+			return err
+		}
+		for _, tableName := range tableNames {
+			for oid, fkey := range tables[tableName].Fkeys {
+				_, err = templBuffer.WriteString("<option value=\"")
 				if err != nil {
 					return err
 				}
-			}
-			_, err = templBuffer.WriteString(">")
-			if err != nil {
-				return err
-			}
-			var var_2 string = fkey.ToString()
-			_, err = templBuffer.WriteString(templ.EscapeString(var_2))
-			if err != nil {
-				return err
-			}
-			_, err = templBuffer.WriteString("</option>")
-			if err != nil {
-				return err
+				_, err = templBuffer.WriteString(templ.EscapeString(strconv.FormatInt(oid, 10)))
+				if err != nil {
+					return err
+				}
+				_, err = templBuffer.WriteString("\"")
+				if err != nil {
+					return err
+				}
+				if oid == selected {
+					_, err = templBuffer.WriteString(" selected")
+					if err != nil {
+						return err
+					}
+				}
+				_, err = templBuffer.WriteString(">")
+				if err != nil {
+					return err
+				}
+				var var_3 string = fkey.ToString()
+				_, err = templBuffer.WriteString(templ.EscapeString(var_3))
+				if err != nil {
+					return err
+				}
+				_, err = templBuffer.WriteString("</option>")
+				if err != nil {
+					return err
+				}
 			}
 		}
 		_, err = templBuffer.WriteString("</select></div>")
@@ -75,7 +94,7 @@ func fkeySelect(table *sheets.Table, selected int64) templ.Component {
 	})
 }
 
-func modal(sheet sheets.Sheet, tables map[string]*sheets.Table, addJoin bool) templ.Component {
+func modal(sheet sheets.Sheet, tableNames []string, tables map[string]*sheets.Table, addJoin bool) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -83,17 +102,17 @@ func modal(sheet sheets.Sheet, tables map[string]*sheets.Table, addJoin bool) te
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_3 := templ.GetChildren(ctx)
-		if var_3 == nil {
-			var_3 = templ.NopComponent
+		var_4 := templ.GetChildren(ctx)
+		if var_4 == nil {
+			var_4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, err = templBuffer.WriteString("<div id=\"modal\" class=\"modal is-active\" hx-target=\"#modal\"><div class=\"modal-content box\"><div id=\"table-fkey-config\" hx-include=\"select\"><label>")
+		_, err = templBuffer.WriteString("<div id=\"modal\" class=\"modal is-active\" hx-target=\"#modal\"><div class=\"modal-content box\"><div id=\"table-fkey-config\" hx-include=\"select,[name=sheet_id]\"><label>")
 		if err != nil {
 			return err
 		}
-		var_4 := `Tables`
-		_, err = templBuffer.WriteString(var_4)
+		var_5 := `Tables`
+		_, err = templBuffer.WriteString(var_5)
 		if err != nil {
 			return err
 		}
@@ -124,8 +143,8 @@ func modal(sheet sheets.Sheet, tables map[string]*sheets.Table, addJoin bool) te
 			if err != nil {
 				return err
 			}
-			var var_5 string = table.FullName()
-			_, err = templBuffer.WriteString(templ.EscapeString(var_5))
+			var var_6 string = table.FullName()
+			_, err = templBuffer.WriteString(templ.EscapeString(var_6))
 			if err != nil {
 				return err
 			}
@@ -138,14 +157,14 @@ func modal(sheet sheets.Sheet, tables map[string]*sheets.Table, addJoin bool) te
 		if err != nil {
 			return err
 		}
-		for _, oid := range sheet.JoinOids {
-			err = fkeySelect(sheet.Table, oid).Render(ctx, templBuffer)
+		for index, oid := range sheet.JoinOids {
+			err = fkeySelect(index, sheet, tableNames, tables, oid).Render(ctx, templBuffer)
 			if err != nil {
 				return err
 			}
 		}
 		if addJoin {
-			err = fkeySelect(sheet.Table, 0).Render(ctx, templBuffer)
+			err = fkeySelect(len(sheet.JoinOids), sheet, tableNames, tables, 0).Render(ctx, templBuffer)
 			if err != nil {
 				return err
 			}
@@ -154,8 +173,8 @@ func modal(sheet sheets.Sheet, tables map[string]*sheets.Table, addJoin bool) te
 		if err != nil {
 			return err
 		}
-		var_6 := `+ Join`
-		_, err = templBuffer.WriteString(var_6)
+		var_7 := `+ Join`
+		_, err = templBuffer.WriteString(var_7)
 		if err != nil {
 			return err
 		}
@@ -163,8 +182,8 @@ func modal(sheet sheets.Sheet, tables map[string]*sheets.Table, addJoin bool) te
 		if err != nil {
 			return err
 		}
-		var var_7 templ.SafeURL = templ.SafeURL("?sheet_id=" + strconv.Itoa(sheet.Id))
-		_, err = templBuffer.WriteString(templ.EscapeString(string(var_7)))
+		var var_8 templ.SafeURL = templ.SafeURL("?sheet_id=" + strconv.Itoa(sheet.Id))
+		_, err = templBuffer.WriteString(templ.EscapeString(string(var_8)))
 		if err != nil {
 			return err
 		}
@@ -172,8 +191,8 @@ func modal(sheet sheets.Sheet, tables map[string]*sheets.Table, addJoin bool) te
 		if err != nil {
 			return err
 		}
-		var_8 := `Ok`
-		_, err = templBuffer.WriteString(var_8)
+		var_9 := `Ok`
+		_, err = templBuffer.WriteString(var_9)
 		if err != nil {
 			return err
 		}

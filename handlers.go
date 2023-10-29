@@ -3,12 +3,13 @@ package main
 import (
 	"acb/db-interface/sheets"
 	"errors"
-	"github.com/a-h/templ"
 	"log"
 	"net/http"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/a-h/templ"
 )
 
 func writeError(w http.ResponseWriter, text string) {
@@ -210,23 +211,48 @@ func handleModal(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 		sheet.SetTable(tableName)
 	}
 
-	fkeyOidStrs, ok := r.Form["fkey"]
-	if ok {
-		sheet.JoinOids = make([]int64, len(fkeyOidStrs))
-		for i, fkeyOidStr := range fkeyOidStrs {
-			oid, err := strconv.ParseInt(fkeyOidStr, 10, 64)
-			_, ok := sheet.Table.Fkeys[oid]
-			if err != nil || !ok {
-				writeError(w, "Invalid fkey Oid")
-				return
-			}
-			sheet.JoinOids[i] = oid
+	tableNames, _ := sheet.OrderedTablesAndCols(nil)
+	_, addJoin := r.Form["add_join"]
+	if addJoin || r.Method != "POST" {
+		templ.Handler(modal(sheet, tableNames, sheets.TableMap, addJoin)).ServeHTTP(w, r)
+		return
+	}
+
+	sheet.JoinOids = make([]int64, 0, len(r.Form))
+	for name, value := range r.Form {
+		fkeyIndexStr, ok := strings.CutPrefix(name, "fkey-")
+		if !ok {
+			continue
 		}
+
+		fkeyIndex, err := strconv.Atoi(fkeyIndexStr)
+		if err != nil {
+			writeError(w, "Invalid key "+fkeyIndexStr)
+			return
+		}
+		oid, err := strconv.ParseInt(value[0], 10, 64)
+		if err != nil {
+			writeError(w, "Invalid integer "+value[0])
+			return
+		}
+
+		fkeyExists := false
+		for _, tableName := range tableNames {
+			table := sheets.TableMap[tableName]
+			_, ok := table.Fkeys[oid]
+			fkeyExists = fkeyExists || ok
+		}
+		if !fkeyExists {
+			writeError(w, "No such fkey "+value[0])
+			return
+		}
+
+		sheet.JoinOids = sheet.JoinOids[:max(len(sheet.JoinOids),fkeyIndex+1)]
+		sheet.JoinOids[fkeyIndex] = oid
 		sheet.SaveSheet()
 	}
 
-	_, addJoin := r.Form["add_join"]
-	templ.Handler(modal(sheet, sheets.TableMap, addJoin)).ServeHTTP(w, r)
+	templ.Handler(modal(sheet, tableNames, sheets.TableMap, addJoin)).ServeHTTP(w, r)
 }
 
 func handleSetName(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {

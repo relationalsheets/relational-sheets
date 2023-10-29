@@ -3,11 +3,18 @@ package main
 import (
 	"acb/db-interface/sheets"
 	"net/http"
+	"os"
+	"slices"
 )
 
 func main() {
 	conn := sheets.Open()
 	defer conn.Close()
+
+	createExampleTable := slices.Contains(os.Args[1:], "--example-table")
+	if createExampleTable {
+		sheets.SetupTablesDB()
+	}
 
 	sheets.InitSheetsTables()
 	sheets.InitPrefsTable()

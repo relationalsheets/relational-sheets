@@ -5,46 +5,9 @@ import (
 	"testing"
 )
 
-func setupTablesDB() func() {
-	Open()
-	conn.MustExec("CREATE SCHEMA IF NOT EXISTS db_interface_test")
-	conn.MustExec(
-		`CREATE TABLE IF NOT EXISTS db_interface_test.customers (
-    		id SERIAL PRIMARY KEY
-			, name VARCHAR(255)
-		)`)
-	conn.MustExec(
-		`CREATE TABLE IF NOT EXISTS db_interface_test.orders (
-    		id SERIAL PRIMARY KEY 
-			, total DECIMAL
-            , status VARCHAR(255)
-            , customer_id INT REFERENCES db_interface_test.customers(id)
-		)`)
-	conn.MustExec(
-		`CREATE TABLE IF NOT EXISTS db_interface_test.products (
-    		id SERIAL PRIMARY KEY 
-			, name VARCHAR(255)
-            , price DECIMAL
-		)`)
-	conn.MustExec(
-		`CREATE TABLE IF NOT EXISTS db_interface_test.order_products (
-			order_id INT REFERENCES  db_interface_test.orders(id)
-			, product_id INT REFERENCES  db_interface_test.products(id)
-		)`)
-	loadTables()
-
-	return func() {
-		conn.MustExec("DROP TABLE IF EXISTS db_interface_test.customers CASCADE")
-		conn.MustExec("DROP TABLE IF EXISTS db_interface_test.orders CASCADE")
-		conn.MustExec("DROP TABLE IF EXISTS db_interface_test.products CASCADE")
-		conn.MustExec("DROP TABLE IF EXISTS db_interface_test.order_products CASCADE")
-		Check(conn.Close())
-	}
-}
-
 func TestSingleTableSheet(t *testing.T) {
-	teardown := setupTablesDB()
-	defer teardown()
+	SetupTablesDB()
+	defer teardownTablesDB()
 
 	tableName := "db_interface_test.customers"
 	sheet := Sheet{Table: TableMap[tableName]}
@@ -76,8 +39,8 @@ func TestSingleTableSheet(t *testing.T) {
 }
 
 func TestMultiTableSheet(t *testing.T) {
-	teardown := setupTablesDB()
-	defer teardown()
+	SetupTablesDB()
+	defer teardownTablesDB()
 
 	customers := TableMap["db_interface_test.customers"]
 	customers.loadConstraints(nil)

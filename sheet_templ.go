@@ -392,7 +392,7 @@ func newRow(tableNames []string, tableIndex int, cols [][]sheets.Column, numCols
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("\" hx-include=\"#new-row\" hx-target-400=\"#new-row-err\" class=\"button is-light maround\">")
+		_, err = templBuffer.WriteString("\" hx-include=\"#new-row\" hx-target-400=\"#new-row-err\" class=\"button is-light\">")
 		if err != nil {
 			return err
 		}

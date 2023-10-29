@@ -130,6 +130,14 @@ thead tr:last-of-type th {
 }
 #new-row-err-container > td {
     margin-top: 4px;
+    height: 48px;
+}
+#new-row-err-container > td > div {
+    position: fixed;
+    width: 100%;
+}
+#new-row-err:empty {
+    display: none;
 }
 td span, th span {
     padding: 4px;
