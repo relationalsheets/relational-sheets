@@ -31,6 +31,7 @@ templ toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) {
                 <a hx-get="/modal"
                    hx-target="#modal"
                    hx-swap="outerHTML"
+                   hx-include="unset"
                    class="dropdown-item">
                     + New
                 </a>

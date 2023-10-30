@@ -3,11 +3,11 @@ import (
 	"strconv"
 )
 
-templ fkeySelect(index int, sheet sheets.Sheet, tableNames []string, tables map[string]*sheets.Table, selected int64) {
+templ fkeySelect(index int, sheet sheets.Sheet, tables map[string]*sheets.Table, selected int64) {
     <div class="select fkey-select">
         <select name={ "fkey-" + strconv.Itoa(index) } hx-post="/modal">
             <option value="">None</option>
-        for _, tableName := range tableNames {
+        for _, tableName := range sheet.TableNames {
         for oid, fkey := range tables[tableName].Fkeys {
             <option value={ strconv.FormatInt(oid, 10) }
                     selected?={ oid == selected }>
@@ -19,7 +19,7 @@ templ fkeySelect(index int, sheet sheets.Sheet, tableNames []string, tables map[
     </div>
 }
 
-templ modal(sheet sheets.Sheet, tableNames []string, tables map[string]*sheets.Table, addJoin bool) {
+templ modal(sheet sheets.Sheet, tables map[string]*sheets.Table, addJoin bool) {
     <div id="modal" class="modal is-active" hx-target="#modal">
         <div class="modal-content box">
             <div id="table-fkey-config" hx-include="select,[name=sheet_id]">
@@ -37,10 +37,10 @@ templ modal(sheet sheets.Sheet, tableNames []string, tables map[string]*sheets.T
                         </select>
                     </div>
                     for index, oid := range sheet.JoinOids {
-                        @fkeySelect(index, sheet, tableNames, tables, oid)
+                        @fkeySelect(index, sheet, tables, oid)
                     }
                     if addJoin {
-                        @fkeySelect(len(sheet.JoinOids), sheet, tableNames, tables, 0)
+                        @fkeySelect(len(sheet.JoinOids), sheet, tables, 0)
                     }
                     <button hx-post="/modal"
                             name="add_join"
@@ -59,5 +59,6 @@ templ modal(sheet sheets.Sheet, tableNames []string, tables map[string]*sheets.T
         </div>
 
         <button class="modal-close"></button>
+        <input name="sheet_id" type="hidden" value={ strconv.Itoa(sheet.Id) } />
     </div>
 }

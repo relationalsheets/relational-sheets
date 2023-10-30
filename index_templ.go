@@ -55,7 +55,7 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</button></div><div class=\"dropdown-menu\"><div class=\"dropdown-content\"><a hx-get=\"/modal\" hx-target=\"#modal\" hx-swap=\"outerHTML\" class=\"dropdown-item\">")
+		_, err = templBuffer.WriteString("</button></div><div class=\"dropdown-menu\"><div class=\"dropdown-content\"><a hx-get=\"/modal\" hx-target=\"#modal\" hx-swap=\"outerHTML\" hx-include=\"unset\" class=\"dropdown-item\">")
 		if err != nil {
 			return err
 		}

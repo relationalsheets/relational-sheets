@@ -1,8 +1,9 @@
 package sheets
 
 import (
-	"github.com/lib/pq"
 	"log"
+
+	"github.com/lib/pq"
 )
 
 type SheetCell struct {
@@ -16,13 +17,14 @@ type SheetColumn struct {
 }
 
 type Sheet struct {
-	Name      string
-	Id        int
-	Table     *Table
-	JoinOids  pq.Int64Array
-	PrefsMap  map[string]Pref
-	ExtraCols []SheetColumn
-	RowCount  int
+	Name           string
+	Id             int
+	Table          *Table
+	JoinOids       pq.Int64Array
+	TableNames []string
+	PrefsMap       map[string]Pref
+	ExtraCols      []SheetColumn
+	RowCount       int
 }
 
 var SheetMap = make(map[int]Sheet)
@@ -120,9 +122,9 @@ func LoadSheets() {
 }
 
 func (s *Sheet) LoadSheet() {
-	log.Printf("Loading sheet %d for table %s", s.Id, s.TableFullName())
-	s.Table = TableMap[s.TableFullName()]
+	log.Printf("Loading sheet %v for table %s", s, s.TableFullName())
 	s.loadPrefs()
+	s.loadJoins()
 	s.LoadRows(100, 0)
 	s.loadExtraCols()
 	SheetMap[s.Id] = *s

@@ -3,12 +3,13 @@ package sheets
 import (
 	"errors"
 	"fmt"
-	"github.com/jmoiron/sqlx"
-	"github.com/lib/pq"
 	"log"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 
 	"golang.org/x/exp/maps"
 )
@@ -19,10 +20,10 @@ type TableNames struct {
 }
 
 type ForeignKey struct {
-	isFrom         bool
-	otherTableName string
-	sourceColNames []string
-	targetColNames []string
+	sourceTableName string
+	targetTableName string
+	sourceColNames  []string
+	targetColNames  []string
 }
 
 type Column struct {
@@ -55,31 +56,22 @@ func (table Table) FullName() string {
 }
 
 func (fkey ForeignKey) ToString() string {
-	if fkey.isFrom {
-		return strings.Join(fkey.sourceColNames, ",") + "->" + fkey.otherTableName + "." + strings.Join(fkey.targetColNames, ",")
-	} else {
-		return fkey.otherTableName + "." + strings.Join(fkey.sourceColNames, ",") + "->" + strings.Join(fkey.targetColNames, ",")
-	}
+	return fkey.sourceTableName + "." + strings.Join(fkey.sourceColNames, ",") + "->" + fkey.targetTableName + "." + strings.Join(fkey.targetColNames, ",")
 }
 
 func (fkey ForeignKey) toJoinClause(tableName string) string {
 	pairs := make([]string, len(fkey.sourceColNames))
 	for i, sourceCol := range fkey.sourceColNames {
-		if fkey.isFrom {
-			pairs[i] = tableName + "." + sourceCol + " = " + fkey.otherTableName + "." + fkey.targetColNames[i]
-		} else {
-			pairs[i] = fkey.otherTableName + "." + sourceCol + " = " + tableName + "." + fkey.targetColNames[i]
-		}
+		pairs[i] = fkey.sourceTableName + "." + sourceCol + " = " + fkey.targetTableName + "." + fkey.targetColNames[i]
 	}
 	return "LEFT JOIN " + tableName + " ON " + strings.Join(pairs, ",")
 }
 
-func (sheet Sheet) OrderedTablesAndCols(tx *sqlx.Tx) ([]string, [][]Column) {
-	tableNames := make([]string, 1+len(sheet.JoinOids))
-	cols := make([][]Column, len(tableNames))
-	table := sheet.Table
-	for i := 0; i <= len(sheet.JoinOids); i++ {
-		tableNames[i] = table.FullName()
+func (sheet Sheet) OrderedCols(tx *sqlx.Tx) [][]Column {
+	cols := make([][]Column, len(sheet.TableNames))
+
+	for i, tableName := range sheet.TableNames {
+		table := TableMap[tableName]
 		table.loadCols(tx)
 		cols[i] = make([]Column, 0, len(table.Cols))
 		for _, col := range table.Cols {
@@ -87,22 +79,50 @@ func (sheet Sheet) OrderedTablesAndCols(tx *sqlx.Tx) ([]string, [][]Column) {
 				cols[i] = append(cols[i], table.Cols[col.Name])
 			}
 		}
-		table.loadConstraints(tx)
-		if i < len(sheet.JoinOids) {
-			joinOid := sheet.JoinOids[i]
-			join, ok := table.Fkeys[joinOid]
-			if !ok {
-				panic(fmt.Sprintf("Missing join %d on table %s (have %v)", joinOid, table.FullName(), table.Fkeys))
-			}
-			table = TableMap[join.otherTableName]
-		}
 		sort.SliceStable(cols[i], func(j, k int) bool {
 			indexJ := sheet.PrefsMap[table.FullName()+"."+cols[i][j].Name].Index | cols[i][j].Index
 			indexK := sheet.PrefsMap[table.FullName()+"."+cols[i][k].Name].Index | cols[i][k].Index
 			return indexJ < indexK
 		})
+		table.loadConstraints(tx)
 	}
-	return tableNames, cols
+
+	return cols
+}
+
+func (sheet *Sheet) sortedTablesAndReqCols(tx *sqlx.Tx) ([]string, map[string]map[string]map[string]string, error) {
+	outgoingEdges := make(map[string]map[string]bool)
+	incomingEdges := make(map[string]map[string]bool)
+	// {tableName: {colNameNeeded: {otherTableName: colOnOtherSideOfFkey}}}}
+	requiredCols := make(map[string]map[string]map[string]string)
+
+	table := *sheet.Table
+	for i, joinOid := range sheet.JoinOids {
+		var join ForeignKey
+		var joinFound bool
+		for _, potentialJoinTableName := range sheet.TableNames[:i+1] {
+			potentialJoinTable := TableMap[potentialJoinTableName]
+			join, joinFound = potentialJoinTable.Fkeys[joinOid]
+			if joinFound {
+				break
+			}
+		}
+		if !joinFound {
+			panic(fmt.Sprintf("Missing join %d on table %s (have %v)", joinOid, table.FullName(), table.Fkeys))
+		}
+		log.Printf("Join info: %v", join)
+		addToNestedMap(outgoingEdges, join.targetTableName, join.sourceTableName, true)
+		addToNestedMap(incomingEdges, join.sourceTableName, join.targetTableName, true)
+		for i, colName := range join.targetColNames {
+			addToNestedMap2(requiredCols, join.targetTableName, colName, join.sourceTableName, join.sourceColNames[i])
+		}
+	}
+
+	log.Printf("Nodes: %v", sheet.TableNames)
+	log.Printf("Outgoing: %v", outgoingEdges)
+	log.Printf("Incoming: %v", incomingEdges)
+	tableNames, err := topoSort(sheet.TableNames, outgoingEdges, incomingEdges)
+	return tableNames, requiredCols, err
 }
 
 func (sheet Sheet) GetCol(name string) Column {
@@ -250,13 +270,16 @@ func (t *Table) loadConstraints(tx *sqlx.Tx) {
 		log.Printf("No primary key for %s", t.FullName())
 	}
 
-	// Populate t.FkeysFrom and t.FkeysTo
+	// Populate t.Fkeys
 	for _, rawFkey := range rawFkeys {
 		fkey := ForeignKey{}
-		var otherTableOid int64
 		if rawFkey.Conrelid == t.Oid {
-			fkey.isFrom = true
-			otherTableOid = rawFkey.Confrelid
+			fkey.sourceTableName = t.FullName()
+			for _, t2 := range TableMap {
+				if t2.Oid == rawFkey.Confrelid {
+					fkey.targetTableName = t2.FullName()
+				}
+			}
 			for _, attnum := range rawFkey.Conkey {
 				fkey.sourceColNames = append(fkey.sourceColNames, idsToNames[[2]int64{rawFkey.Conrelid, attnum}])
 			}
@@ -268,35 +291,58 @@ func (t *Table) loadConstraints(tx *sqlx.Tx) {
 				panic("SQL WHERE clause violated -- unexpected table oid")
 			}
 
-			otherTableOid = rawFkey.Conrelid
+			fkey.targetTableName = t.FullName()
+			for _, t2 := range TableMap {
+				if t2.Oid == rawFkey.Conrelid {
+					fkey.sourceTableName = t2.FullName()
+				}
+			}
 			for _, attnum := range rawFkey.Conkey {
-				fkey.targetColNames = append(fkey.targetColNames, idsToNames[[2]int64{rawFkey.Conrelid, attnum}])
+				fkey.sourceColNames = append(fkey.sourceColNames, idsToNames[[2]int64{rawFkey.Conrelid, attnum}])
 			}
 			for _, attnum := range rawFkey.Confkey {
-				fkey.sourceColNames = append(fkey.sourceColNames, idsToNames[[2]int64{rawFkey.Confrelid, attnum}])
+				fkey.targetColNames = append(fkey.targetColNames, idsToNames[[2]int64{rawFkey.Confrelid, attnum}])
 			}
 		}
 
-		for _, t2 := range TableMap {
-			if t2.Oid == otherTableOid {
-				fkey.otherTableName = t2.FullName()
-			}
-		}
-		if fkey.otherTableName == "" {
-			panic(fmt.Sprintf("Unexpected table oid %d", otherTableOid))
+		if fkey.sourceTableName == "" || fkey.targetTableName == "" {
+			panic(fmt.Sprintf("Unexpected table oid in %v", rawFkey))
 		}
 
 		t.Fkeys[rawFkey.Oid] = fkey
 	}
 }
 
+func (sheet *Sheet) loadJoins() {
+	tx := Begin()
+	defer Commit(tx)
+
+	table := sheet.Table
+	sheet.TableNames = make([]string, 1+len(sheet.JoinOids))
+	sheet.TableNames[0] = table.FullName()
+	table.loadConstraints(tx)
+	for i, joinOid := range sheet.JoinOids {
+		join, ok := table.Fkeys[joinOid]
+		if !ok {
+			panic(fmt.Sprintf("Unable to load join %d on %s (have %v)", joinOid, table.FullName(), table.Fkeys))
+		}
+		if join.sourceTableName == table.FullName() {
+			table = TableMap[join.targetTableName]
+		} else {
+			table = TableMap[join.sourceTableName]
+		}
+		sheet.TableNames[i+1] = table.FullName()
+		table.loadConstraints(tx)
+	}
+}
+
 func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
-	tableNames, cols := sheet.OrderedTablesAndCols(nil)
-	cells := make([][][]Cell, len(tableNames))
+	cols := sheet.OrderedCols(nil)
+	cells := make([][][]Cell, len(sheet.TableNames))
 	// TODO: Check if table.TableName and column names are valid somewhere
 	casts := []string{}
 	orderClauses := []string{}
-	for i, tableName := range tableNames {
+	for i, tableName := range sheet.TableNames {
 		table := TableMap[tableName]
 		cells[i] = make([][]Cell, len(cols[i]))
 		for j, col := range cols[i] {
@@ -317,9 +363,9 @@ func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
 		}
 	}
 
-	fromClause := "FROM " + tableNames[0]
+	fromClause := "FROM " + sheet.TableNames[0]
 	for i, joinOid := range sheet.JoinOids {
-		tableName := tableNames[i+1]
+		tableName := sheet.TableNames[i+1]
 		fkey := TableMap[tableName].Fkeys[joinOid]
 		fromClause += " " + fkey.toJoinClause(tableName)
 	}
@@ -337,7 +383,7 @@ func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
 		scanResult, err := rows.SliceScan()
 		Check(err)
 		index := 0
-		for i, _ := range tableNames {
+		for i, _ := range sheet.TableNames {
 			for j, _ := range cols[i] {
 				val := ""
 				isNotNull := scanResult[2*index+1].(bool)
@@ -413,10 +459,10 @@ func addToNestedMap2[V any](m map[string]map[string]map[string]V, k1, k2, k3 str
 	addToNestedMap(m[k1], k2, k3, v)
 }
 
-func topoSort(nodes map[string]bool, outgoingEdges, incomingEdges map[string]map[string]bool) ([]string, error) {
+func topoSort(nodes []string, outgoingEdges, incomingEdges map[string]map[string]bool) ([]string, error) {
 	// Kahn's algorithm: https://en.wikipedia.org/wiki/Topological_sorting#Kahn's_algorithm
 	s := make([]string, 0, len(nodes))
-	for n, _ := range nodes {
+	for _, n := range nodes {
 		if len(incomingEdges[n]) == 0 {
 			s = append(s, n)
 		}
@@ -445,42 +491,6 @@ func topoSort(nodes map[string]bool, outgoingEdges, incomingEdges map[string]map
 	return l, nil
 }
 
-func (sheet *Sheet) sortedTablesAndReqCols() ([]string, map[string]map[string]map[string]string, error) {
-	nodes := make(map[string]bool)
-	outgoingEdges := make(map[string]map[string]bool)
-	incomingEdges := make(map[string]map[string]bool)
-	// {tableName: {colName: {otherTableName: colName}}}}
-	requiredCols := make(map[string]map[string]map[string]string)
-	table := sheet.Table
-	nodes[table.FullName()] = true
-	log.Printf("Join oids: %v", sheet.JoinOids)
-	for _, joinOid := range sheet.JoinOids {
-		join := table.Fkeys[joinOid]
-		log.Printf("Join info: %v", join)
-		if join.isFrom {
-			addToNestedMap(outgoingEdges, join.otherTableName, table.FullName(), true)
-			addToNestedMap(incomingEdges, table.FullName(), join.otherTableName, true)
-			for i, colName := range join.targetColNames {
-				addToNestedMap2(requiredCols, join.otherTableName, colName, table.FullName(), join.sourceColNames[i])
-			}
-		} else {
-			addToNestedMap(outgoingEdges, table.FullName(), join.otherTableName, true)
-			addToNestedMap(incomingEdges, join.otherTableName, table.FullName(), true)
-			for i, colName := range join.sourceColNames {
-				addToNestedMap2(requiredCols, table.FullName(), colName, join.otherTableName, join.targetColNames[i])
-			}
-		}
-		table = TableMap[join.otherTableName]
-		nodes[join.otherTableName] = true
-	}
-
-	log.Printf("Nodes: %v", nodes)
-	log.Printf("Outgoing: %v", outgoingEdges)
-	log.Printf("Incoming: %v", incomingEdges)
-	tableNames, err := topoSort(nodes, outgoingEdges, incomingEdges)
-	return tableNames, requiredCols, err
-}
-
 func isEmpty[K comparable](m map[K]string) bool {
 	for _, value := range m {
 		if value != "" {
@@ -503,18 +513,28 @@ func prepareValues(values map[string]string, allowEmpty bool) map[string]interfa
 }
 
 func (sheet *Sheet) InsertMultipleRows(values map[string]map[string]string) error {
-	tableNames, requiredCols, err := sheet.sortedTablesAndReqCols()
+	tx := Begin()
+	defer Commit(tx)
+
+	tableNames, requiredCols, err := sheet.sortedTablesAndReqCols(tx)
 	log.Printf("Sorted tables: %v", tableNames)
 	log.Printf("Required cols: %v", requiredCols)
 	if err != nil {
 		return err
 	}
 
-	tx := Begin()
-	defer Commit(tx)
+	// Only insert rows for tables where some value was provided.
+	// This is necessary to distinguish the case where we want to insert rows
+	// for each side of an m2m relationship but not a row in the m2m table.
+	tablesToInsert := []string{}
 	for _, tableName := range tableNames {
-		// Note that prior insertions may have made values[tableName] non-empty, e.g. for join
-		// tables for many-to-many relationships.
+		if !isEmpty(values[tableName]) {
+			tablesToInsert = append(tablesToInsert, tableName)
+		}
+	}
+	log.Printf("Tables to insert: %v", tablesToInsert)
+
+	for _, tableName := range tablesToInsert {
 		if isEmpty(values[tableName]) {
 			continue
 		}
@@ -524,6 +544,7 @@ func (sheet *Sheet) InsertMultipleRows(values map[string]map[string]string) erro
 		Check(err)
 		for i, colName := range tableRequiredCols {
 			for otherTableName, colToSet := range requiredCols[tableName][colName] {
+				log.Printf("Setting %s.%s to %s", otherTableName, colToSet, row[i].(string))
 				addToNestedMap(values, otherTableName, colToSet, row[i].(string))
 			}
 		}

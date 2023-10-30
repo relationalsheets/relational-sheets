@@ -75,11 +75,11 @@ templ extraCell(i, j int, cell sheets.SheetCell) {
     </td>
 }
 
-templ newRow(tableNames []string, tableIndex int, cols [][]sheets.Column, numCols int, cells []sheets.Cell, rowIndex int) {
+templ newRow(tableNames []string, tableName string, cols [][]sheets.Column, numCols int, cells []sheets.Cell, rowIndex int) {
     <tr id="new-row">
     for i, tcols := range cols {
     for j, col := range tcols {
-    if tableIndex == i && len(cells) > 0 {
+    if tableNames[i] == tableName && len(cells) > 0 {
         <td style="border-bottom: none"
             class={ templ.KV("is-null", len(cells) > 0 && !cells[j].NotNull) }>
             <span>{ cells[j].Value }</span>
@@ -97,7 +97,7 @@ templ newRow(tableNames []string, tableIndex int, cols [][]sheets.Column, numCol
             style="border-top: none">
             <div class="flex center">
                 <button hx-post="/add-row"
-                        hx-include={ fmt.Sprintf("[name=sheet_id],#new-row,tr[data-row=\"%d\"] [data-table=\"%s\"][name^=pk-]", rowIndex, tableNames[tableIndex]) }
+                        hx-include={ fmt.Sprintf("[name=sheet_id],#new-row,tr[data-row=\"%d\"] [data-table=\"%s\"][name^=pk-]", rowIndex, tableName) }
                         hx-include="#new-row"
                         hx-target-400="#new-row-err"
                         class="button is-light">
@@ -110,10 +110,10 @@ templ newRow(tableNames []string, tableIndex int, cols [][]sheets.Column, numCol
     </tr>
 }
 
-templ sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column, cells [][][]sheets.Cell, numCols int) {
+templ sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, cells [][][]sheets.Cell, numCols int) {
     <thead>
         <tr>
-            for i, tableName := range tableNames {
+            for i, tableName := range sheet.TableNames {
                 <th colspan={ strconv.Itoa(len(cols[i])) }>
                     { tableName }
                 </th>
@@ -122,7 +122,7 @@ templ sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column
         <tr id="header-row">
         for i, tcols := range cols {
         for _, col := range tcols {
-            @colHeader(tableNames[i], col, sheet.PrefsMap[tableNames[i]+"."+col.Name])
+            @colHeader(sheet.TableNames[i], col, sheet.PrefsMap[sheet.TableNames[i]+"."+col.Name])
         }
         }
         for i, col := range sheet.ExtraCols {
@@ -139,10 +139,10 @@ templ sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column
         for k, cells := range tableCols {
             <td class={ templ.KV("is-null", !cells[j].NotNull) }>
                 <span class="width-control">{ cells[j].Value }</span>
-                @tableCell(tableNames[i], cols[i][k], j, cells[j], nil)
+                @tableCell(sheet.TableNames[i], cols[i][k], j, cells[j], nil)
                 if cols[i][k].IsPrimaryKey && cells[j].NotNull {
                     <input name={ "pk-" + cols[i][k].Name }
-                           data-table={ tableNames[i] }
+                           data-table={ sheet.TableNames[i] }
                            value={ cells[j].Value }
                            type="hidden"/>
                 }

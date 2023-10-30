@@ -314,7 +314,7 @@ func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 	})
 }
 
-func newRow(tableNames []string, tableIndex int, cols [][]sheets.Column, numCols int, cells []sheets.Cell, rowIndex int) templ.Component {
+func newRow(tableNames []string, tableName string, cols [][]sheets.Column, numCols int, cells []sheets.Cell, rowIndex int) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -333,7 +333,7 @@ func newRow(tableNames []string, tableIndex int, cols [][]sheets.Column, numCols
 		}
 		for i, tcols := range cols {
 			for j, col := range tcols {
-				if tableIndex == i && len(cells) > 0 {
+				if tableNames[i] == tableName && len(cells) > 0 {
 					var var_13 = []any{templ.KV("is-null", len(cells) > 0 && !cells[j].NotNull)}
 					err = templ.RenderCSSItems(ctx, templBuffer, var_13...)
 					if err != nil {
@@ -388,7 +388,7 @@ func newRow(tableNames []string, tableIndex int, cols [][]sheets.Column, numCols
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString(templ.EscapeString(fmt.Sprintf("[name=sheet_id],#new-row,tr[data-row=\"%d\"] [data-table=\"%s\"][name^=pk-]", rowIndex, tableNames[tableIndex])))
+		_, err = templBuffer.WriteString(templ.EscapeString(fmt.Sprintf("[name=sheet_id],#new-row,tr[data-row=\"%d\"] [data-table=\"%s\"][name^=pk-]", rowIndex, tableName)))
 		if err != nil {
 			return err
 		}
@@ -412,7 +412,7 @@ func newRow(tableNames []string, tableIndex int, cols [][]sheets.Column, numCols
 	})
 }
 
-func sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column, cells [][][]sheets.Cell, numCols int) templ.Component {
+func sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, cells [][][]sheets.Cell, numCols int) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -429,7 +429,7 @@ func sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column,
 		if err != nil {
 			return err
 		}
-		for i, tableName := range tableNames {
+		for i, tableName := range sheet.TableNames {
 			_, err = templBuffer.WriteString("<th colspan=\"")
 			if err != nil {
 				return err
@@ -458,7 +458,7 @@ func sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column,
 		}
 		for i, tcols := range cols {
 			for _, col := range tcols {
-				err = colHeader(tableNames[i], col, sheet.PrefsMap[tableNames[i]+"."+col.Name]).Render(ctx, templBuffer)
+				err = colHeader(sheet.TableNames[i], col, sheet.PrefsMap[sheet.TableNames[i]+"."+col.Name]).Render(ctx, templBuffer)
 				if err != nil {
 					return err
 				}
@@ -523,7 +523,7 @@ func sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column,
 					if err != nil {
 						return err
 					}
-					err = tableCell(tableNames[i], cols[i][k], j, cells[j], nil).Render(ctx, templBuffer)
+					err = tableCell(sheet.TableNames[i], cols[i][k], j, cells[j], nil).Render(ctx, templBuffer)
 					if err != nil {
 						return err
 					}
@@ -540,7 +540,7 @@ func sheetTable(sheet sheets.Sheet, tableNames []string, cols [][]sheets.Column,
 						if err != nil {
 							return err
 						}
-						_, err = templBuffer.WriteString(templ.EscapeString(tableNames[i]))
+						_, err = templBuffer.WriteString(templ.EscapeString(sheet.TableNames[i]))
 						if err != nil {
 							return err
 						}

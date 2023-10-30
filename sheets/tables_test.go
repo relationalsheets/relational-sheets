@@ -55,46 +55,50 @@ func TestMultiTableSheet(t *testing.T) {
 	sheet.JoinOids = maps.Keys(customers.Fkeys)
 	// Join order_products
 	for oid, fkey := range orders.Fkeys {
-		if fkey.otherTableName == order_products.FullName() {
+		if fkey.sourceTableName == order_products.FullName() {
 			sheet.JoinOids = append(sheet.JoinOids, oid)
 		}
 	}
 	// Join products
 	for oid, fkey := range order_products.Fkeys {
-		if fkey.otherTableName == products.FullName() {
+		if fkey.targetTableName == products.FullName() {
 			sheet.JoinOids = append(sheet.JoinOids, oid)
 		}
 	}
 
+	sheet.loadJoins()
+
 	// Test single insertion and set up data for next insertion
-	err := sheet.InsertMultipleRows(map[string]map[string]string{
+	values := map[string]map[string]string{
 		products.FullName(): {"name": "test"},
-	})
+	}
+	err := sheet.InsertMultipleRows(values)
 	if err != nil {
 		t.Fatal(err)
 	}
+	productId := values["product"]["id"]
 
 	// Test insertion with an existing product
-	err = sheet.InsertMultipleRows(map[string]map[string]string{
+	values = map[string]map[string]string{
 		customers.FullName():      {"name": "bob"},
 		orders.FullName():         {"total": "123.45", "status": "unfilled"},
 		order_products.FullName(): {"product_id": "1"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Test insertion with a new product
-	values := map[string]map[string]string{
-		customers.FullName(): {"name": "bob"},
-		orders.FullName():    {"total": "123.45", "status": "unfilled"},
-		products.FullName():  {"name": "test"},
 	}
 	err = sheet.InsertMultipleRows(values)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if values["order_products"]["product_id"] != values["product"]["id"] {
+	if values["order_products"]["product_id"] != productId {
 		t.Error("Order not linked to inserted product")
 	}
+
+	// Test insertion with a new product
+	err = sheet.InsertMultipleRows(map[string]map[string]string{
+		customers.FullName(): {"name": "bob"},
+		orders.FullName():    {"total": "123.45", "status": "unfilled"},
+		products.FullName():  {"name": "test"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	} 
 }

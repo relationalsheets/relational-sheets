@@ -14,7 +14,7 @@ import (
 	"strconv"
 )
 
-func fkeySelect(index int, sheet sheets.Sheet, tableNames []string, tables map[string]*sheets.Table, selected int64) templ.Component {
+func fkeySelect(index int, sheet sheets.Sheet, tables map[string]*sheets.Table, selected int64) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -48,7 +48,7 @@ func fkeySelect(index int, sheet sheets.Sheet, tableNames []string, tables map[s
 		if err != nil {
 			return err
 		}
-		for _, tableName := range tableNames {
+		for _, tableName := range sheet.TableNames {
 			for oid, fkey := range tables[tableName].Fkeys {
 				_, err = templBuffer.WriteString("<option value=\"")
 				if err != nil {
@@ -94,7 +94,7 @@ func fkeySelect(index int, sheet sheets.Sheet, tableNames []string, tables map[s
 	})
 }
 
-func modal(sheet sheets.Sheet, tableNames []string, tables map[string]*sheets.Table, addJoin bool) templ.Component {
+func modal(sheet sheets.Sheet, tables map[string]*sheets.Table, addJoin bool) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -158,13 +158,13 @@ func modal(sheet sheets.Sheet, tableNames []string, tables map[string]*sheets.Ta
 			return err
 		}
 		for index, oid := range sheet.JoinOids {
-			err = fkeySelect(index, sheet, tableNames, tables, oid).Render(ctx, templBuffer)
+			err = fkeySelect(index, sheet, tables, oid).Render(ctx, templBuffer)
 			if err != nil {
 				return err
 			}
 		}
 		if addJoin {
-			err = fkeySelect(len(sheet.JoinOids), sheet, tableNames, tables, 0).Render(ctx, templBuffer)
+			err = fkeySelect(len(sheet.JoinOids), sheet, tables, 0).Render(ctx, templBuffer)
 			if err != nil {
 				return err
 			}
@@ -196,7 +196,15 @@ func modal(sheet sheets.Sheet, tableNames []string, tables map[string]*sheets.Ta
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</a></div></div><button class=\"modal-close\"></button></div>")
+		_, err = templBuffer.WriteString("</a></div></div><button class=\"modal-close\"></button><input name=\"sheet_id\" type=\"hidden\" value=\"")
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString(templ.EscapeString(strconv.Itoa(sheet.Id)))
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("\"></div>")
 		if err != nil {
 			return err
 		}

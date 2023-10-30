@@ -86,13 +86,13 @@ func reRenderSheet(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 		writeError(w, "No table name provided")
 		return
 	}
-	tableNames, cols := sheet.OrderedTablesAndCols(nil)
+	cols := sheet.OrderedCols(nil)
 	cells := sheet.LoadRows(100, 0)
 	numCols := 0
 	for _, tcols := range cols {
 		numCols += len(tcols)
 	}
-	component := sheetTable(sheet, tableNames, cols, cells, numCols)
+	component := sheetTable(sheet, cols, cells, numCols)
 	handler := templ.Handler(component)
 	handler.ServeHTTP(w, r)
 }
@@ -111,9 +111,9 @@ func handleSetTable(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) 
 }
 
 func handleNewRow(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
-	tableNames, cols := sheet.OrderedTablesAndCols(nil)
+	cols := sheet.OrderedCols(nil)
 	tableName := r.FormValue("table_name")
-	tableIndex := slices.Index(tableNames, tableName)
+	tableIndex := slices.Index(sheet.TableNames, tableName)
 	numCols := 0
 	for _, tcols := range cols {
 		numCols += len(tcols)
@@ -148,7 +148,7 @@ func handleNewRow(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	component := newRow(tableNames, tableIndex, cols, numCols, row, rowIndex)
+	component := newRow(sheet.TableNames, tableName, cols, numCols, row, rowIndex)
 	templ.Handler(component).ServeHTTP(w, r)
 }
 
@@ -209,12 +209,14 @@ func handleModal(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 	tableName := r.FormValue("table_name")
 	if tableName != "" {
 		sheet.SetTable(tableName)
+		if sheet.Id == 0 {
+			sheet.SaveSheet()
+		}
 	}
 
-	tableNames, _ := sheet.OrderedTablesAndCols(nil)
 	_, addJoin := r.Form["add_join"]
 	if addJoin || r.Method != "POST" {
-		templ.Handler(modal(sheet, tableNames, sheets.TableMap, addJoin)).ServeHTTP(w, r)
+		templ.Handler(modal(sheet, sheets.TableMap, addJoin)).ServeHTTP(w, r)
 		return
 	}
 
@@ -237,7 +239,7 @@ func handleModal(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 		}
 
 		fkeyExists := false
-		for _, tableName := range tableNames {
+		for _, tableName := range sheet.TableNames {
 			table := sheets.TableMap[tableName]
 			_, ok := table.Fkeys[oid]
 			fkeyExists = fkeyExists || ok
@@ -247,12 +249,12 @@ func handleModal(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		sheet.JoinOids = sheet.JoinOids[:max(len(sheet.JoinOids),fkeyIndex+1)]
+		sheet.JoinOids = sheet.JoinOids[:max(len(sheet.JoinOids), fkeyIndex+1)]
 		sheet.JoinOids[fkeyIndex] = oid
 		sheet.SaveSheet()
 	}
 
-	templ.Handler(modal(sheet, tableNames, sheets.TableMap, addJoin)).ServeHTTP(w, r)
+	templ.Handler(modal(sheet, sheets.TableMap, addJoin)).ServeHTTP(w, r)
 }
 
 func handleSetName(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
