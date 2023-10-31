@@ -17,14 +17,14 @@ type SheetColumn struct {
 }
 
 type Sheet struct {
-	Name           string
-	Id             int
-	Table          *Table
-	JoinOids       pq.Int64Array
-	TableNames []string
-	PrefsMap       map[string]Pref
-	ExtraCols      []SheetColumn
-	RowCount       int
+	Name       string
+	Id         int
+	Table      *Table
+	JoinOids   pq.Int64Array
+	TableNames pq.StringArray
+	PrefsMap   map[string]Pref
+	ExtraCols  []SheetColumn
+	RowCount   int
 }
 
 var SheetMap = make(map[int]Sheet)
@@ -47,6 +47,7 @@ func initSheetsTable() {
 			, schemaname VARCHAR(255) NOT NULL
 			, tablename VARCHAR(255) NOT NULL
 		    , joinoids INTEGER ARRAY
+			, tablenames VARCHAR(255) ARRAY NOT NULL
 		)`)
 	log.Println("Sheets table exists")
 }
@@ -71,13 +72,15 @@ func (s *Sheet) SaveSheet() {
 				, schemaname
 				, tablename
 				, joinoids
+				, tablenames
 			) VALUES (
-				$1, $2, $3, $4
+				$1, $2, $3, $4, $5
 			) RETURNING id`,
 			s.Name,
 			s.Table.SchemaName,
 			s.Table.TableName,
-			s.JoinOids)
+			s.JoinOids,
+			s.TableNames)
 		err := row.Scan(&s.Id)
 		Check(err)
 		log.Printf("Inserted sheet %d", s.Id)
@@ -88,11 +91,13 @@ func (s *Sheet) SaveSheet() {
 				, schemaname = $2
 				, tablename = $3
 			    , joinoids = $4
-			WHERE id = $5`,
+				, tablenames = $5
+			WHERE id = $6`,
 			s.Name,
 			s.Table.SchemaName,
 			s.Table.TableName,
 			s.JoinOids,
+			s.TableNames,
 			s.Id)
 		log.Printf("Updated sheet %d", s.Id)
 	}
@@ -107,12 +112,13 @@ func LoadSheets() {
 		     , tableName
 		     , schemaname
 			 , joinoids
+			 , tablenames
 		FROM db_interface.sheets`)
 	Check(err)
 	for rows.Next() {
 		sheet := Sheet{}
 		var tableName, schemaName string
-		err = rows.Scan(&sheet.Id, &sheet.Name, &tableName, &schemaName, &sheet.JoinOids)
+		err = rows.Scan(&sheet.Id, &sheet.Name, &tableName, &schemaName, &sheet.JoinOids, &sheet.TableNames)
 		Check(err)
 		sheet.Table = TableMap[schemaName+"."+tableName]
 		SheetMap[sheet.Id] = sheet
@@ -132,6 +138,7 @@ func (s *Sheet) LoadSheet() {
 
 func (s *Sheet) SetTable(name string) {
 	s.Table = TableMap[name]
+	s.TableNames = []string{name}
 	s.SaveSheet()
 	s.LoadSheet()
 }

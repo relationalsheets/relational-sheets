@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/a-h/templ"
+	"golang.org/x/exp/maps"
 )
 
 func writeError(w http.ResponseWriter, text string) {
@@ -41,16 +42,31 @@ func withSheet(f func(sheets.Sheet, http.ResponseWriter, *http.Request), require
 	}
 }
 
-func getPKs(r *http.Request) map[string]string {
-	pkValues := map[string]string{}
+func parseColFields(r *http.Request, prefix string) (map[string]map[string]string, error) {
 	sheets.Check(r.ParseForm())
-	for key, v := range r.Form {
-		pkColName, found := strings.CutPrefix(key, "pk-")
+	values := make(map[string]map[string]string)
+	for key, value := range r.Form {
+		name, found := strings.CutPrefix(key, prefix)
 		if found {
-			pkValues[pkColName] = v[0]
+			parts := strings.Split(name, " ")
+			if len(parts) != 2 {
+				return nil, errors.New("Unexpected field name: "+name)
+			}
+			submap, ok := values[parts[0]]
+			if !ok {
+				submap = make(map[string]string)
+				values[parts[0]] = submap
+			}
+			submap[parts[1]] = value[0]
 		}
 	}
-	return pkValues
+	return values, nil
+}
+
+func getPKs(r *http.Request) map[string]map[string]string {
+	pks, err := parseColFields(r, "pk-")
+	sheets.Check(err)
+	return pks
 }
 
 func handleAddCol(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
@@ -125,7 +141,7 @@ func handleNewRow(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 		row = make([]sheets.Cell, len(cols[tableIndex]))
 	}
 	pks := getPKs(r)
-	if len(pks) > 0 {
+	if len(pks[tableName]) > 0 {
 		if tableIndex == -1 {
 			writeError(w, "Unrecognized table")
 			return
@@ -136,7 +152,7 @@ func handleNewRow(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 			match := true
 			for colIndex, col := range cols[tableIndex] {
 				row[colIndex] = cells[colIndex][rowIndex]
-				pkValue, ok := pks[col.Name]
+				pkValue, ok := pks[tableName][col.Name]
 				if ok && pkValue != row[colIndex].Value {
 					match = false
 					break
@@ -153,24 +169,14 @@ func handleNewRow(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAddRow(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
-	values := make(map[string]map[string]string)
-	for key, value := range r.Form {
-		name, found := strings.CutPrefix(key, "column-")
-		if found {
-			parts := strings.Split(name, " ")
-			if len(parts) != 2 {
-				writeError(w, "Unexpected field name: "+name)
-			}
-			submap, ok := values[parts[0]]
-			if !ok {
-				submap = make(map[string]string)
-				values[parts[0]] = submap
-			}
-			submap[parts[1]] = value[0]
-		}
+	pks := getPKs(r)
+	values, err := parseColFields(r, "column-")
+	if err != nil {
+		writeError(w, err.Error())
+		return
 	}
 
-	err := sheet.InsertMultipleRows(values)
+	err = sheet.InsertMultipleRows(values, pks)
 	if err != nil {
 		writeError(w, err.Error())
 		return
@@ -224,9 +230,24 @@ func handleModal(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	tableNames := maps.Keys(sheets.TableMap)
+	slices.Sort(tableNames)
+
+	fkeyOidsSeen := make(map[int64]bool)
+	fkeys := make(map[string]map[int64]sheets.ForeignKey)
+	for _, name := range sheet.TableNames {
+		fkeys[name] = make(map[int64]sheets.ForeignKey)
+		for oid, fkey := range sheets.TableMap[name].Fkeys {
+			if !fkeyOidsSeen[oid] {
+				fkeyOidsSeen[oid] = true
+				fkeys[name][oid] = fkey
+			}
+		}
+	}
+
 	_, addJoin := r.Form["add_join"]
 	if addJoin || r.Method != "POST" {
-		templ.Handler(modal(sheet, sheets.TableMap, addJoin)).ServeHTTP(w, r)
+		templ.Handler(modal(sheet, tableNames, fkeys, addJoin)).ServeHTTP(w, r)
 		return
 	}
 
@@ -264,7 +285,7 @@ func handleModal(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 		sheet.SaveSheet()
 	}
 
-	templ.Handler(modal(sheet, sheets.TableMap, addJoin)).ServeHTTP(w, r)
+	templ.Handler(modal(sheet, tableNames, fkeys, addJoin)).ServeHTTP(w, r)
 }
 
 func handleSetName(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
@@ -285,7 +306,7 @@ func handleSetCell(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 
 	err = sheet.UpdateRows(
 		map[string]map[string]string{tableName: {name: value}},
-		map[string]map[string]string{tableName: getPKs(r)})
+		map[string]map[string]string{tableName: getPKs(r)[tableName]})
 	cell := tableCell(tableName, col, row, sheets.Cell{value, value != ""}, err)
 	templ.Handler(cell).ServeHTTP(w, r)
 }

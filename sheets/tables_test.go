@@ -1,8 +1,9 @@
 package sheets
 
 import (
-	"golang.org/x/exp/maps"
 	"testing"
+
+	"golang.org/x/exp/maps"
 )
 
 func TestSingleTableSheet(t *testing.T) {
@@ -10,9 +11,8 @@ func TestSingleTableSheet(t *testing.T) {
 	defer teardownTablesDB()
 
 	tableName := "db_interface_test.customers"
-	sheet := Sheet{Table: TableMap[tableName]}
-	sheet.SaveSheet()
-	sheet.LoadSheet()
+	sheet := Sheet{}
+	sheet.SetTable(tableName)
 
 	// Insert
 	tx := Begin()
@@ -88,7 +88,7 @@ func TestMultiTableSheet(t *testing.T) {
 	values := map[string]map[string]string{
 		products.FullName(): {"name": "test"},
 	}
-	err := sheet.InsertMultipleRows(values)
+	err := sheet.InsertMultipleRows(values, map[string]map[string]string{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func TestMultiTableSheet(t *testing.T) {
 		orders.FullName():         {"total": "123.45", "status": "unfilled"},
 		order_products.FullName(): {"product_id": "1"},
 	}
-	err = sheet.InsertMultipleRows(values)
+	err = sheet.InsertMultipleRows(values, map[string]map[string]string{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,8 +113,18 @@ func TestMultiTableSheet(t *testing.T) {
 		customers.FullName(): {"name": "bob"},
 		orders.FullName():    {"total": "123.45", "status": "unfilled"},
 		products.FullName():  {"name": "test"},
+	}, map[string]map[string]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test insertion with an existing customer not directly referenced in values
+	err = sheet.InsertMultipleRows(map[string]map[string]string{
+		orders.FullName(): {"total": "123.45", "status": "unfilled"},
+	}, map[string]map[string]string{
+		customers.FullName(): {"id": "1"},
 	})
 	if err != nil {
 		t.Fatal(err)
-	} 
+	}
 }

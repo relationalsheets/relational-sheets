@@ -141,7 +141,7 @@ templ sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, cells [][][]sheets.
                 <span class="width-control">{ cells[j].Value }</span>
                 @tableCell(sheet.TableNames[i], cols[i][k], j, cells[j], nil)
                 if cols[i][k].IsPrimaryKey && cells[j].NotNull {
-                    <input name={ "pk-" + cols[i][k].Name }
+                    <input name={ "pk-" + sheet.TableNames[i] + " " + cols[i][k].Name }
                            data-table={ sheet.TableNames[i] }
                            value={ cells[j].Value }
                            type="hidden"/>

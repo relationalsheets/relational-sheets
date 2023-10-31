@@ -532,7 +532,7 @@ func sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, cells [][][]sheets.C
 						if err != nil {
 							return err
 						}
-						_, err = templBuffer.WriteString(templ.EscapeString("pk-" + cols[i][k].Name))
+						_, err = templBuffer.WriteString(templ.EscapeString("pk-" + sheet.TableNames[i] + " " + cols[i][k].Name))
 						if err != nil {
 							return err
 						}

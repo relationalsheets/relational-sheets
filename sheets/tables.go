@@ -513,7 +513,7 @@ func prepareValues(values map[string]string, allowEmpty bool) map[string]interfa
 	return nonEmptyValues
 }
 
-func (sheet *Sheet) InsertMultipleRows(values map[string]map[string]string) error {
+func (sheet *Sheet) InsertMultipleRows(values map[string]map[string]string, referencedValues map[string]map[string]string) error {
 	tx := Begin()
 	defer Commit(tx)
 
@@ -524,31 +524,30 @@ func (sheet *Sheet) InsertMultipleRows(values map[string]map[string]string) erro
 		return err
 	}
 
-	// Only insert rows for tables where some value was provided.
-	// This is necessary to distinguish the case where we want to insert rows
-	// for each side of an m2m relationship but not a row in the m2m table.
-	tablesToInsert := []string{}
 	for _, tableName := range tableNames {
-		if !isEmpty(values[tableName]) {
-			tablesToInsert = append(tablesToInsert, tableName)
-		}
-	}
-	log.Printf("Tables to insert: %v", tablesToInsert)
-
-	for _, tableName := range tablesToInsert {
-		if isEmpty(values[tableName]) {
+		tableValues := values[tableName]
+		if isEmpty(tableValues) {
 			continue
 		}
 
-		tableRequiredCols := maps.Keys(requiredCols[tableName])
-		row, err := sheet.InsertRow(tx, tableName, values[tableName], tableRequiredCols)
-		Check(err)
-		for i, colName := range tableRequiredCols {
-			for otherTableName, colToSet := range requiredCols[tableName][colName] {
-				log.Printf("Setting %s.%s to %s", otherTableName, colToSet, row[i].(string))
-				addToNestedMap(values, otherTableName, colToSet, row[i].(string))
+		log.Printf("requiredCols: %v", requiredCols)
+		for otherTableName, otherColMapping := range requiredCols {
+			for otherColName, tableMapping := range otherColMapping {
+				colName, ok := tableMapping[tableName]
+				referencedValue, ok2 := referencedValues[otherTableName][otherColName]
+				if ok && ok2 {
+					tableValues[colName] = referencedValue
+				}
 			}
 		}
+
+		tableRequiredCols := maps.Keys(requiredCols[tableName])
+		row, err := sheet.InsertRow(tx, tableName, tableValues, tableRequiredCols)
+		for i, colName := range tableRequiredCols {
+			log.Printf("Setting %s.%s to %s", tableName, colName, row[i].(string))
+			addToNestedMap(referencedValues, tableName, colName, row[i].(string))
+		}
+		Check(err)
 	}
 	return nil
 }
