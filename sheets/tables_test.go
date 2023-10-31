@@ -11,6 +11,8 @@ func TestSingleTableSheet(t *testing.T) {
 
 	tableName := "db_interface_test.customers"
 	sheet := Sheet{Table: TableMap[tableName]}
+	sheet.SaveSheet()
+	sheet.LoadSheet()
 
 	// Insert
 	tx := Begin()
@@ -35,6 +37,20 @@ func TestSingleTableSheet(t *testing.T) {
 	})
 	if err != nil {
 		t.Error(err)
+	}
+
+	// Hide
+	pref := Pref{TableName: tableName, ColumnName: "name", Hide: true}
+	sheet.SavePref(pref)
+	rows := sheet.LoadRows(100, 0)
+	if len(rows[0]) != 1 {
+		t.Fatalf("Unexpected number of columns: %v", rows[0])
+	}
+	if len(rows[0][0]) != 1 {
+		t.Fatalf("Unexpected number of rows: %v", rows[0][0])
+	}
+	if rows[0][0][0].Value != "1" {
+		t.Fatalf("Unexpected id returned: %v", rows[0][0][0])
 	}
 }
 

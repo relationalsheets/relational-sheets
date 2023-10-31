@@ -196,11 +196,21 @@ func handleSetColPref(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request
 	pref.TableName = tableName
 	pref.ColumnName = colName
 	pref.Hide = r.FormValue("hide") == "true"
-	pref.SortOn = r.FormValue("sorton") == "true"
-	pref.Ascending = r.FormValue("ascending") == "true"
+	// reset sorting if the column is hidden
+	pref.SortOn = !pref.Hide && r.FormValue("sorton") == "true"
+	pref.Ascending = !pref.Hide && r.FormValue("ascending") == "true"
 	log.Printf("saving pref: %v", pref)
-	sheet.SetPref(pref)
+	sheet.SavePref(pref)
 	sheet.LoadRows(100, 0)
+
+	reRenderSheet(sheet, w, r)
+}
+
+func handleUnhideCols(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+	for _, pref := range sheet.PrefsMap {
+		pref.Hide = false
+		sheet.SavePref(pref)
+	}
 
 	reRenderSheet(sheet, w, r)
 }

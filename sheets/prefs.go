@@ -34,7 +34,7 @@ func InitPrefsTable() {
 	log.Println("Column prefs table exists")
 }
 
-func (sheet *Sheet) SetPref(pref Pref) {
+func (sheet *Sheet) SavePref(pref Pref) {
 	sheet.PrefsMap[pref.TableName+"."+pref.ColumnName] = pref
 
 	conn.MustExec(`

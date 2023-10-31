@@ -14,11 +14,28 @@ templ toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) {
             <img src="/static/icons/cached_FILL0_wght400_GRAD0_opsz24.svg"/>
         </button>
 
-        <button hx-get="/modal"
-                hx-target="#modal"
-                hx-swap="outerHTML">
-            Edit
-        </button>
+        <div class="dropdown is-hoverable">
+          <div class="dropdown-trigger">
+            <button aria-haspopup="true" aria-controls="dropdown-menu">
+                Edit
+            </button>
+          </div>
+          <div class="dropdown-menu">
+            <div class="dropdown-content">
+                <a hx-get="/modal"
+                   hx-target="#modal"
+                   hx-swap="outerHTML"
+                   class="dropdown-item">
+                    Tables & Joins
+                </a>
+                <a hx-post="/unhide-columns"
+                   hx-target="#table"
+                   class="dropdown-item">
+                    Show All Columns
+                </a>
+            </div>
+          </div>
+        </div>
 
         <div class="dropdown is-hoverable">
           <div class="dropdown-trigger">

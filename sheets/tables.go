@@ -68,6 +68,7 @@ func (fkey ForeignKey) toJoinClause(tableName string) string {
 }
 
 func (sheet Sheet) OrderedCols(tx *sqlx.Tx) [][]Column {
+	log.Printf("Prefs: %v", sheet.PrefsMap)
 	cols := make([][]Column, len(sheet.TableNames))
 
 	for i, tableName := range sheet.TableNames {
@@ -75,7 +76,7 @@ func (sheet Sheet) OrderedCols(tx *sqlx.Tx) [][]Column {
 		table.loadCols(tx)
 		cols[i] = make([]Column, 0, len(table.Cols))
 		for _, col := range table.Cols {
-			if !sheet.PrefsMap[col.Name].Hide {
+			if !sheet.PrefsMap[tableName+"."+col.Name].Hide {
 				cols[i] = append(cols[i], table.Cols[col.Name])
 			}
 		}
@@ -346,7 +347,7 @@ func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
 		table := TableMap[tableName]
 		cells[i] = make([][]Cell, len(cols[i]))
 		for j, col := range cols[i] {
-			cells[i][j] = make([]Cell, limit)
+			cells[i][j] = make([]Cell, 0, limit)
 			name := table.FullName() + "." + col.Name
 			cast := fmt.Sprintf("%s::text, %s IS NOT NULL", name, name)
 			casts = append(casts, cast)
@@ -390,7 +391,7 @@ func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
 				if isNotNull {
 					val = scanResult[2*index].(string)
 				}
-				cells[i][j][sheet.RowCount] = Cell{val, isNotNull}
+				cells[i][j] = append(cells[i][j], Cell{val, isNotNull})
 				index++
 			}
 		}
