@@ -430,26 +430,28 @@ func sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, cells [][][]sheets.C
 			return err
 		}
 		for i, tableName := range sheet.TableNames {
-			_, err = templBuffer.WriteString("<th colspan=\"")
-			if err != nil {
-				return err
-			}
-			_, err = templBuffer.WriteString(templ.EscapeString(strconv.Itoa(len(cols[i]))))
-			if err != nil {
-				return err
-			}
-			_, err = templBuffer.WriteString("\">")
-			if err != nil {
-				return err
-			}
-			var var_17 string = tableName
-			_, err = templBuffer.WriteString(templ.EscapeString(var_17))
-			if err != nil {
-				return err
-			}
-			_, err = templBuffer.WriteString("</th>")
-			if err != nil {
-				return err
+			if len(cols[i]) > 0 {
+				_, err = templBuffer.WriteString("<th colspan=\"")
+				if err != nil {
+					return err
+				}
+				_, err = templBuffer.WriteString(templ.EscapeString(strconv.Itoa(len(cols[i]))))
+				if err != nil {
+					return err
+				}
+				_, err = templBuffer.WriteString("\">")
+				if err != nil {
+					return err
+				}
+				var var_17 string = tableName
+				_, err = templBuffer.WriteString(templ.EscapeString(var_17))
+				if err != nil {
+					return err
+				}
+				_, err = templBuffer.WriteString("</th>")
+				if err != nil {
+					return err
+				}
 			}
 		}
 		_, err = templBuffer.WriteString("</tr><tr id=\"header-row\">")

@@ -113,11 +113,13 @@ templ newRow(tableNames []string, tableName string, cols [][]sheets.Column, numC
 templ sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, cells [][][]sheets.Cell, numCols int) {
     <thead>
         <tr>
-            for i, tableName := range sheet.TableNames {
-                <th colspan={ strconv.Itoa(len(cols[i])) }>
-                    { tableName }
-                </th>
-            }
+        for i, tableName := range sheet.TableNames {
+        if len(cols[i]) > 0 {
+            <th colspan={ strconv.Itoa(len(cols[i])) }>
+                { tableName }
+            </th>
+        }
+        }
         </tr>
         <tr id="header-row">
         for i, tcols := range cols {
