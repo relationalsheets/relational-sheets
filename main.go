@@ -14,6 +14,7 @@ func main() {
 	createExampleTable := slices.Contains(os.Args[1:], "--example-table")
 	if createExampleTable {
 		sheets.SetupTablesDB()
+		sheets.LoadExampleData()
 	}
 
 	sheets.InitSheetsTables()
