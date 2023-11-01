@@ -11,7 +11,7 @@ func main() {
 	conn := sheets.Open()
 	defer conn.Close()
 
-	createExampleTable := slices.Contains(os.Args[1:], "--example-table")
+	createExampleTable := slices.Contains(os.Args[1:], "--create-example-tables")
 	if createExampleTable {
 		sheets.SetupTablesDB()
 		sheets.LoadExampleData()

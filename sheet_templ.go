@@ -286,7 +286,7 @@ func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("\" hx-post=\"/set-cell\" hx-vals=\"")
+		_, err = templBuffer.WriteString("\" hx-post=\"/set-extra-cell\" hx-vals=\"")
 		if err != nil {
 			return err
 		}

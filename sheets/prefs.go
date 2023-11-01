@@ -29,7 +29,7 @@ func InitPrefsTable() {
 			, UNIQUE(sheet_id, tablename, columnname)
 			, CONSTRAINT fk_sheets
 				FOREIGN KEY (sheet_id)
-					REFERENCES db_interface.sheets(id)
+					REFERENCES db_interface.sheets(id) ON DELETE CASCADE
 		)`)
 	log.Println("Column prefs table exists")
 }

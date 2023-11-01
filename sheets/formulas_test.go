@@ -6,6 +6,7 @@ import (
 
 func setupFormulasDB() func() {
 	Open()
+	InitSheetsTables()
 	conn.MustExec("CREATE SCHEMA IF NOT EXISTS db_interface_test")
 	conn.MustExec(
 		`CREATE TABLE IF NOT EXISTS db_interface_test.foo (

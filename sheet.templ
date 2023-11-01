@@ -65,7 +65,7 @@ templ extraCell(i, j int, cell sheets.SheetCell) {
         <input name="formula"
                class="extra-cell-formula hide"
                value={ cell.Formula }
-               hx-post="/set-cell"
+               hx-post="/set-extra-cell"
                hx-vals={ fmt.Sprintf("{\"i\":%d,\"j\":%d}", i, j) }
                hx-target="closest td"
                hx-swap="outerHTML"/>

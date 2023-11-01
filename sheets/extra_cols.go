@@ -12,7 +12,7 @@ func initExtraColsTables() {
 			, UNIQUE (sheet_id, i)
 			, CONSTRAINT fk_sheets
 				FOREIGN KEY (sheet_id)
-					REFERENCES db_interface.sheets(id)
+					REFERENCES db_interface.sheets(id) ON DELETE CASCADE
 		)`)
 	log.Println("SheetCols table exists")
 
@@ -26,7 +26,7 @@ func initExtraColsTables() {
 			, UNIQUE (sheet_id, i, j)
 			, CONSTRAINT fk_sheets
 				FOREIGN KEY (sheet_id)
-					REFERENCES db_interface.sheets(id)
+					REFERENCES db_interface.sheets(id) ON DELETE CASCADE
 		)`)
 	log.Println("SheetCells table exists")
 }
@@ -74,6 +74,7 @@ func (s *Sheet) loadExtraCols() {
 }
 
 func (s *Sheet) saveCol(i int) {
+	log.Printf("Saving extra column %d", i)
 	conn.MustExec(`
 		INSERT INTO db_interface.sheetcols (
 			sheet_id
@@ -122,6 +123,7 @@ func (s *Sheet) AddColumn(name string) {
 	cells := make([]SheetCell, 100)
 	s.ExtraCols = append(s.ExtraCols, SheetColumn{name, cells})
 	s.saveCol(len(s.ExtraCols) - 1)
+	SheetMap[s.Id] = *s
 }
 
 func (s *Sheet) RenameCol(i int, name string) {

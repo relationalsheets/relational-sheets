@@ -52,6 +52,21 @@ func TestSingleTableSheet(t *testing.T) {
 	if rows[0][0][0].Value != "1" {
 		t.Fatalf("Unexpected id returned: %v", rows[0][0][0])
 	}
+
+	// Add column with static data
+	if len(sheet.ExtraCols) != 0 {
+		t.Fatalf("Extra column already exists")
+	}
+	sheet.AddColumn("")
+	sheet.SetCell(0, 0, "abc")
+	sheet.loadExtraCols()
+	if len(sheet.ExtraCols) != 1 {
+		t.Fatalf("Unexpected number of extra columns: %v", sheet.ExtraCols)
+	}
+	cellValue := sheet.ExtraCols[0].Cells[0].Value
+	if cellValue != "abc" {
+		t.Fatalf("Unexpected cell value: %s", cellValue)
+	}
 }
 
 func TestMultiTableSheet(t *testing.T) {

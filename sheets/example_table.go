@@ -2,6 +2,7 @@ package sheets
 
 func SetupTablesDB() {
 	Open()
+	InitSheetsTables()
 	teardownTablesDB()
 	conn.MustExec(
 		`CREATE TABLE IF NOT EXISTS db_interface_test.customers (
@@ -70,6 +71,7 @@ func LoadExampleData() {
 }
 
 func teardownTablesDB() {
+	conn.MustExec("DELETE FROM db_interface.sheets WHERE schemaname='db_interface_test'")
 	conn.MustExec("DROP TABLE IF EXISTS db_interface_test.customers CASCADE")
 	conn.MustExec("DROP TABLE IF EXISTS db_interface_test.orders CASCADE")
 	conn.MustExec("DROP TABLE IF EXISTS db_interface_test.products CASCADE")
