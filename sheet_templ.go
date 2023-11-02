@@ -132,7 +132,7 @@ func extraColHeader(i int, name string) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("\" hx-trigger=\"click[shiftKey]\"><input name=\"col_name\" hx-vals=\"")
+		_, err = templBuffer.WriteString("\" hx-trigger=\"click[shiftKey]\"><div class=\"flex\"><input name=\"col_name\" hx-vals=\"")
 		if err != nil {
 			return err
 		}
@@ -148,7 +148,7 @@ func extraColHeader(i int, name string) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("\" hx-post=\"/rename-column\" hx-swap=\"none\"></th>")
+		_, err = templBuffer.WriteString("\" hx-post=\"/rename-column\" hx-swap=\"none\"></div></th>")
 		if err != nil {
 			return err
 		}

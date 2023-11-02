@@ -160,8 +160,9 @@ td input {
 td input[size="1"] {
     width: 100%
 }
-td input[name=formula] {
+td input[name=formula],th input[name=col_name] {
     flex: 1;
+    max-width: unset;
 }
 .width-control {
     visibility: hidden;

@@ -33,11 +33,13 @@ templ extraColHeader(i int, name string) {
     <th hx-post="/delete-column"
         hx-vals={ fmt.Sprintf("{\"col_index\":%d}", i) }
         hx-trigger="click[shiftKey]" >
-        <input name="col_name"
-               hx-vals={ fmt.Sprintf("{\"col_index\":%d}", i) }
-               value={ name }
-               hx-post="/rename-column"
-               hx-swap="none" />
+        <div class="flex">
+            <input name="col_name"
+                hx-vals={ fmt.Sprintf("{\"col_index\":%d}", i) }
+                value={ name }
+                hx-post="/rename-column"
+                hx-swap="none" />
+        </div>
     </th>
 }
 
