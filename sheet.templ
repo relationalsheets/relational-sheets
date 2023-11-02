@@ -29,12 +29,16 @@ templ colHeader(tableName string, col sheets.Column, pref sheets.Pref) {
     </th>
 }
 
-templ extraColName(i int, name string) {
-    <input name="col_name"
-           hx-vals={ fmt.Sprintf("{\"col_index\":%d}", i) }
-           value={ name }
-           hx-post="/rename-column"
-           hx-swap="none" />
+templ extraColHeader(i int, name string) {
+    <th hx-post="/delete-column"
+        hx-vals={ fmt.Sprintf("{\"col_index\":%d}", i) }
+        hx-trigger="click[shiftKey]" >
+        <input name="col_name"
+               hx-vals={ fmt.Sprintf("{\"col_index\":%d}", i) }
+               value={ name }
+               hx-post="/rename-column"
+               hx-swap="none" />
+    </th>
 }
 
 templ tableCell(tableName string, col sheets.Column, row int, cell sheets.Cell, err error) {
@@ -128,9 +132,7 @@ templ sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, cells [][][]sheets.
         }
         }
         for i, col := range sheet.ExtraCols {
-            <th>
-                @extraColName(i, col.Name)
-            </th>
+            @extraColHeader(i, col.Name)
         }
         </tr>
     </thead>

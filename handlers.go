@@ -84,6 +84,16 @@ func handleRenameCol(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func handleDeleteCol(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+	colIndex, err := strconv.Atoi(r.FormValue("col_index"))
+	if err != nil {
+		writeError(w, err.Error())
+		return
+	}
+	sheet.DeleteColumn(colIndex)
+	reRenderSheet(sheet, w, r)
+}
+
 func handleSetExtraCell(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 	i, err := strconv.Atoi(r.FormValue("i"))
 	sheets.Check(err)

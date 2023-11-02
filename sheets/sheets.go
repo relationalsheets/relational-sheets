@@ -12,6 +12,7 @@ type SheetCell struct {
 }
 
 type SheetColumn struct {
+	Id int
 	Name  string
 	Cells []SheetCell
 }

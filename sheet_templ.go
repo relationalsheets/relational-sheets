@@ -111,7 +111,7 @@ func colHeader(tableName string, col sheets.Column, pref sheets.Pref) templ.Comp
 	})
 }
 
-func extraColName(i int, name string) templ.Component {
+func extraColHeader(i int, name string) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -124,7 +124,15 @@ func extraColName(i int, name string) templ.Component {
 			var_5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, err = templBuffer.WriteString("<input name=\"col_name\" hx-vals=\"")
+		_, err = templBuffer.WriteString("<th hx-post=\"/delete-column\" hx-vals=\"")
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString(templ.EscapeString(fmt.Sprintf("{\"col_index\":%d}", i)))
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("\" hx-trigger=\"click[shiftKey]\"><input name=\"col_name\" hx-vals=\"")
 		if err != nil {
 			return err
 		}
@@ -140,7 +148,7 @@ func extraColName(i int, name string) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("\" hx-post=\"/rename-column\" hx-swap=\"none\">")
+		_, err = templBuffer.WriteString("\" hx-post=\"/rename-column\" hx-swap=\"none\"></th>")
 		if err != nil {
 			return err
 		}
@@ -467,15 +475,7 @@ func sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, cells [][][]sheets.C
 			}
 		}
 		for i, col := range sheet.ExtraCols {
-			_, err = templBuffer.WriteString("<th>")
-			if err != nil {
-				return err
-			}
-			err = extraColName(i, col.Name).Render(ctx, templBuffer)
-			if err != nil {
-				return err
-			}
-			_, err = templBuffer.WriteString("</th>")
+			err = extraColHeader(i, col.Name).Render(ctx, templBuffer)
 			if err != nil {
 				return err
 			}
