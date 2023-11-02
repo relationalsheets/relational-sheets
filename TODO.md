@@ -1,5 +1,2 @@
 - [ ] Support column dependencies
-- [ ] Support querying via joins
 - [ ] Filtering
-- [ ] Removing extra columns
-- [ ] Add example database
