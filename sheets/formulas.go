@@ -74,11 +74,11 @@ func parseRange(r string) (string, int, int, error) {
 		if len(split) != 2 {
 			return "", 0, 0, errors.New("invalid range")
 		}
-		colName1, start, err := parseColumnAndIndex(split[0])
+		colName1, start, err := parseColumnAndIndex(split[0], 1)
 		if err != nil {
 			return "", 0, 0, err
 		}
-		colName2, end, err := parseColumnAndIndex(split[1])
+		colName2, end, err := parseColumnAndIndex(split[1], math.MaxInt)
 		if err != nil {
 			return "", 0, 0, err
 		}
@@ -87,12 +87,15 @@ func parseRange(r string) (string, int, int, error) {
 		}
 		return colName1, start, end, nil
 	}
-	colName, index, err := parseColumnAndIndex(r)
+	colName, index, err := parseColumnAndIndex(r, 0)
 	return colName, index, index, err
 }
 
-func parseColumnAndIndex(r string) (string, int, error) {
+func parseColumnAndIndex(r string, defaultIndex int) (string, int, error) {
 	colName := strings.TrimRight(r, "0123456789")
+	if colName == r && defaultIndex > 0 {
+		return colName, defaultIndex, nil
+	}
 	index, err := strconv.Atoi(r[len(colName):])
 	if err != nil {
 		return "", 0, errors.New("invalid row index")
@@ -134,7 +137,7 @@ func (s *Sheet) evalToken(token Token) (Token, error) {
 		return token, nil
 	}
 	if token.TSubType == efp.TokenSubTypeRange {
-		colName, index, err := parseColumnAndIndex(token.TValue)
+		colName, index, err := parseColumnAndIndex(token.TValue, 0)
 		if err != nil {
 			return Token{}, err
 		}
