@@ -1,2 +1,9 @@
 - [ ] Support column dependencies
 - [ ] Filtering
+- [ ] Help modal
+- [ ] Setup README
+- [ ] Show formula errors
+- [ ] Add license
+- [ ] Support pasting/filling entire column with formula
+- [ ] Change limit
+- [ ] Pagination
