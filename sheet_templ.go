@@ -286,7 +286,7 @@ func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("\"><input name=\"formula\" class=\"extra-cell-formula hide\" value=\"")
+		_, err = templBuffer.WriteString("\"><div class=\"flex\"><input name=\"formula\" class=\"extra-cell-formula hide\" value=\"")
 		if err != nil {
 			return err
 		}
@@ -302,7 +302,15 @@ func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("\" hx-target=\"closest td\" hx-swap=\"outerHTML\"><span class=\"extra-cell-value\">")
+		_, err = templBuffer.WriteString("\" hx-target=\"closest td\" hx-swap=\"outerHTML\" size=\"")
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString(templ.EscapeString(strconv.Itoa(max(len(cell.Formula), 1))))
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("\"><span class=\"extra-cell-value\">")
 		if err != nil {
 			return err
 		}
@@ -311,7 +319,7 @@ func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</span></td>")
+		_, err = templBuffer.WriteString("</span></div></td>")
 		if err != nil {
 			return err
 		}

@@ -160,6 +160,9 @@ td input {
 td input[size="1"] {
     width: 100%
 }
+td input[name=formula] {
+    flex: 1;
+}
 .width-control {
     visibility: hidden;
     height: 0;
