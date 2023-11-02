@@ -119,13 +119,20 @@ func (s *Sheet) SetCell(i, j int, formula string) SheetCell {
 	return cell
 }
 
+func defaultColumnName(i int) string {
+	name := ""
+	n := len(defaultColNameChars)
+	i += 1
+	for i > 0 {
+		name = defaultColNameChars[(i-1)%n:(i-1)%n+1] + name
+		i = (i - (i-1)%n) / n
+	}
+	return name
+}
+
 func (s *Sheet) AddColumn(name string) {
 	if name == "" {
-		i := len(s.ExtraCols)
-		for i >= 0 {
-			name += defaultColNameChars[i%len(defaultColNameChars) : i%len(defaultColNameChars)+1]
-			i -= len(defaultColNameChars)
-		}
+		name = defaultColumnName(len(s.ExtraCols))
 	}
 	log.Printf("Adding column %s to sheet %d", name, s.Id)
 
