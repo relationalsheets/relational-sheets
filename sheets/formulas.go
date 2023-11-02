@@ -3,17 +3,21 @@ package sheets
 import (
 	"errors"
 	"fmt"
-	"github.com/xuri/efp"
 	"log"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/xuri/efp"
 )
 
 type Token struct {
 	efp.Token
 	IsNumeric bool
+	IsBool    bool
 	TFloat    float64
+	TBool     bool
 }
 
 func CreateAggregates() {
@@ -38,8 +42,7 @@ func parseFormula(formula string) []Token {
 	tokens := make([]Token, len(parsed))
 	for i, token := range parsed {
 		if token.TSubType == efp.TokenSubTypeNumber {
-			float, err := strconv.ParseFloat(token.TValue, 64)
-			tokens[i] = Token{token, err == nil, float}
+			tokens[i] = fromString(token.TValue)
 		} else {
 			tokens[i] = Token{Token: token}
 		}
@@ -52,7 +55,9 @@ func fromString(val string) Token {
 	return Token{
 		efp.Token{val, efp.TokenTypeOperand, efp.TokenSubTypeNumber},
 		err == nil,
+		false,
 		float,
+		false,
 	}
 }
 
@@ -60,6 +65,18 @@ func fromFloat(val float64) Token {
 	return Token{
 		efp.Token{formatFloat(val), efp.TokenTypeOperand, efp.TokenSubTypeNumber},
 		true,
+		false,
+		val,
+		false,
+	}
+}
+
+func fromBool(val bool) Token {
+	return Token{
+		efp.Token{fmt.Sprintf("%t", val), efp.TokenTypeOperand, efp.TokenSubTypeNumber},
+		false,
+		true,
+		0,
 		val,
 	}
 }
@@ -133,7 +150,7 @@ func (s *Sheet) evalToken(token Token) (Token, error) {
 	if token.TType != efp.TokenTypeOperand {
 		return Token{}, errors.New("not an operand")
 	}
-	if token.TSubType == efp.TokenSubTypeNumber {
+	if token.TSubType == efp.TokenSubTypeNumber || token.TSubType == efp.TokenSubTypeLogical || token.TSubType == efp.TokenSubTypeText {
 		return token, nil
 	}
 	if token.TSubType == efp.TokenSubTypeRange {
@@ -167,7 +184,7 @@ func (s *Sheet) evalToken(token Token) (Token, error) {
 		}
 		return Token{}, errors.New("invalid column name")
 	}
-	return Token{}, errors.New("invalid formula")
+	return Token{}, errors.New("invalid formula " + token.TValue)
 }
 
 type SQLAndGoFunc struct {
@@ -277,6 +294,13 @@ func (s *Sheet) evalAssociativeFunc(fDefs SQLAndGoFunc, arguments [][]Token) (To
 
 func (s *Sheet) evalLogicalExpression(tokens []Token) (bool, error) {
 	//log.Printf("Evaluating logical expression: %+v", tokens)
+
+	if len(tokens) == 1 {
+		if tokens[0].IsBool {
+			return tokens[0].TBool, nil
+		}
+		return false, errors.New("not a logical expression")
+	}
 
 	operator := ""
 	first, second := []Token{}, []Token{}
@@ -400,6 +424,37 @@ func (s *Sheet) evalAverage(arguments [][]Token) (Token, error) {
 	return fromFloat(sum / float64(count)), nil
 }
 
+func (s *Sheet) evalRegexMatch(arguments [][]Token) (Token, error) {
+	if len(arguments) != 2 {
+		return Token{}, errors.New("wrong number of arguments for REGEXMATCH")
+	}
+
+	textToken, err := s.evalTokens(arguments[0])
+	if err != nil {
+		return Token{}, err
+	}
+	if textToken.IsNumeric {
+		return Token{}, errors.New("only text can be searched with REGEXMATCH")
+	}
+	text := textToken.Token.TValue
+
+	regexToken, err := s.evalTokens(arguments[1])
+	if err != nil {
+		return Token{}, err
+	}
+	if regexToken.IsNumeric {
+		return Token{}, errors.New("invalid regex")
+	}
+	regex := regexToken.Token.TValue
+
+	matched, err := regexp.MatchString(regex, text)
+	if err != nil {
+		return Token{}, err
+	}
+
+	return fromBool(matched), nil
+}
+
 func (s *Sheet) evalFunction(fName string, arguments [][]Token) (Token, error) {
 	fName = strings.ToUpper(fName)
 	//log.Printf("Evaluating: %s(%+v)", fName, arguments)
@@ -415,6 +470,10 @@ func (s *Sheet) evalFunction(fName string, arguments [][]Token) (Token, error) {
 
 	if fName == "AVERAGE" {
 		return s.evalAverage(arguments)
+	}
+
+	if fName == "REGEXMATCH" {
+		return s.evalRegexMatch(arguments)
 	}
 
 	return Token{}, errors.New("unsupported function: " + fName)
