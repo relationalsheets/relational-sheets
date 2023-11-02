@@ -11,6 +11,7 @@ import "bytes"
 
 import (
 	"acb/db-interface/sheets"
+	"fmt"
 	"strconv"
 )
 
@@ -107,7 +108,15 @@ func modal(sheet sheets.Sheet, tableNames []string, fkeys map[string]map[int64]s
 			var_4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, err = templBuffer.WriteString("<div id=\"modal\" class=\"modal is-active\" hx-target=\"#modal\"><div class=\"modal-content box\"><div id=\"table-fkey-config\" hx-include=\"select,[name=sheet_id]\"><label>")
+		_, err = templBuffer.WriteString("<div id=\"modal\" class=\"modal is-active\" hx-target=\"#modal\"><div class=\"modal-content box\"><div id=\"table-fkey-config\" hx-include=\"select\" hx-vals=\"")
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString(templ.EscapeString(fmt.Sprintf("{\"sheet_id\": %d}", sheet.Id)))
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("\"><label>")
 		if err != nil {
 			return err
 		}
@@ -196,15 +205,7 @@ func modal(sheet sheets.Sheet, tableNames []string, fkeys map[string]map[int64]s
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</a></div></div><button class=\"modal-close\"></button><input name=\"sheet_id\" type=\"hidden\" value=\"")
-		if err != nil {
-			return err
-		}
-		_, err = templBuffer.WriteString(templ.EscapeString(strconv.Itoa(sheet.Id)))
-		if err != nil {
-			return err
-		}
-		_, err = templBuffer.WriteString("\"></div>")
+		_, err = templBuffer.WriteString("</a></div></div><button class=\"modal-close\"></button></div>")
 		if err != nil {
 			return err
 		}

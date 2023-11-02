@@ -138,7 +138,11 @@ func (s *Sheet) LoadSheet() {
 }
 
 func (s *Sheet) SetTable(name string) {
+	if name == s.TableFullName() {
+		return
+	}
 	s.Table = TableMap[name]
+	s.JoinOids = []int64{}
 	s.TableNames = []string{name}
 	s.SaveSheet()
 	s.LoadSheet()

@@ -323,18 +323,57 @@ func (sheet *Sheet) loadJoins() {
 	sheet.TableNames[0] = table.FullName()
 	table.loadConstraints(tx)
 	for i, joinOid := range sheet.JoinOids {
-		join, ok := table.Fkeys[joinOid]
-		if !ok {
+		joinFound := false
+		for _, tableName := range sheet.TableNames {
+			join, ok := TableMap[tableName].Fkeys[joinOid]
+			if ok {
+				joinFound = true
+				if join.sourceTableName == table.FullName() {
+					table = TableMap[join.targetTableName]
+				} else {
+					table = TableMap[join.sourceTableName]
+				}
+				break	
+			}
+		}
+		if !joinFound {
 			panic(fmt.Sprintf("Unable to load join %d on %s (have %v)", joinOid, table.FullName(), table.Fkeys))
-		}
-		if join.sourceTableName == table.FullName() {
-			table = TableMap[join.targetTableName]
-		} else {
-			table = TableMap[join.sourceTableName]
-		}
+		} 
 		sheet.TableNames[i+1] = table.FullName()
 		table.loadConstraints(tx)
 	}
+}
+
+func (sheet *Sheet) SetJoin(fkeyIndex int, oid int64) error {
+	log.Printf("SetJoin(%d, %d) called while JoinOids=%v TableNames=%v", fkeyIndex, oid, sheet.JoinOids, sheet.TableNames)
+	if fkeyIndex < len(sheet.JoinOids) && oid != sheet.JoinOids[fkeyIndex] {
+		sheet.JoinOids = sheet.JoinOids[:fkeyIndex+1]
+		sheet.TableNames = sheet.TableNames[:fkeyIndex+2]
+	}
+	for _, tableName := range sheet.TableNames {
+		table := TableMap[tableName]
+		fkey, ok := table.Fkeys[oid]
+		if ok {
+			if fkeyIndex >= len(sheet.JoinOids) {
+				sheet.JoinOids = append(sheet.JoinOids, 0)
+				sheet.TableNames = append(sheet.TableNames, "")
+			}
+			sheet.JoinOids[fkeyIndex] = oid
+			if fkey.sourceTableName == tableName {
+				sheet.TableNames[fkeyIndex+1] = fkey.targetTableName
+			} else {
+				sheet.TableNames[fkeyIndex+1] = fkey.sourceTableName
+			}
+			log.Printf("Sheet now joins %v", sheet.TableNames)
+			sheet.SaveSheet()
+			newTable := TableMap[sheet.TableNames[fkeyIndex+1]]
+			newTable.loadConstraints(nil)
+			return nil
+		} else {
+			log.Printf("no such fkey %d in %v", oid, table.Fkeys)
+		}
+	}
+	return fmt.Errorf("no such fkey %d", oid)
 }
 
 func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {

@@ -1,5 +1,6 @@
 import (
 	"acb/db-interface/sheets"
+    "fmt"
 	"strconv"
 )
 
@@ -22,7 +23,9 @@ templ fkeySelect(index int, sheet sheets.Sheet, fkeys map[string]map[int64]sheet
 templ modal(sheet sheets.Sheet, tableNames []string, fkeys map[string]map[int64]sheets.ForeignKey, addJoin bool) {
     <div id="modal" class="modal is-active" hx-target="#modal">
         <div class="modal-content box">
-            <div id="table-fkey-config" hx-include="select,[name=sheet_id]">
+            <div id="table-fkey-config"
+                 hx-include="select"
+                 hx-vals={ fmt.Sprintf("{\"sheet_id\": %d}", sheet.Id) } >
                 <label>Tables</label>
                 <div class="dropdown-list">
                     <div class="select table-select">
@@ -59,6 +62,5 @@ templ modal(sheet sheets.Sheet, tableNames []string, fkeys map[string]map[int64]
         </div>
 
         <button class="modal-close"></button>
-        <input name="sheet_id" type="hidden" value={ strconv.Itoa(sheet.Id) } />
     </div>
 }

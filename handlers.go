@@ -235,9 +235,6 @@ func handleModal(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 	tableName := r.FormValue("table_name")
 	if tableName != "" {
 		sheet.SetTable(tableName)
-		if sheet.Id == 0 {
-			sheet.SaveSheet()
-		}
 	}
 
 	tableNames := maps.Keys(sheets.TableMap)
@@ -257,11 +254,11 @@ func handleModal(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 
 	_, addJoin := r.Form["add_join"]
 	if addJoin || r.Method != "POST" {
+		log.Printf("Available fkeys: %v", fkeys)
 		templ.Handler(modal(sheet, tableNames, fkeys, addJoin)).ServeHTTP(w, r)
 		return
 	}
 
-	sheet.JoinOids = make([]int64, 0, len(r.Form))
 	for name, value := range r.Form {
 		fkeyIndexStr, ok := strings.CutPrefix(name, "fkey-")
 		if !ok {
@@ -279,20 +276,11 @@ func handleModal(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fkeyExists := false
-		for _, tableName := range sheet.TableNames {
-			table := sheets.TableMap[tableName]
-			_, ok := table.Fkeys[oid]
-			fkeyExists = fkeyExists || ok
-		}
-		if !fkeyExists {
+		err = sheet.SetJoin(fkeyIndex, oid)
+		if err != nil {
 			writeError(w, "No such fkey "+value[0])
 			return
 		}
-
-		sheet.JoinOids = sheet.JoinOids[:max(len(sheet.JoinOids), fkeyIndex+1)]
-		sheet.JoinOids[fkeyIndex] = oid
-		sheet.SaveSheet()
 	}
 
 	templ.Handler(modal(sheet, tableNames, fkeys, addJoin)).ServeHTTP(w, r)
