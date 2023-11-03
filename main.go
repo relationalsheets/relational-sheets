@@ -35,6 +35,7 @@ func main() {
 	http.HandleFunc("/set-cell", withSheet(handleSetCell, true))
 	http.HandleFunc("/set-extra-cell", withSheet(handleSetExtraCell, true))
 	http.HandleFunc("/set-name", withSheet(handleSetName, true))
+	http.HandleFunc("/fill-column-down", withSheet(handleFillColumnDown, true))
 
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))

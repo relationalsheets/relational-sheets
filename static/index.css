@@ -163,6 +163,7 @@ td input[size="1"] {
 td input[name=formula],th input[name=col_name] {
     flex: 1;
     max-width: unset;
+    line-height: 1.5;
 }
 .width-control {
     visibility: hidden;

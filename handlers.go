@@ -19,6 +19,13 @@ func writeError(w http.ResponseWriter, text string) {
 	w.Write([]byte("<span class=\"error\">" + text + "</span>"))
 }
 
+func mustGetInt(r *http.Request, key string) int {
+	str := r.FormValue(key)
+	i, err := strconv.Atoi(str)
+	sheets.Check(err)
+	return i
+}
+
 func getSheet(r *http.Request, required bool) (sheets.Sheet, error) {
 	sheetIdStr := r.FormValue("sheet_id")
 	if sheetIdStr != "" {
@@ -95,10 +102,8 @@ func handleDeleteCol(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request)
 }
 
 func handleSetExtraCell(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
-	i, err := strconv.Atoi(r.FormValue("i"))
-	sheets.Check(err)
-	j, err := strconv.Atoi(r.FormValue("j"))
-	sheets.Check(err)
+	i := mustGetInt(r, "i")
+	j := mustGetInt(r, "j")
 	formula := r.FormValue("formula")
 
 	cell := sheet.SetCell(i, j, formula)
@@ -307,4 +312,13 @@ func handleSetCell(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 		map[string]map[string]string{tableName: getPKs(r)[tableName]})
 	cell := tableCell(tableName, col, row, sheets.Cell{value, value != ""}, err)
 	templ.Handler(cell).ServeHTTP(w, r)
+}
+
+func handleFillColumnDown(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+	i := mustGetInt(r, "i")
+	j := mustGetInt(r, "j")
+	formula := r.FormValue("formula")
+	sheet.FillColumnDown(i, j, formula)
+
+	reRenderSheet(sheet, w, r)
 }

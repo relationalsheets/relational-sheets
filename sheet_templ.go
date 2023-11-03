@@ -273,7 +273,7 @@ func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 			var_9 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var var_10 = []any{"extra-cell", templ.KV("is-null", !cell.NotNull)}
+		var var_10 = []any{templ.KV("is-null", !cell.NotNull)}
 		err = templ.RenderCSSItems(ctx, templBuffer, var_10...)
 		if err != nil {
 			return err
@@ -286,15 +286,7 @@ func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("\"><div class=\"flex\"><input name=\"formula\" class=\"extra-cell-formula hide\" value=\"")
-		if err != nil {
-			return err
-		}
-		_, err = templBuffer.WriteString(templ.EscapeString(cell.Formula))
-		if err != nil {
-			return err
-		}
-		_, err = templBuffer.WriteString("\" hx-post=\"/set-extra-cell\" hx-vals=\"")
+		_, err = templBuffer.WriteString("\"><form class=\"flex extra-cell\" hx-trigger=\"click[ctrlKey]\" hx-vals=\"")
 		if err != nil {
 			return err
 		}
@@ -302,7 +294,15 @@ func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("\" hx-target=\"closest td\" hx-swap=\"outerHTML\" size=\"")
+		_, err = templBuffer.WriteString("\" hx-post=\"/fill-column-down\"><input name=\"formula\" class=\"extra-cell-formula hide\" value=\"")
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString(templ.EscapeString(cell.Formula))
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("\" hx-trigger=\"change\" hx-post=\"/set-extra-cell\" hx-target=\"closest td\" hx-swap=\"outerHTML\" size=\"")
 		if err != nil {
 			return err
 		}
@@ -319,7 +319,7 @@ func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</span></div></td>")
+		_, err = templBuffer.WriteString("</span></form></td>")
 		if err != nil {
 			return err
 		}

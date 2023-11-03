@@ -67,20 +67,23 @@ templ tableCell(tableName string, col sheets.Column, row int, cell sheets.Cell, 
 }
 
 templ extraCell(i, j int, cell sheets.SheetCell) {
-    <td class={ "extra-cell", templ.KV("is-null", !cell.NotNull) }>
-        <div class="flex">
+    <td class={ templ.KV("is-null", !cell.NotNull) }>
+        <form class="flex extra-cell"
+              hx-trigger="click[ctrlKey]"
+              hx-vals={ fmt.Sprintf("{\"i\":%d,\"j\":%d}", i, j) }
+              hx-post="/fill-column-down" >
             <input name="formula"
                 class="extra-cell-formula hide"
                 value={ cell.Formula }
+                hx-trigger="change"
                 hx-post="/set-extra-cell"
-                hx-vals={ fmt.Sprintf("{\"i\":%d,\"j\":%d}", i, j) }
                 hx-target="closest td"
                 hx-swap="outerHTML"
                 size={ strconv.Itoa(max(len(cell.Formula), 1)) } />
             <span class="extra-cell-value">
                 { cell.Value }
             </span>
-        </div>
+        </form>
     </td>
 }
 
