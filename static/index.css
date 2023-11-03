@@ -153,6 +153,9 @@ th input {
     min-width: 0;
     height: 100%;
 }
+td form {
+    height: 100%;
+}
 td input {
     max-width: 100%;
     background-color: transparent;
