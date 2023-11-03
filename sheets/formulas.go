@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -128,7 +129,7 @@ func parseColumnAndIndex(r string, defaultIndex int) (string, int, error) {
 	}
 	index, err := strconv.Atoi(r[len(colName):])
 	if err != nil {
-		return "", 0, errors.New("invalid row index")
+		return "", 0, errors.New("invalid row index in " + r)
 	}
 	return colName, index, nil
 }
@@ -207,17 +208,47 @@ func (s *Sheet) evalToken(token Token) (Token, error) {
 		if index < 0 {
 			return Token{}, errors.New("negative indices not allowed")
 		}
-		col := Column{}
-		ok := false
-		if s.Table != nil {
-			col, ok = s.Table.Cols[colName]
+
+		// Search tables
+		tableIndex, colIndex := -1, -1
+		split := strings.Split(colName, ".")
+		if len(split) != 1 && len(split) != 3 {
+			return Token{}, errors.New("columns must be specified as <col> or <schema>.<table>.<col>")
 		}
-		if ok {
-			if index >= s.Table.RowCount {
-				return Token{}, errors.New("row index out of range")
+		if len(split) == 3 {
+			tableName := split[0] + "." + split[1]
+			tableIndex = slices.Index(s.TableNames, tableName)
+			if tableIndex < 0 {
+				return Token{}, errors.New("no such table " + tableName)
 			}
-			return fromString(col.Cells[index].Value), nil
+			for i, col := range s.OrderedCols(nil)[tableIndex] {
+				if split[2] == col.Name {
+					colIndex = i
+					break
+				}
+			}
+			if colIndex < 0 {
+				return Token{}, fmt.Errorf("no column %s on table %s", split[2], tableName)
+			}
+		} else {
+			for i, cols := range s.OrderedCols(nil) {
+				for j, col := range cols {
+					if split[0] == col.Name {
+						tableIndex = i
+						colIndex = j
+						break
+					}
+				}
+			}
 		}
+		if tableIndex >= 0 && colIndex >= 0 {
+			if index >= s.RowCount {
+				return Token{}, fmt.Errorf("row index out of range: %d", index)
+			}
+			return fromString(s.Cells[tableIndex][colIndex][index].Value), nil
+		}
+
+		// Search extra columns
 		for _, extraCol := range s.ExtraCols {
 			if colName == extraCol.Name {
 				if index >= len(extraCol.Cells) {

@@ -32,7 +32,6 @@ type Column struct {
 	DataType     string
 	IsPrimaryKey bool
 	Index        int
-	Cells        []Cell
 }
 
 type Table struct {
@@ -40,7 +39,6 @@ type Table struct {
 	HasPrimaryKey bool
 	Cols          map[string]Column
 	Fkeys         map[int64]ForeignKey
-	RowCount      int
 	Oid           int64
 }
 
@@ -376,17 +374,17 @@ func (sheet *Sheet) SetJoin(fkeyIndex int, oid int64) error {
 	return fmt.Errorf("no such fkey %d", oid)
 }
 
-func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
+func (sheet *Sheet) LoadRows(limit int, offset int) {
 	cols := sheet.OrderedCols(nil)
-	cells := make([][][]Cell, len(sheet.TableNames))
+	sheet.Cells = make([][][]Cell, len(sheet.TableNames))
 	// TODO: Check if table.TableName and column names are valid somewhere
 	casts := []string{}
 	orderClauses := []string{}
 	for i, tableName := range sheet.TableNames {
 		table := TableMap[tableName]
-		cells[i] = make([][]Cell, len(cols[i]))
+		sheet.Cells[i] = make([][]Cell, len(cols[i]))
 		for j, col := range cols[i] {
-			cells[i][j] = make([]Cell, 0, limit)
+			sheet.Cells[i][j] = make([]Cell, 0, limit)
 			name := table.FullName() + "." + col.Name
 			cast := fmt.Sprintf("%s::text, %s IS NOT NULL", name, name)
 			casts = append(casts, cast)
@@ -430,7 +428,7 @@ func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
 				if isNotNull {
 					val = scanResult[2*index].(string)
 				}
-				cells[i][j] = append(cells[i][j], Cell{val, isNotNull})
+				sheet.Cells[i][j] = append(sheet.Cells[i][j], Cell{val, isNotNull})
 				index++
 			}
 		}
@@ -438,7 +436,6 @@ func (sheet *Sheet) LoadRows(limit int, offset int) [][][]Cell {
 	}
 	log.Printf("Retrieved %d rows from %s", sheet.RowCount, sheet.Table.FullName())
 	Check(rows.Close())
-	return cells
 }
 
 func (sheet *Sheet) InsertRow(tx *sqlx.Tx, tableName string, values map[string]string, returning []string) ([]interface{}, error) {

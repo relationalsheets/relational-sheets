@@ -40,15 +40,15 @@ func TestSingleTableSheet(t *testing.T) {
 	// Hide
 	pref := Pref{TableName: tableName, ColumnName: "name", Hide: true}
 	sheet.SavePref(pref)
-	rows := sheet.LoadRows(100, 0)
-	if len(rows[0]) != 1 {
-		t.Fatalf("Unexpected number of columns: %v", rows[0])
+	sheet.LoadRows(100, 0)
+	if len(sheet.Cells[0]) != 1 {
+		t.Fatalf("Unexpected number of columns: %v", sheet.Cells[0])
 	}
-	if len(rows[0][0]) != 1 {
-		t.Fatalf("Unexpected number of rows: %v", rows[0][0])
+	if len(sheet.Cells[0][0]) != 1 {
+		t.Fatalf("Unexpected number of sheet.Cells: %v", sheet.Cells[0][0])
 	}
-	if rows[0][0][0].Value != "1" {
-		t.Fatalf("Unexpected id returned: %v", rows[0][0][0])
+	if sheet.Cells[0][0][0].Value != "1" {
+		t.Fatalf("Unexpected id returned: %v", sheet.Cells[0][0][0])
 	}
 
 	// Add column with static data

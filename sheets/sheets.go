@@ -26,6 +26,7 @@ type Sheet struct {
 	PrefsMap   map[string]Pref
 	ExtraCols  []SheetColumn
 	RowCount   int
+	Cells	   [][][]Cell
 }
 
 var SheetMap = make(map[int]Sheet)

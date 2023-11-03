@@ -125,7 +125,7 @@ templ newRow(tableNames []string, tableName string, cols [][]sheets.Column, numC
     </tr>
 }
 
-templ sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, cells [][][]sheets.Cell, numCols int) {
+templ sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, numCols int) {
     <thead>
         <tr>
         for i, tableName := range sheet.TableNames {
@@ -150,7 +150,7 @@ templ sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, cells [][][]sheets.
     <tbody>
     for j := 0; j < sheet.RowCount; j++ {
         <tr class="body-row" data-row={ strconv.Itoa(j) }>
-        for i, tableCols := range cells {
+        for i, tableCols := range sheet.Cells {
         for k, cells := range tableCols {
             <td class={ templ.KV("is-null", !cells[j].NotNull) }>
                 <span class="width-control">{ cells[j].Value }</span>

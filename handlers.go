@@ -122,12 +122,12 @@ func reRenderSheet(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cols := sheet.OrderedCols(nil)
-	cells := sheet.LoadRows(100, 0)
+	sheet.LoadRows(100, 0)
 	numCols := 0
 	for _, tcols := range cols {
 		numCols += len(tcols)
 	}
-	component := sheetTable(sheet, cols, cells, numCols)
+	component := sheetTable(sheet, cols, numCols)
 	handler := templ.Handler(component)
 	handler.ServeHTTP(w, r)
 }
@@ -166,7 +166,8 @@ func handleNewRow(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// TODO: cache
-		cells := sheet.LoadRows(100, 0)[tableIndex]
+		sheet.LoadRows(100, 0)
+		cells := sheet.Cells[tableIndex]
 		for rowIndex, _ = range cells[0] {
 			match := true
 			for colIndex, col := range cols[tableIndex] {

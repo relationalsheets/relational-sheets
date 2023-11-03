@@ -115,18 +115,20 @@ func TestEvalWithDB(t *testing.T) {
 	sheet.SetTable("db_interface_test.foo")
 
 	formulasAndValues := map[string]string{
-		"SUM(bar1:bar1)":           "1",
-		"SUM(bar1:bar3)":           "9",
-		"SUM(baz1:baz3)":           "12",
-		"SUM(baz:baz)":             "12",
-		"SUM(bar1:bar1,2)":         "3",
-		"SUM(bar1:bar1,1+2)":       "4",
-		"SUM(bar1:bar3,baz1:baz3)": "21",
-		"MAX(bar1:bar3)":           "5",
-		"MIN(bar1:bar3)":           "1",
-		"PRODUCT(bar1:bar3)":       "15",
-		"AVERAGE(bar1:bar3)":       "3",
-		"AVERAGE(bar1:bar3,7)":     "4",
+		"bar1":                       "1",
+		"db_interface_test.foo.bar1": "1",
+		"SUM(bar1:bar1)":             "1",
+		"SUM(bar1:bar3)":             "9",
+		"SUM(baz1:baz3)":             "12",
+		"SUM(baz:baz)":               "12",
+		"SUM(bar1:bar1,2)":           "3",
+		"SUM(bar1:bar1,1+2)":         "4",
+		"SUM(bar1:bar3,baz1:baz3)":   "21",
+		"MAX(bar1:bar3)":             "5",
+		"MIN(bar1:bar3)":             "1",
+		"PRODUCT(bar1:bar3)":         "15",
+		"AVERAGE(bar1:bar3)":         "3",
+		"AVERAGE(bar1:bar3,7)":       "4",
 	}
 	checkFormulas(t, sheet, formulasAndValues)
 }

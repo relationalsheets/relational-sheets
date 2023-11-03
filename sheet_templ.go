@@ -302,7 +302,7 @@ func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("\" hx-trigger=\"change\" hx-post=\"/set-extra-cell\" hx-target=\"closest td\" hx-target-400=\"next .error\" hx-swap=\"outerHTML\" size=\"")
+		_, err = templBuffer.WriteString("\" hx-trigger=\"change\" hx-post=\"/set-extra-cell\" hx-target=\"closest td\" hx-target-400=\"next .has-text-danger\" hx-swap=\"outerHTML\" size=\"")
 		if err != nil {
 			return err
 		}
@@ -319,7 +319,7 @@ func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</span><span class=\"error hide\"></span></form></td>")
+		_, err = templBuffer.WriteString("</span><span class=\"has-text-danger hide\"></span></form></td>")
 		if err != nil {
 			return err
 		}
@@ -428,7 +428,7 @@ func newRow(tableNames []string, tableName string, cols [][]sheets.Column, numCo
 	})
 }
 
-func sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, cells [][][]sheets.Cell, numCols int) templ.Component {
+func sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, numCols int) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -505,7 +505,7 @@ func sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, cells [][][]sheets.C
 			if err != nil {
 				return err
 			}
-			for i, tableCols := range cells {
+			for i, tableCols := range sheet.Cells {
 				for k, cells := range tableCols {
 					var var_18 = []any{templ.KV("is-null", !cells[j].NotNull)}
 					err = templ.RenderCSSItems(ctx, templBuffer, var_18...)
