@@ -54,7 +54,7 @@ func (s *Sheet) loadCells() {
 	for rows.Next() {
 		err = rows.Scan(&i, &j, &formula)
 		Check(err)
-		s.ExtraCols[i].Cells[j], err = s.EvalFormula(formula)
+		s.ExtraCols[i].Cells[j], err = s.evalFormula(formula)
 		if err != nil {
 			log.Printf("Error loading cell %d,%d (%s): %s", i, j, formula, err)
 		}
@@ -100,11 +100,15 @@ func (s *Sheet) saveCol(i int) {
 }
 
 func (s *Sheet) SetCell(i, j int, formula string) SheetCell {
+	return s.setCellTokens(i, j, formula, parseFormula(formula))
+}
+
+func (s *Sheet) setCellTokens(i, j int, formula string, tokens []Token) SheetCell {
 	column := s.ExtraCols[i]
-	cell, err := s.EvalFormula(formula)
+	cell, err := s.evalTokensToCell(formula, tokens)
 	Check(err)
 	column.Cells[j] = cell
-	log.Printf("Saving cell (%d,%d) into column id=%d", i, j, s.ExtraCols[i].Id)
+	//log.Printf("Saving cell %v (%d,%d) into column id=%d", cell, i, j, s.ExtraCols[i].Id)
 	conn.MustExec(`
 		INSERT INTO db_interface.sheetcells (
 		    sheetcol_id
@@ -160,4 +164,18 @@ func (s *Sheet) DeleteColumn(i int) {
 		i)
 	s.ExtraCols = slices.Delete(s.ExtraCols, i, i+1)
 	SheetMap[s.Id] = *s
+}
+
+func (s *Sheet) FillColumnDown(i, j int, formula string) error {
+	col := s.ExtraCols[i]
+	tokens := parseFormula(formula)
+	for k := range col.Cells[j:] {
+		translatedTokens, err := translateTokens(tokens, k)
+		if err != nil {
+			return err
+		}
+		// TODO: optimize into single giant query?
+		s.setCellTokens(i, k, toFormula(translatedTokens), translatedTokens)
+	}
+	return nil
 }

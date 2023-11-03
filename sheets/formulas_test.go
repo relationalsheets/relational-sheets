@@ -30,7 +30,7 @@ func setupFormulasDB() func() {
 
 func checkFormulas(t *testing.T, sheet Sheet, formulasAndValues map[string]string) {
 	for formula, expected := range formulasAndValues {
-		actual, err := sheet.EvalFormula("=" + formula)
+		actual, err := sheet.evalFormula("=" + formula)
 		if err != nil {
 			t.Fatalf("%s: %s", formula, err)
 		}
@@ -42,20 +42,20 @@ func checkFormulas(t *testing.T, sheet Sheet, formulasAndValues map[string]strin
 
 func TestEvalWithLiterals(t *testing.T) {
 	formulasAndValues := map[string]string{
-		"2":                       "2",
-		"(2)":                     "2",
-		"2+3":                     "5",
-		"2+2.5":                   "4.5",
-		"2*3":                     "6",
-		"2+2+2":                   "6",
-		"2+(2+3)":                 "7",
-		"(2+2)+3":                 "7",
-		"2+2*3":                   "8",
-		"(2+2)*3":                 "12",
-		"2+(2+2)+2":               "8",
-		"IF(1=1,1,2)":             "1",
-		"IF(1=0,1,2)":             "2",
-		"AVERAGE(10,1)":           "5.5",
+		"2":                           "2",
+		"(2)":                         "2",
+		"2+3":                         "5",
+		"2+2.5":                       "4.5",
+		"2*3":                         "6",
+		"2+2+2":                       "6",
+		"2+(2+3)":                     "7",
+		"(2+2)+3":                     "7",
+		"2+2*3":                       "8",
+		"(2+2)*3":                     "12",
+		"2+(2+2)+2":                   "8",
+		"IF(1=1,1,2)":                 "1",
+		"IF(1=0,1,2)":                 "2",
+		"AVERAGE(10,1)":               "5.5",
 		"REGEXMATCH(\"foo\",\"bar\")": "false",
 		"REGEXMATCH(\"foo\",\"f.*\")": "true",
 	}

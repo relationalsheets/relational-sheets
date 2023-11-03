@@ -108,6 +108,19 @@ func parseRange(r string) (string, int, int, error) {
 	return colName, index, index, err
 }
 
+func unparseRange(colName string, start, end int) string {
+	if start == end {
+		return colName + strconv.Itoa(start)
+	}
+	return strings.Join([]string{
+		colName,
+		strconv.Itoa(start),
+		":",
+		colName,
+		strconv.Itoa(end),
+	}, "")
+}
+
 func parseColumnAndIndex(r string, defaultIndex int) (string, int, error) {
 	colName := strings.TrimRight(r, "0123456789")
 	if colName == r && defaultIndex > 0 {
@@ -118,6 +131,38 @@ func parseColumnAndIndex(r string, defaultIndex int) (string, int, error) {
 		return "", 0, errors.New("invalid row index")
 	}
 	return colName, index, nil
+}
+
+func toFormula(tokens []Token) string {
+	if len(tokens) == 1 {
+		return tokens[0].TValue
+	}
+
+	values := make([]string, len(tokens)+1)
+	values[0] = "="
+	for i, token := range tokens {
+		values[i+1] = token.TValue
+	}
+	return strings.Join(values, "")
+}
+
+func translateTokens(tokens []Token, offset int) ([]Token, error) {
+	newTokens := make([]Token, len(tokens))
+	for i, token := range tokens {
+		if token.TSubType == efp.TokenSubTypeRange {
+			colName, start, end, err := parseRange(token.TValue)
+			if err != nil {
+				return []Token{}, err
+			}
+			rangeStr := unparseRange(colName, start+offset, end+offset)
+			newTokens[i] = Token{
+				Token: efp.Token{rangeStr, efp.TokenTypeOperand, efp.TokenSubTypeRange},
+			}
+		} else {
+			newTokens[i] = token
+		}
+	}
+	return newTokens, nil
 }
 
 func (s *Sheet) infixOperator(t1, t2 Token, operator string) (Token, error) {
@@ -624,11 +669,14 @@ func (s *Sheet) evalTokens(tokens []Token) (Token, error) {
 	return Token{}, errors.New("not implemented")
 }
 
-func (s *Sheet) EvalFormula(formula string) (SheetCell, error) {
-	tokens := parseFormula(formula)
+func (s *Sheet) evalTokensToCell(formula string, tokens []Token) (SheetCell, error) {
 	token, err := s.evalTokens(tokens)
 	if err != nil {
 		return SheetCell{Cell{}, formula}, err
 	}
 	return SheetCell{Cell{token.TValue, token.TValue != ""}, formula}, nil
+}
+
+func (s *Sheet) evalFormula(formula string) (SheetCell, error) {
+	return s.evalTokensToCell(formula, parseFormula(formula))
 }
