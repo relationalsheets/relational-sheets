@@ -69,6 +69,7 @@ templ tableCell(tableName string, col sheets.Column, row int, cell sheets.Cell, 
 templ extraCell(i, j int, cell sheets.SheetCell) {
     <td class={ templ.KV("is-null", !cell.NotNull) }>
         <form class="flex extra-cell"
+              onsubmit="event.preventDefault()"
               hx-trigger="click[ctrlKey]"
               hx-vals={ fmt.Sprintf("{\"i\":%d,\"j\":%d}", i, j) }
               hx-post="/fill-column-down" >

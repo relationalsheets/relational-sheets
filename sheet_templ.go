@@ -286,7 +286,7 @@ func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("\"><form class=\"flex extra-cell\" hx-trigger=\"click[ctrlKey]\" hx-vals=\"")
+		_, err = templBuffer.WriteString("\"><form class=\"flex extra-cell\" onsubmit=\"event.preventDefault()\" hx-trigger=\"click[ctrlKey]\" hx-vals=\"")
 		if err != nil {
 			return err
 		}
