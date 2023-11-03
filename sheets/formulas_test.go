@@ -132,3 +132,19 @@ func TestEvalWithDB(t *testing.T) {
 	}
 	checkFormulas(t, sheet, formulasAndValues)
 }
+
+func TestRoundTripSerialization(t *testing.T) {
+	formulas := []string{
+		"=SUM(A:A)",
+		"1+(2)",
+		"1+(2+3)",
+		"=REGEXMATCH(A,\"foo\")",
+	}
+	for _, formula := range formulas {
+		tokens := parseFormula(formula)
+		roundTripped := toFormula(tokens)
+		if roundTripped != formula {
+			t.Errorf("%s != %s parsed as: %v", roundTripped, formula, tokens)
+		}
+	}
+}

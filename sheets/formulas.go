@@ -142,7 +142,17 @@ func toFormula(tokens []Token) string {
 	values := make([]string, len(tokens)+1)
 	values[0] = "="
 	for i, token := range tokens {
-		values[i+1] = token.TValue
+		if token.TType == efp.TokenTypeSubexpression && token.TSubType == efp.TokenSubTypeStart {
+			values[i+1] = "("
+		} else if token.TType == efp.TokenTypeFunction && token.TSubType == efp.TokenSubTypeStart {
+			values[i+1] = token.TValue + "("
+		} else if token.TSubType == efp.TokenSubTypeStop {
+			values[i+1] = ")"
+		} else if token.TSubType == efp.TokenSubTypeText {
+			values[i+1] = "\"" + token.TValue + "\""
+		} else {
+			values[i+1] = token.TValue
+		}
 	}
 	return strings.Join(values, "")
 }
