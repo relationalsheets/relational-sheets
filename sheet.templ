@@ -79,11 +79,13 @@ templ extraCell(i, j int, cell sheets.SheetCell) {
                 hx-trigger="change"
                 hx-post="/set-extra-cell"
                 hx-target="closest td"
+                hx-target-400="next .has-text-danger"
                 hx-swap="outerHTML"
                 size={ strconv.Itoa(max(len(cell.Formula), 1)) } />
             <span class="extra-cell-value">
                 { cell.Value }
             </span>
+            <span class="has-text-danger hide"></span>
         </form>
     </td>
 }
@@ -116,7 +118,7 @@ templ newRow(tableNames []string, tableName string, cols [][]sheets.Column, numC
                         class="button is-light">
                     Add
                 </button>
-                <span id="new-row-err" class="has-text-danger">
+                <span id="new-row-err">
                 </span>
             </div>
         </td>

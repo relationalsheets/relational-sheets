@@ -302,7 +302,7 @@ func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("\" hx-trigger=\"change\" hx-post=\"/set-extra-cell\" hx-target=\"closest td\" hx-swap=\"outerHTML\" size=\"")
+		_, err = templBuffer.WriteString("\" hx-trigger=\"change\" hx-post=\"/set-extra-cell\" hx-target=\"closest td\" hx-target-400=\"next .error\" hx-swap=\"outerHTML\" size=\"")
 		if err != nil {
 			return err
 		}
@@ -319,7 +319,7 @@ func extraCell(i, j int, cell sheets.SheetCell) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</span></form></td>")
+		_, err = templBuffer.WriteString("</span><span class=\"error hide\"></span></form></td>")
 		if err != nil {
 			return err
 		}
@@ -417,7 +417,7 @@ func newRow(tableNames []string, tableName string, cols [][]sheets.Column, numCo
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</button><span id=\"new-row-err\" class=\"has-text-danger\"></span></div></td></tr>")
+		_, err = templBuffer.WriteString("</button><span id=\"new-row-err\"></span></div></td></tr>")
 		if err != nil {
 			return err
 		}

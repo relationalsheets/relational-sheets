@@ -16,7 +16,7 @@ import (
 func writeError(w http.ResponseWriter, text string) {
 	w.Header().Add("Content-Type", "text/html")
 	w.WriteHeader(http.StatusBadRequest)
-	w.Write([]byte("<span class=\"error\">" + text + "</span>"))
+	w.Write([]byte("<span class=\"has-text-danger\">" + text + "</span>"))
 }
 
 func mustGetInt(r *http.Request, key string) int {
@@ -106,7 +106,11 @@ func handleSetExtraCell(sheet sheets.Sheet, w http.ResponseWriter, r *http.Reque
 	j := mustGetInt(r, "j")
 	formula := r.FormValue("formula")
 
-	cell := sheet.SetCell(i, j, formula)
+	cell, err := sheet.SetCell(i, j, formula)
+	if err != nil {
+		writeError(w, err.Error())
+		return
+	}
 
 	handler := templ.Handler(extraCell(i, j, cell))
 	handler.ServeHTTP(w, r)

@@ -99,14 +99,16 @@ func (s *Sheet) saveCol(i int) {
 	s.ExtraCols[i] = col
 }
 
-func (s *Sheet) SetCell(i, j int, formula string) SheetCell {
+func (s *Sheet) SetCell(i, j int, formula string) (SheetCell, error) {
 	return s.setCellTokens(i, j, formula, parseFormula(formula))
 }
 
-func (s *Sheet) setCellTokens(i, j int, formula string, tokens []Token) SheetCell {
+func (s *Sheet) setCellTokens(i, j int, formula string, tokens []Token) (SheetCell, error) {
 	column := s.ExtraCols[i]
 	cell, err := s.evalTokensToCell(formula, tokens)
-	Check(err)
+	if err != nil {
+		return SheetCell{}, err
+	}
 	column.Cells[j] = cell
 	//log.Printf("Saving cell %v (%d,%d) into column id=%d", cell, i, j, s.ExtraCols[i].Id)
 	conn.MustExec(`
@@ -120,7 +122,7 @@ func (s *Sheet) setCellTokens(i, j int, formula string, tokens []Token) SheetCel
 		s.ExtraCols[i].Id,
 		j,
 		formula)
-	return cell
+	return cell, nil
 }
 
 func defaultColumnName(i int) string {
