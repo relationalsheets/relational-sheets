@@ -175,7 +175,7 @@ func (s *Sheet) FillColumnDown(i, j int, formula string) error {
 			return err
 		}
 		// TODO: optimize into single giant query?
-		s.setCellTokens(i, k, toFormula(translatedTokens), translatedTokens)
+		s.setCellTokens(i, j+k, toFormula(translatedTokens), translatedTokens)
 	}
 	return nil
 }

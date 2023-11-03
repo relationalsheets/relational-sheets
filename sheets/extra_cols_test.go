@@ -38,8 +38,15 @@ func TestFillColumnDown(t *testing.T) {
 		sheet.SetCell(0, i, iStr)
 		sheet.SetCell(1, i, iStr)
 	}
-	sheet.FillColumnDown(2, 0, "=A1+B1")
-	for i, sheetCell := range sheet.ExtraCols[2].Cells {
+
+	sheet.FillColumnDown(2, 1, "=A1+B1")
+	cells := sheet.ExtraCols[2].Cells
+	
+	value := cells[0].Cell.Value
+	if value != "" {
+		t.Errorf("first cell should have been skipped")
+	}
+	for i, sheetCell := range cells[1:] {
 		value := sheetCell.Cell.Value
 		expectedValue := strconv.Itoa(2*i)
 		if value != expectedValue {
