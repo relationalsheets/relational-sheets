@@ -27,3 +27,9 @@ document.addEventListener("focusout", function (event) {
         target.querySelector("input").classList.add("hide");
     }
 });
+document.addEventListener("click", function (event) {
+    const modals = Array.from(document.getElementsByClassName("modal"));
+    modals.forEach(function (elem) {
+        elem.remove();
+    });
+});

@@ -89,6 +89,12 @@ templ toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) {
             </div>
           </div>
         </div>
+
+        <button hx-get="/static/help.html"
+                hx-target="body"
+                hx-swap="beforeend" >
+          Help
+        </button>
     </div>
 
     <div class="toolbar-group">

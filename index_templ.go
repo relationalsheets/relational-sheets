@@ -173,7 +173,16 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</a></div></div></div></div><div class=\"toolbar-group\"><input hx-post=\"/set-name\" name=\"name\" value=\"")
+		_, err = templBuffer.WriteString("</a></div></div></div><button hx-get=\"/static/help.html\" hx-target=\"body\" hx-swap=\"beforeend\">")
+		if err != nil {
+			return err
+		}
+		var_16 := `Help`
+		_, err = templBuffer.WriteString(var_16)
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("</button></div><div class=\"toolbar-group\"><input hx-post=\"/set-name\" name=\"name\" value=\"")
 		if err != nil {
 			return err
 		}
@@ -185,8 +194,8 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		var_16 := `Share`
-		_, err = templBuffer.WriteString(var_16)
+		var_17 := `Share`
+		_, err = templBuffer.WriteString(var_17)
 		if err != nil {
 			return err
 		}
@@ -209,17 +218,17 @@ func index(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_17 := templ.GetChildren(ctx)
-		if var_17 == nil {
-			var_17 = templ.NopComponent
+		var_18 := templ.GetChildren(ctx)
+		if var_18 == nil {
+			var_18 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		_, err = templBuffer.WriteString("<!doctype html><html><head><script src=\"https://unpkg.com/htmx.org@1.9.5\">")
 		if err != nil {
 			return err
 		}
-		var_18 := ``
-		_, err = templBuffer.WriteString(var_18)
+		var_19 := ``
+		_, err = templBuffer.WriteString(var_19)
 		if err != nil {
 			return err
 		}
@@ -227,8 +236,8 @@ func index(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		var_19 := ``
-		_, err = templBuffer.WriteString(var_19)
+		var_20 := ``
+		_, err = templBuffer.WriteString(var_20)
 		if err != nil {
 			return err
 		}
