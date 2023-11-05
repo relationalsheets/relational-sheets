@@ -202,6 +202,40 @@ func (s *Sheet) infixOperator(t1, t2 Token, operator string) (Token, error) {
 	return fromFloat(f), nil
 }
 
+func (s *Sheet) tableAndColIndex(colName string) (int, int, error) {
+	split := strings.Split(colName, ".")
+	if len(split) != 1 && len(split) != 3 {
+		return -1, -1, errors.New("columns must be specified as <col> or <schema>.<table>.<col>")
+	}
+	if len(split) == 3 {
+		tableName := split[0] + "." + split[1]
+		tableIndex := slices.Index(s.TableNames, tableName)
+		if tableIndex < 0 {
+			return -1, -1, errors.New("no such table " + tableName)
+		}
+		for i, col := range s.OrderedCols(nil)[tableIndex] {
+			if split[2] == col.Name {
+				return tableIndex, i, nil
+			}
+		}
+		return -1, -1, fmt.Errorf("no column %s on table %s", split[2], tableName)
+	} else {
+		for i, cols := range s.OrderedCols(nil) {
+			for j, col := range cols {
+				if split[0] == col.Name {
+					return i, j, nil
+				}
+			}
+		}
+		for i, col := range s.ExtraCols {
+			if split[0] == col.Name {
+				return -1, i, nil
+			}
+		}
+		return -1, -1, fmt.Errorf("no such column %s", split[0])
+	}
+}
+
 func (s *Sheet) evalToken(token Token) (Token, error) {
 	if token.TType != efp.TokenTypeOperand {
 		return Token{}, errors.New("not an operand")
@@ -219,56 +253,23 @@ func (s *Sheet) evalToken(token Token) (Token, error) {
 			return Token{}, errors.New("negative indices not allowed")
 		}
 
-		// Search tables
-		tableIndex, colIndex := -1, -1
-		split := strings.Split(colName, ".")
-		if len(split) != 1 && len(split) != 3 {
-			return Token{}, errors.New("columns must be specified as <col> or <schema>.<table>.<col>")
+		tableIndex, colIndex, err := s.tableAndColIndex(colName)
+		if err != nil {
+			return Token{}, err
 		}
-		if len(split) == 3 {
-			tableName := split[0] + "." + split[1]
-			tableIndex = slices.Index(s.TableNames, tableName)
-			if tableIndex < 0 {
-				return Token{}, errors.New("no such table " + tableName)
-			}
-			for i, col := range s.OrderedCols(nil)[tableIndex] {
-				if split[2] == col.Name {
-					colIndex = i
-					break
-				}
-			}
-			if colIndex < 0 {
-				return Token{}, fmt.Errorf("no column %s on table %s", split[2], tableName)
-			}
-		} else {
-			for i, cols := range s.OrderedCols(nil) {
-				for j, col := range cols {
-					if split[0] == col.Name {
-						tableIndex = i
-						colIndex = j
-						break
-					}
-				}
-			}
-		}
-		if tableIndex >= 0 && colIndex >= 0 {
+		if tableIndex >= 0 {
 			if index >= s.RowCount {
 				return Token{}, fmt.Errorf("row index out of range: %d", index)
 			}
 			return fromString(s.Cells[tableIndex][colIndex][index].Value), nil
-		}
-
-		// Search extra columns
-		for _, extraCol := range s.ExtraCols {
-			if colName == extraCol.Name {
-				if index >= len(extraCol.Cells) {
-					// Not an error to reference beyond the sheet
-					return Token{}, nil
-				}
-				return fromString(extraCol.Cells[index].Value), nil
+		} else {
+			extraCol := s.ExtraCols[colIndex]
+			if index >= len(extraCol.Cells) {
+				// Not an error to reference beyond the sheet
+				return Token{}, nil
 			}
+			return fromString(extraCol.Cells[index].Value), nil
 		}
-		return Token{}, errors.New("invalid column name")
 	}
 	return Token{}, errors.New("invalid formula " + token.TValue)
 }
@@ -322,11 +323,11 @@ func (s *Sheet) evalAssociativeFunc(fDefs SQLAndGoFunc, arguments [][]Token) (To
 			if err != nil {
 				return Token{}, err
 			}
-			colExists := false
-			if s.Table != nil {
-				_, colExists = s.Table.Cols[colName]
+			tableIndex, colIndex, err := s.tableAndColIndex(colName)
+			if err != nil {
+				return Token{}, err
 			}
-			if colExists {
+			if tableIndex >= 0 {
 				colExpression := "\"" + colName + "\""
 				if fDefs.sqlCast != "" {
 					colExpression = fmt.Sprintf("CAST(%s AS %s)", colExpression, fDefs.sqlCast)
@@ -335,30 +336,20 @@ func (s *Sheet) evalAssociativeFunc(fDefs SQLAndGoFunc, arguments [][]Token) (To
 					"SELECT %s(sq.val) FROM (SELECT %s AS val FROM %s LIMIT $1 OFFSET $2) sq",
 					fDefs.sqlName,
 					colExpression,
-					s.TableFullName())
+					s.TableNames[tableIndex])
 				log.Printf("Executing %s (%d, %d)", query, end-start+1, start-1)
 				row := conn.QueryRow(query, end-start+1, start-1)
 				err = row.Scan(&argVal)
 				Check(err)
 			} else {
-				found := false
-				for _, col := range s.ExtraCols {
-					if col.Name == colName {
-						for _, cell := range col.Cells {
-							if cell.NotNull {
-								cellVal, err := strconv.ParseFloat(cell.Value, 64)
-								if err != nil {
-									return Token{}, err
-								}
-								argVal = fDefs.goFunc(argVal, cellVal)
-							}
+				for _, cell := range s.ExtraCols[colIndex].Cells {
+					if cell.NotNull {
+						cellVal, err := strconv.ParseFloat(cell.Value, 64)
+						if err != nil {
+							return Token{}, err
 						}
-						found = true
-						break
+						argVal = fDefs.goFunc(argVal, cellVal)
 					}
-				}
-				if !found {
-					return Token{}, errors.New("no column named " + colName)
 				}
 			}
 		} else {
@@ -417,11 +408,28 @@ func (s *Sheet) evalLogicalExpression(tokens []Token) (bool, error) {
 		return false, err
 	}
 
-	switch operator {
-	case "=":
+	if operator == "=" {
 		numericEqual := firstVal.IsNumeric && secondVal.IsNumeric && firstVal.TFloat == secondVal.TFloat
 		stringEqual := !firstVal.IsNumeric && !secondVal.IsNumeric && firstVal.TValue == secondVal.TValue
 		return numericEqual || stringEqual, nil
+	}
+
+	if !firstVal.IsNumeric {
+		return false, fmt.Errorf("non-numeric arugment to %s: %s", operator, firstVal.TValue)
+	}
+	if !secondVal.IsNumeric {
+		return false, fmt.Errorf("non-numeric arugment to %s: %s", operator, secondVal.TValue)
+	}
+
+	switch operator {
+	case ">":
+		return firstVal.TFloat > secondVal.TFloat, nil
+	case ">=":
+		return firstVal.TFloat >= secondVal.TFloat, nil
+	case "<":
+		return firstVal.TFloat < secondVal.TFloat, nil
+	case "<=":
+		return firstVal.TFloat <= secondVal.TFloat, nil
 	default:
 		return false, errors.New("unsupported logical operator: " + operator)
 	}
@@ -456,39 +464,29 @@ func (s *Sheet) evalAverage(arguments [][]Token) (Token, error) {
 			if err != nil {
 				return Token{}, err
 			}
-			colExists := false
-			if s.Table != nil {
-				_, colExists = s.Table.Cols[colName]
+			tableIndex, colIndex, err := s.tableAndColIndex(colName)
+			if err != nil {
+				return Token{}, err
 			}
-			if colExists {
+			if tableIndex >= 0 {
 				query := fmt.Sprintf(
 					"SELECT SUM(sq.val), COUNT(*) FROM (SELECT \"%s\" AS val FROM %s LIMIT $1 OFFSET $2) sq",
 					colName,
-					s.TableFullName())
+					s.TableNames[tableIndex])
 				log.Printf("Executing %s (%d, %d)", query, end-start+1, start-1)
 				row := conn.QueryRow(query, end-start+1, start-1)
 				err = row.Scan(&argVal, &argCount)
 				Check(err)
 			} else {
-				found := false
-				for _, col := range s.ExtraCols {
-					if col.Name == colName {
-						for _, cell := range col.Cells {
-							if cell.NotNull {
-								cellVal, err := strconv.ParseFloat(cell.Value, 64)
-								if err != nil {
-									return Token{}, err
-								}
-								argVal += cellVal
-								argCount += 1
-							}
+				for _, cell := range s.ExtraCols[colIndex].Cells {
+					if cell.NotNull {
+						cellVal, err := strconv.ParseFloat(cell.Value, 64)
+						if err != nil {
+							return Token{}, err
 						}
-						found = true
-						break
+						argVal += cellVal
+						argCount += 1
 					}
-				}
-				if !found {
-					return Token{}, errors.New("no column named " + colName)
 				}
 			}
 		} else {
@@ -541,6 +539,94 @@ func (s *Sheet) evalRegexMatch(arguments [][]Token) (Token, error) {
 	return fromBool(matched), nil
 }
 
+func (s *Sheet) evalAggIf(fName string, arguments [][]Token) (Token, error) {
+	if len(arguments) < 2 || len(arguments) > 3 {
+		return Token{}, fmt.Errorf("wrong number of arguments for %s", fName)
+	}
+	if len(arguments[0]) != 1 || arguments[0][0].TSubType != efp.TokenSubTypeRange {
+		return Token{}, errors.New("invalid range in SUMIF")
+	}
+	conditionRange := arguments[0][0].TValue
+	criteriaToken, err := s.evalTokens(arguments[1])
+	if err != nil {
+		return Token{}, err
+	}
+	// TODO: interpret as = if no operator is specific
+	criteria := criteriaToken.TValue
+	sumRange := conditionRange
+	if len(arguments) > 2 {
+		if len(arguments[2]) != 1 || arguments[2][0].TSubType != efp.TokenSubTypeRange { 
+			return Token{}, errors.New("invalid range in SUMIF")
+		}
+		sumRange = arguments[2][0].TValue
+	}
+	conditionColName, start, end, err := parseRange(conditionRange)
+	conditionTableIndex, conditionColIndex, err := s.tableAndColIndex(conditionColName)
+	if err != nil {
+		return Token{}, err
+	}
+	sumColName, sumStart, sumEnd, err := parseRange(sumRange)
+	sumTableIndex, sumColIndex, err := s.tableAndColIndex(sumColName)
+	if err != nil {
+		return Token{}, err
+	}
+	if sumStart != start || sumEnd != end {
+		return Token{}, fmt.Errorf("condition rage (%s) and sum range (%s) must be aligned", conditionRange, sumRange)
+	}
+	if conditionTableIndex != sumTableIndex && (conditionTableIndex < 0 || sumTableIndex < 0) {
+		return Token{}, fmt.Errorf("cannot combine database and spreadsheet ranges in %s", fName)
+	}
+
+	sum := 0.0
+	count := 0
+	if conditionTableIndex >= 0 {
+		query := fmt.Sprintf(
+			"SELECT COALESCE(SUM(sq.val), 0), COUNT(*) FROM (SELECT \"%s\" AS val %s WHERE %s %s LIMIT $1 OFFSET $2) sq",
+			sumColName,
+			s.fromClause(),
+			conditionColName,
+			criteria)
+		log.Printf("Executing %s (%d, %d)", query, end-start+1, start-1)
+		row := conn.QueryRow(query, end-start+1, start-1)
+		err = row.Scan(&sum, &count)
+		Check(err)
+	} else {
+		for i := start-1; i < min(end, len(s.ExtraCols[conditionColIndex].Cells)); i++ {
+			conditionExpression := "=" + s.ExtraCols[conditionColIndex].Cells[i].Value + criteria
+			conditionVal, err := s.evalLogicalExpression(parseFormula(conditionExpression))
+			if err != nil {
+				return Token{}, fmt.Errorf("error evaluating %s condition %s: %w", fName, conditionExpression, err)
+			}
+			log.Printf("Evaluated condition %s: %t", conditionExpression, conditionVal)
+			if conditionVal {
+				count += 1
+				if fName == "COUNTIF" {
+					continue
+				}
+
+				sumString := s.ExtraCols[sumColIndex].Cells[i].Value
+				sumVal, err := strconv.ParseFloat(sumString, 64)
+				if err != nil {
+					return Token{}, fmt.Errorf("non-numeric value in sum: %s (from %s%d)", sumString, sumColName, i+1)
+				}
+				sum += sumVal
+			}
+		}
+	}
+
+	if fName == "SUMIF" {
+		return fromFloat(sum), nil
+	} else if fName == "COUNTIF" {
+		return fromFloat(float64(count)), nil
+	} else if fName == "AVERAGEIF" {
+		if count == 0 {
+			return Token{}, errors.New("no rows match condition")
+		}
+		return fromFloat(sum / float64(count)), nil
+	}
+	return Token{}, fmt.Errorf("unrecognized function %s", fName)
+}
+
 func (s *Sheet) evalFunction(fName string, arguments [][]Token) (Token, error) {
 	fName = strings.ToUpper(fName)
 	//log.Printf("Evaluating: %s(%+v)", fName, arguments)
@@ -560,6 +646,10 @@ func (s *Sheet) evalFunction(fName string, arguments [][]Token) (Token, error) {
 
 	if fName == "REGEXMATCH" {
 		return s.evalRegexMatch(arguments)
+	}
+
+	if fName == "SUMIF" || fName == "COUNTIF" || fName == "AVERAGEIF" {
+		return s.evalAggIf(fName, arguments)
 	}
 
 	return Token{}, errors.New("unsupported function: " + fName)

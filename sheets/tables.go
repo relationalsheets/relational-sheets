@@ -66,7 +66,7 @@ func (fkey ForeignKey) toJoinClause(tableName string) string {
 }
 
 func (sheet Sheet) OrderedCols(tx *sqlx.Tx) [][]Column {
-	log.Printf("Prefs: %v", sheet.PrefsMap)
+	//log.Printf("Prefs: %v", sheet.PrefsMap)
 	cols := make([][]Column, len(sheet.TableNames))
 
 	for i, tableName := range sheet.TableNames {
@@ -374,6 +374,16 @@ func (sheet *Sheet) SetJoin(fkeyIndex int, oid int64) error {
 	return fmt.Errorf("no such fkey %d", oid)
 }
 
+func (sheet *Sheet) fromClause() string {
+	fromClause := "FROM " + sheet.TableNames[0]
+	for i, joinOid := range sheet.JoinOids {
+		tableName := sheet.TableNames[i+1]
+		fkey := TableMap[tableName].Fkeys[joinOid]
+		fromClause += " " + fkey.toJoinClause(tableName)
+	}
+	return fromClause
+}
+
 func (sheet *Sheet) LoadRows(limit int, offset int) {
 	cols := sheet.OrderedCols(nil)
 	sheet.Cells = make([][][]Cell, len(sheet.TableNames))
@@ -401,13 +411,7 @@ func (sheet *Sheet) LoadRows(limit int, offset int) {
 		}
 	}
 
-	fromClause := "FROM " + sheet.TableNames[0]
-	for i, joinOid := range sheet.JoinOids {
-		tableName := sheet.TableNames[i+1]
-		fkey := TableMap[tableName].Fkeys[joinOid]
-		fromClause += " " + fkey.toJoinClause(tableName)
-	}
-	query := "SELECT " + strings.Join(casts, ", ") + " " + fromClause
+	query := "SELECT " + strings.Join(casts, ", ") + " " + sheet.fromClause()
 	if len(orderClauses) > 0 {
 		query += " ORDER BY " + strings.Join(orderClauses, ", ")
 	}
