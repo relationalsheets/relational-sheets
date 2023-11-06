@@ -102,8 +102,12 @@ func TestEvalWithExtraCols(t *testing.T) {
 		"SUM(A1:A2,-A1)":            "2",
 		"PRODUCT(A1:A2,B1)":         "6",
 		"AVERAGE(A1:A2,B1)":         "2",
+		"COUNTIF(A1:A2,\"<1\")":     "0",
+		"COUNTIF(A1:A2,\">1\")":     "1",
+		"COUNTIF(A1:A2,\">=1\")":    "2",
 		"SUMIF(A1:A2,\">1\")":       "2",
 		"SUMIF(B1:B1,\">1\",A1:A1)": "1",
+		"AVERAGEIF(A1:A2,\">=1\")":  "1.5",
 	}
 	checkFormulas(t, sheet, formulasAndValues)
 }
@@ -116,23 +120,27 @@ func TestEvalWithDB(t *testing.T) {
 	sheet.SetTable("db_interface_test.foo")
 
 	formulasAndValues := map[string]string{
-		"bar1":                          "1",
-		"db_interface_test.foo.bar1":    "1",
-		"SUM(bar1:bar1)":                "1",
-		"SUM(bar1:bar3)":                "9",
-		"SUM(baz1:baz3)":                "12",
-		"SUM(baz:baz)":                  "12",
-		"SUM(bar1:bar1,2)":              "3",
-		"SUM(bar1:bar1,1+2)":            "4",
-		"SUM(bar1:bar3,baz1:baz3)":      "21",
-		"MAX(bar1:bar3)":                "5",
-		"MIN(bar1:bar3)":                "1",
-		"PRODUCT(bar1:bar3)":            "15",
-		"AVERAGE(bar1:bar3)":            "3",
-		"AVERAGE(bar1:bar3,7)":          "4",
-		"SUMIF(bar:bar,\">0\",baz:baz)": "12",
-		"SUMIF(bar:bar,\"<0\",baz:baz)": "0",
-		"SUMIF(bar:bar,\"=3\",baz:baz)": "4",
+		"bar1":                              "1",
+		"db_interface_test.foo.bar1":        "1",
+		"SUM(bar1:bar1)":                    "1",
+		"SUM(bar1:bar3)":                    "9",
+		"SUM(baz1:baz3)":                    "12",
+		"SUM(baz:baz)":                      "12",
+		"SUM(bar1:bar1,2)":                  "3",
+		"SUM(bar1:bar1,1+2)":                "4",
+		"SUM(bar1:bar3,baz1:baz3)":          "21",
+		"MAX(bar1:bar3)":                    "5",
+		"MIN(bar1:bar3)":                    "1",
+		"PRODUCT(bar1:bar3)":                "15",
+		"AVERAGE(bar1:bar3)":                "3",
+		"AVERAGE(bar1:bar3,7)":              "4",
+		"COUNTIF(bar:bar,\">0\")":           "3",
+		"COUNTIF(bar1:bar2,\">0\")":         "2",
+		"COUNTIF(bar:bar,\"<2\")":           "1",
+		"SUMIF(bar:bar,\">0\",baz:baz)":     "12",
+		"SUMIF(bar:bar,\"<0\",baz:baz)":     "0",
+		"SUMIF(bar:bar,\"=3\",baz:baz)":     "4",
+		"AVERAGEIF(bar:bar,\">0\",baz:baz)": "4",
 	}
 	checkFormulas(t, sheet, formulasAndValues)
 }
