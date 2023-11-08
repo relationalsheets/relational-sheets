@@ -520,6 +520,29 @@ func sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, numCols int, loading
 				}
 			}
 		}
+		if len(sheet.ExtraCols) > 0 {
+			_, err = templBuffer.WriteString("<th colspan=\"")
+			if err != nil {
+				return err
+			}
+			_, err = templBuffer.WriteString(templ.EscapeString(strconv.Itoa(len(sheet.ExtraCols))))
+			if err != nil {
+				return err
+			}
+			_, err = templBuffer.WriteString("\">")
+			if err != nil {
+				return err
+			}
+			var_20 := `spreadsheet`
+			_, err = templBuffer.WriteString(var_20)
+			if err != nil {
+				return err
+			}
+			_, err = templBuffer.WriteString("</th>")
+			if err != nil {
+				return err
+			}
+		}
 		_, err = templBuffer.WriteString("</tr><tr id=\"header-row\">")
 		if err != nil {
 			return err
@@ -555,8 +578,8 @@ func sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, numCols int, loading
 			if err != nil {
 				return err
 			}
-			var var_20 string = loadingErr.Error()
-			_, err = templBuffer.WriteString(templ.EscapeString(var_20))
+			var var_21 string = loadingErr.Error()
+			_, err = templBuffer.WriteString(templ.EscapeString(var_21))
 			if err != nil {
 				return err
 			}
@@ -580,8 +603,8 @@ func sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, numCols int, loading
 			}
 			for i, tableCols := range sheet.Cells {
 				for k, cells := range tableCols {
-					var var_21 = []any{templ.KV("is-null", !cells[j].NotNull)}
-					err = templ.RenderCSSItems(ctx, templBuffer, var_21...)
+					var var_22 = []any{templ.KV("is-null", !cells[j].NotNull)}
+					err = templ.RenderCSSItems(ctx, templBuffer, var_22...)
 					if err != nil {
 						return err
 					}
@@ -589,7 +612,7 @@ func sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, numCols int, loading
 					if err != nil {
 						return err
 					}
-					_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_21).String()))
+					_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_22).String()))
 					if err != nil {
 						return err
 					}
@@ -597,8 +620,8 @@ func sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, numCols int, loading
 					if err != nil {
 						return err
 					}
-					var var_22 string = cells[j].Value
-					_, err = templBuffer.WriteString(templ.EscapeString(var_22))
+					var var_23 string = cells[j].Value
+					_, err = templBuffer.WriteString(templ.EscapeString(var_23))
 					if err != nil {
 						return err
 					}

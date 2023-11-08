@@ -155,6 +155,11 @@ templ sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, numCols int, loadin
             </th>
         }
         }
+        if len(sheet.ExtraCols) > 0 {
+            <th colspan={ strconv.Itoa(len(sheet.ExtraCols)) }>
+                spreadsheet
+            </th>
+        }
         </tr>
         <tr id="header-row">
         for i, tcols := range cols {
