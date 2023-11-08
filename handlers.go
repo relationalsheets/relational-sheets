@@ -229,9 +229,16 @@ func handleSetColPref(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request
 		pref.Filter = filters[0]
 	} else {
 		pref.Hide = r.FormValue("hide") == "true"
-		// reset sorting if the column is hidden
-		pref.SortOn = !pref.Hide && r.FormValue("sorton") == "true"
-		pref.Ascending = !pref.Hide && r.FormValue("ascending") == "true"
+		// reset sorting and filtering if the column is hidden
+		// since these will no longer be SELECTed
+		if pref.Hide {
+			pref.SortOn = false
+			pref.Ascending = false
+			pref.Filter = ""
+		} else {
+			pref.SortOn = r.FormValue("sorton") == "true"
+			pref.Ascending = r.FormValue("ascending") == "true"
+		}
 	}
 	log.Printf("saving pref: %v", pref)
 	sheet.SavePref(pref)
