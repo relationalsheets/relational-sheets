@@ -118,6 +118,7 @@ func TestEvalWithDB(t *testing.T) {
 
 	sheet := Sheet{}
 	sheet.SetTable("db_interface_test.foo")
+	sheet.LoadRows(100, 0)
 
 	formulasAndValues := map[string]string{
 		"bar1":                              "1",

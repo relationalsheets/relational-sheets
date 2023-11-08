@@ -21,11 +21,31 @@ templ colHeader(tableName string, col sheets.Column, pref sheets.Pref) {
                   tableName, col.Name, !pref.SortOn || !pref.Ascending, pref.SortOn && !pref.Ascending) } >
         <div class="col-header">
             <span>{ col.Name }</span>
-        if pref.SortOn {
-            @sortIcon(pref.Ascending)
-        }
+            <div class="icon-container">
+            if pref.SortOn {
+                @sortIcon(pref.Ascending)
+            }
+                <div class="dropdown is-hoverable" onclick="event.stopPropagation()">
+                    <div class="dropdown-trigger">
+                        <img src="static/icons/filter_list_FILL0_wght400_GRAD0_opsz24.svg"
+                            aria-haspopup="true"
+                            aria-controls={ fmt.Sprintf("filter-menu-%s-%s", tableName, col.Name) }
+                            class={ "filter-icon", templ.KV("is-filtering", pref.Filter != "") } />
+                    </div>
+                    <div class="dropdown-menu" id={ fmt.Sprintf("filter-menu-%s-%s", tableName, col.Name ) }>
+                        <div class="dropdown-content">
+                            <div class="dropdown-item">
+                                <label>Filter</label>
+                                <input hx-post="/set-column-prefs"
+                                       name="filter"
+                                       value={ pref.Filter }
+                                       class="filter-input" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-
     </th>
 }
 
@@ -125,7 +145,7 @@ templ newRow(tableNames []string, tableName string, cols [][]sheets.Column, numC
     </tr>
 }
 
-templ sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, numCols int) {
+templ sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, numCols int, loadingErr error) {
     <thead>
         <tr>
         for i, tableName := range sheet.TableNames {
@@ -148,6 +168,15 @@ templ sheetTable(sheet sheets.Sheet, cols [][]sheets.Column, numCols int) {
         </tr>
     </thead>
     <tbody>
+    if loadingErr != nil {
+        <tr>
+            <td colspan={ strconv.Itoa(numCols) }>
+                <span class="has-text-danger">
+                    { loadingErr.Error() }
+                </span>
+            </td>
+        </tr>
+    }
     for j := 0; j < sheet.RowCount; j++ {
         <tr class="body-row" data-row={ strconv.Itoa(j) }>
         for i, tableCols := range sheet.Cells {

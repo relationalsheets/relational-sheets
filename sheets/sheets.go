@@ -129,15 +129,6 @@ func LoadSheets() {
 	log.Printf("Loaded %d sheets", len(SheetMap))
 }
 
-func (s *Sheet) LoadSheet() {
-	log.Printf("Loading sheet %v for table %s", s, s.TableFullName())
-	s.loadPrefs()
-	s.loadJoins()
-	s.LoadRows(100, 0)
-	s.loadExtraCols()
-	SheetMap[s.Id] = *s
-}
-
 func (s *Sheet) SetTable(name string) {
 	if name == s.TableFullName() {
 		return
@@ -146,5 +137,4 @@ func (s *Sheet) SetTable(name string) {
 	s.JoinOids = []int64{}
 	s.TableNames = []string{name}
 	s.SaveSheet()
-	s.LoadSheet()
 }

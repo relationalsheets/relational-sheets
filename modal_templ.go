@@ -108,7 +108,7 @@ func modal(sheet sheets.Sheet, tableNames []string, fkeys map[string]map[int64]s
 			var_4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, err = templBuffer.WriteString("<div id=\"modal\" class=\"modal is-active\" hx-target=\"#modal\"><div class=\"modal-content box\"><div id=\"table-fkey-config\" hx-include=\"select\" hx-vals=\"")
+		_, err = templBuffer.WriteString("<div id=\"modal\" class=\"modal is-active\" hx-target=\"#modal\" onclick=\"event.stopPropagation()\"><div class=\"modal-content box\"><div id=\"table-fkey-config\" hx-include=\"select\" hx-vals=\"")
 		if err != nil {
 			return err
 		}

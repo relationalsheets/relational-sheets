@@ -312,7 +312,7 @@ func (t *Table) loadConstraints(tx *sqlx.Tx) {
 	}
 }
 
-func (sheet *Sheet) loadJoins() {
+func (sheet *Sheet) LoadJoins() {
 	tx := Begin()
 	defer Commit(tx)
 
@@ -331,12 +331,12 @@ func (sheet *Sheet) loadJoins() {
 				} else {
 					table = TableMap[join.sourceTableName]
 				}
-				break	
+				break
 			}
 		}
 		if !joinFound {
 			panic(fmt.Sprintf("Unable to load join %d on %s (have %v)", joinOid, table.FullName(), table.Fkeys))
-		} 
+		}
 		sheet.TableNames[i+1] = table.FullName()
 		table.loadConstraints(tx)
 	}
@@ -384,12 +384,15 @@ func (sheet *Sheet) fromClause() string {
 	return fromClause
 }
 
-func (sheet *Sheet) LoadRows(limit int, offset int) {
+func (sheet *Sheet) LoadRows(limit int, offset int) error {
+	sheet.LoadJoins()
+	sheet.LoadPrefs()
 	cols := sheet.OrderedCols(nil)
 	sheet.Cells = make([][][]Cell, len(sheet.TableNames))
 	// TODO: Check if table.TableName and column names are valid somewhere
 	casts := []string{}
 	orderClauses := []string{}
+	filterClauses := []string{}
 	for i, tableName := range sheet.TableNames {
 		table := TableMap[tableName]
 		sheet.Cells[i] = make([][]Cell, len(cols[i]))
@@ -405,25 +408,36 @@ func (sheet *Sheet) LoadRows(limit int, offset int) {
 				if pref.Ascending {
 					orderDirection = "ASC"
 				}
-				colOrder := tableName + "." + col.Name + " " + orderDirection
+				colOrder := fmt.Sprintf("%s.%s %s", tableName, col.Name, orderDirection)
 				orderClauses = append(orderClauses, colOrder)
+			}
+			if pref.Filter != "" {
+				filter := fmt.Sprintf("%s.%s %s", tableName, col.Name, pref.Filter)
+				filterClauses = append(filterClauses, filter)
 			}
 		}
 	}
 
 	query := "SELECT " + strings.Join(casts, ", ") + " " + sheet.fromClause()
+	if len(filterClauses) > 0 {
+		query += " WHERE " + strings.Join(filterClauses, " AND ")
+	}
 	if len(orderClauses) > 0 {
 		query += " ORDER BY " + strings.Join(orderClauses, ", ")
 	}
 	query += " LIMIT $1 OFFSET $2"
 	log.Printf("Executing: %s", query)
 	rows, err := conn.Queryx(query, limit, offset)
-	Check(err)
+	if err != nil {
+		return fmt.Errorf("Error running %s: %w", query, err)
+	}
 
 	sheet.RowCount = 0
 	for rows.Next() {
 		scanResult, err := rows.SliceScan()
-		Check(err)
+		if err != nil {
+			return err
+		}
 		index := 0
 		for i, _ := range sheet.TableNames {
 			for j, _ := range cols[i] {
@@ -440,6 +454,9 @@ func (sheet *Sheet) LoadRows(limit int, offset int) {
 	}
 	log.Printf("Retrieved %d rows from %s", sheet.RowCount, sheet.Table.FullName())
 	Check(rows.Close())
+
+	sheet.loadExtraCols()
+	return nil
 }
 
 func (sheet *Sheet) InsertRow(tx *sqlx.Tx, tableName string, values map[string]string, returning []string) ([]interface{}, error) {

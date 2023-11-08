@@ -21,7 +21,7 @@ templ fkeySelect(index int, sheet sheets.Sheet, fkeys map[string]map[int64]sheet
 }
 
 templ modal(sheet sheets.Sheet, tableNames []string, fkeys map[string]map[int64]sheets.ForeignKey, addJoin bool) {
-    <div id="modal" class="modal is-active" hx-target="#modal">
+    <div id="modal" class="modal is-active" hx-target="#modal" onclick="event.stopPropagation()">
         <div class="modal-content box">
             <div id="table-fkey-config"
                  hx-include="select"

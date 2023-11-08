@@ -64,12 +64,21 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
+		_, err = templBuffer.WriteString("</a><a hx-post=\"/clear-filters\" hx-target=\"#table\" class=\"dropdown-item\">")
+		if err != nil {
+			return err
+		}
+		var_5 := `Clear All Filters`
+		_, err = templBuffer.WriteString(var_5)
+		if err != nil {
+			return err
+		}
 		_, err = templBuffer.WriteString("</a></div></div></div><div class=\"dropdown is-hoverable\"><div class=\"dropdown-trigger\"><button aria-haspopup=\"true\" aria-controls=\"dropdown-menu\">")
 		if err != nil {
 			return err
 		}
-		var_5 := `Open`
-		_, err = templBuffer.WriteString(var_5)
+		var_6 := `Open`
+		_, err = templBuffer.WriteString(var_6)
 		if err != nil {
 			return err
 		}
@@ -77,8 +86,8 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		var_6 := `+ New`
-		_, err = templBuffer.WriteString(var_6)
+		var_7 := `+ New`
+		_, err = templBuffer.WriteString(var_7)
 		if err != nil {
 			return err
 		}
@@ -87,8 +96,8 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 			return err
 		}
 		for _, s := range sheets {
-			var var_7 = []any{"dropdown-item", templ.KV("is-active", s.Id == sheet.Id)}
-			err = templ.RenderCSSItems(ctx, templBuffer, var_7...)
+			var var_8 = []any{"dropdown-item", templ.KV("is-active", s.Id == sheet.Id)}
+			err = templ.RenderCSSItems(ctx, templBuffer, var_8...)
 			if err != nil {
 				return err
 			}
@@ -96,8 +105,8 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 			if err != nil {
 				return err
 			}
-			var var_8 templ.SafeURL = templ.SafeURL(fmt.Sprintf("/?sheet_id=%d", s.Id))
-			_, err = templBuffer.WriteString(templ.EscapeString(string(var_8)))
+			var var_9 templ.SafeURL = templ.SafeURL(fmt.Sprintf("/?sheet_id=%d", s.Id))
+			_, err = templBuffer.WriteString(templ.EscapeString(string(var_9)))
 			if err != nil {
 				return err
 			}
@@ -105,7 +114,7 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 			if err != nil {
 				return err
 			}
-			_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_7).String()))
+			_, err = templBuffer.WriteString(templ.EscapeString(templ.CSSClasses(var_8).String()))
 			if err != nil {
 				return err
 			}
@@ -113,8 +122,8 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 			if err != nil {
 				return err
 			}
-			var var_9 string = s.VisibleName()
-			_, err = templBuffer.WriteString(templ.EscapeString(var_9))
+			var var_10 string = s.VisibleName()
+			_, err = templBuffer.WriteString(templ.EscapeString(var_10))
 			if err != nil {
 				return err
 			}
@@ -122,13 +131,13 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 			if err != nil {
 				return err
 			}
-			var_10 := `- `
-			_, err = templBuffer.WriteString(var_10)
+			var_11 := `- `
+			_, err = templBuffer.WriteString(var_11)
 			if err != nil {
 				return err
 			}
-			var var_11 string = fmt.Sprintf("%d", s.Id)
-			_, err = templBuffer.WriteString(templ.EscapeString(var_11))
+			var var_12 string = fmt.Sprintf("%d", s.Id)
+			_, err = templBuffer.WriteString(templ.EscapeString(var_12))
 			if err != nil {
 				return err
 			}
@@ -141,8 +150,8 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		var_12 := `Export`
-		_, err = templBuffer.WriteString(var_12)
+		var_13 := `Export`
+		_, err = templBuffer.WriteString(var_13)
 		if err != nil {
 			return err
 		}
@@ -150,8 +159,8 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		var_13 := `Insert`
-		_, err = templBuffer.WriteString(var_13)
+		var_14 := `Insert`
+		_, err = templBuffer.WriteString(var_14)
 		if err != nil {
 			return err
 		}
@@ -159,8 +168,8 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		var_14 := `Row`
-		_, err = templBuffer.WriteString(var_14)
+		var_15 := `Row`
+		_, err = templBuffer.WriteString(var_15)
 		if err != nil {
 			return err
 		}
@@ -168,8 +177,8 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		var_15 := `Column`
-		_, err = templBuffer.WriteString(var_15)
+		var_16 := `Column`
+		_, err = templBuffer.WriteString(var_16)
 		if err != nil {
 			return err
 		}
@@ -177,8 +186,8 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		var_16 := `Help`
-		_, err = templBuffer.WriteString(var_16)
+		var_17 := `Help`
+		_, err = templBuffer.WriteString(var_17)
 		if err != nil {
 			return err
 		}
@@ -194,8 +203,8 @@ func toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		var_17 := `Share`
-		_, err = templBuffer.WriteString(var_17)
+		var_18 := `Share`
+		_, err = templBuffer.WriteString(var_18)
 		if err != nil {
 			return err
 		}
@@ -218,17 +227,17 @@ func index(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 			defer templ.ReleaseBuffer(templBuffer)
 		}
 		ctx = templ.InitializeContext(ctx)
-		var_18 := templ.GetChildren(ctx)
-		if var_18 == nil {
-			var_18 = templ.NopComponent
+		var_19 := templ.GetChildren(ctx)
+		if var_19 == nil {
+			var_19 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		_, err = templBuffer.WriteString("<!doctype html><html><head><script src=\"https://unpkg.com/htmx.org@1.9.5\">")
 		if err != nil {
 			return err
 		}
-		var_19 := ``
-		_, err = templBuffer.WriteString(var_19)
+		var_20 := ``
+		_, err = templBuffer.WriteString(var_20)
 		if err != nil {
 			return err
 		}
@@ -236,8 +245,8 @@ func index(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		var_20 := ``
-		_, err = templBuffer.WriteString(var_20)
+		var_21 := ``
+		_, err = templBuffer.WriteString(var_21)
 		if err != nil {
 			return err
 		}

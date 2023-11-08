@@ -11,6 +11,7 @@ func TestSingleTableSheet(t *testing.T) {
 	tableName := "db_interface_test.customers"
 	sheet := Sheet{}
 	sheet.SetTable(tableName)
+	sheet.LoadRows(100, 0)
 
 	// Insert
 	tx := Begin()

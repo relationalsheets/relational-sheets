@@ -12,6 +12,7 @@ type Pref struct {
 	Index      int
 	SortOn     bool
 	Ascending  bool
+	Filter	   string
 }
 
 func InitPrefsTable() {
@@ -26,6 +27,7 @@ func InitPrefsTable() {
 			, index int NOT NULL
 		    , sorton boolean NOT NULL
 		    , ascending boolean NOT NULL
+			, filter VARCHAR(255) NOT NULL
 			, UNIQUE(sheet_id, tablename, columnname)
 			, CONSTRAINT fk_sheets
 				FOREIGN KEY (sheet_id)
@@ -47,15 +49,17 @@ func (sheet *Sheet) SavePref(pref Pref) {
 			, index
 			, sorton
 			, ascending
+			, filter
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8
+			$1, $2, $3, $4, $5, $6, $7, $8, $9
 		)
 		ON CONFLICT ("sheet_id", "tablename", "columnname") DO
 		UPDATE SET hide = $4
 			, editable = $5
 			, index = $6
 			, sorton = $7
-			, ascending = $8`,
+			, ascending = $8
+			, filter = $9`,
 		sheet.Id,
 		pref.TableName,
 		pref.ColumnName,
@@ -63,10 +67,11 @@ func (sheet *Sheet) SavePref(pref Pref) {
 		pref.Editable,
 		pref.Index,
 		pref.SortOn,
-		pref.Ascending)
+		pref.Ascending,
+		pref.Filter)
 }
 
-func (s *Sheet) loadPrefs() {
+func (s *Sheet) LoadPrefs() {
 	prefs := []Pref{}
 	err := conn.Select(&prefs, `
 		SELECT tablename
@@ -76,6 +81,7 @@ func (s *Sheet) loadPrefs() {
 			, index
 			, sorton
 			, ascending
+			, filter
 		FROM db_interface.column_prefs
 		WHERE sheet_id = $1`,
 		s.Id)

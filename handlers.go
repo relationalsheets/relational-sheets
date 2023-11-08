@@ -121,13 +121,13 @@ func reRenderSheet(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 		writeError(w, "No table name provided")
 		return
 	}
+	err := sheet.LoadRows(100, 0)
 	cols := sheet.OrderedCols(nil)
-	sheet.LoadRows(100, 0)
 	numCols := 0
 	for _, tcols := range cols {
 		numCols += len(tcols)
 	}
-	component := sheetTable(sheet, cols, numCols)
+	component := sheetTable(sheet, cols, numCols, err)
 	handler := templ.Handler(component)
 	handler.ServeHTTP(w, r)
 }
@@ -166,7 +166,11 @@ func handleNewRow(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// TODO: cache
-		sheet.LoadRows(100, 0)
+		err := sheet.LoadRows(100, 0)
+		if err != nil {
+			writeError(w, err.Error())
+			return
+		}
 		cells := sheet.Cells[tableIndex]
 		for rowIndex, _ = range cells[0] {
 			match := true
@@ -206,9 +210,6 @@ func handleAddRow(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 }
 
 func handleIndex(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
-	if sheet.Id != 0 {
-		sheet.LoadSheet()
-	}
 	templ.Handler(index(sheet, sheets.SheetMap)).ServeHTTP(w, r)
 }
 
@@ -218,16 +219,22 @@ func handleSetColPref(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request
 	if colName == "" {
 		writeError(w, "Missing required key: col_name")
 	}
+	sheet.LoadPrefs()
 	pref := sheet.PrefsMap[tableName+"."+colName]
 	pref.TableName = tableName
 	pref.ColumnName = colName
-	pref.Hide = r.FormValue("hide") == "true"
-	// reset sorting if the column is hidden
-	pref.SortOn = !pref.Hide && r.FormValue("sorton") == "true"
-	pref.Ascending = !pref.Hide && r.FormValue("ascending") == "true"
+	// Either update filtering or sorting, never both
+	filters, setFilter := r.Form["filter"]
+	if setFilter {
+		pref.Filter = filters[0]
+	} else {
+		pref.Hide = r.FormValue("hide") == "true"
+		// reset sorting if the column is hidden
+		pref.SortOn = !pref.Hide && r.FormValue("sorton") == "true"
+		pref.Ascending = !pref.Hide && r.FormValue("ascending") == "true"
+	}
 	log.Printf("saving pref: %v", pref)
 	sheet.SavePref(pref)
-	sheet.LoadRows(100, 0)
 
 	reRenderSheet(sheet, w, r)
 }
@@ -241,10 +248,20 @@ func handleUnhideCols(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request
 	reRenderSheet(sheet, w, r)
 }
 
+func handleClearFilters(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+	for _, pref := range sheet.PrefsMap {
+		pref.Filter = ""
+		sheet.SavePref(pref)
+	}
+
+	reRenderSheet(sheet, w, r)
+}
+
 func handleModal(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 	tableName := r.FormValue("table_name")
 	if tableName != "" {
 		sheet.SetTable(tableName)
+		sheet.LoadJoins()
 	}
 
 	tableNames := maps.Keys(sheets.TableMap)

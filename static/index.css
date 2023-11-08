@@ -125,6 +125,19 @@ tr:last-of-type th, tr:last-of-type th {
 thead tr:last-of-type th {
     border-bottom: 3px solid gray;
 }
+th .filter-icon {
+    opacity: 0;
+}
+th:hover .filter-icon {
+    opacity: .2;
+}
+th .filter-icon.is-filtering {
+    opacity: 1;
+}
+.filter-input {
+    min-width: 200px;
+    min-height: 1.5rem;
+}
 #new-row-err-container > td {
     margin-top: 4px;
     height: 48px;

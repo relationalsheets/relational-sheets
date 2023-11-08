@@ -33,6 +33,11 @@ templ toolbar(sheet sheets.Sheet, sheets map[int]sheets.Sheet) {
                    class="dropdown-item">
                     Show All Columns
                 </a>
+                <a hx-post="/clear-filters"
+                   hx-target="#table"
+                   class="dropdown-item">
+                    Clear All Filters
+                </a>
             </div>
           </div>
         </div>

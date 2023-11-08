@@ -32,6 +32,7 @@ func main() {
 	http.HandleFunc("/delete-column", withSheet(handleDeleteCol, true))
 	http.HandleFunc("/set-column-prefs", withSheet(handleSetColPref, true))
 	http.HandleFunc("/unhide-columns", withSheet(handleUnhideCols, true))
+	http.HandleFunc("/clear-filters", withSheet(handleClearFilters, true))
 	http.HandleFunc("/set-cell", withSheet(handleSetCell, true))
 	http.HandleFunc("/set-extra-cell", withSheet(handleSetExtraCell, true))
 	http.HandleFunc("/set-name", withSheet(handleSetName, true))
