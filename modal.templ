@@ -1,15 +1,16 @@
 import (
+	"acb/db-interface/fkeys"
 	"acb/db-interface/sheets"
     "fmt"
 	"strconv"
 )
 
-templ fkeySelect(index int, sheet sheets.Sheet, fkeys map[string]map[int64]sheets.ForeignKey, selected int64) {
+templ fkeySelect(index int, sheet sheets.Sheet, options map[string]map[int64]fkeys.ForeignKey, selected int64) {
     <div class="select fkey-select">
         <select name={ "fkey-" + strconv.Itoa(index) } hx-post="/modal">
             <option value="">None</option>
         for _, tableName := range sheet.TableNames {
-        for oid, fkey := range fkeys[tableName] {
+        for oid, fkey := range options[tableName] {
             <option value={ strconv.FormatInt(oid, 10) }
                     selected?={ oid == selected }>
                 { fkey.ToString() }
@@ -20,7 +21,7 @@ templ fkeySelect(index int, sheet sheets.Sheet, fkeys map[string]map[int64]sheet
     </div>
 }
 
-templ modal(sheet sheets.Sheet, tableNames []string, fkeys map[string]map[int64]sheets.ForeignKey, addJoin bool) {
+templ modal(sheet sheets.Sheet, tableNames []string, options map[string]map[int64]fkeys.ForeignKey, addJoin bool) {
     <div id="modal" class="modal is-active" hx-target="#modal" onclick="event.stopPropagation()">
         <div class="modal-content box">
             <div id="table-fkey-config"
@@ -40,10 +41,10 @@ templ modal(sheet sheets.Sheet, tableNames []string, fkeys map[string]map[int64]
                         </select>
                     </div>
                     for index, oid := range sheet.JoinOids {
-                        @fkeySelect(index, sheet, fkeys, oid)
+                        @fkeySelect(index, sheet, options, oid)
                     }
                     if addJoin {
-                        @fkeySelect(len(sheet.JoinOids), sheet, fkeys, 0)
+                        @fkeySelect(len(sheet.JoinOids), sheet, options, 0)
                     }
                     <button hx-post="/modal"
                             name="add_join"

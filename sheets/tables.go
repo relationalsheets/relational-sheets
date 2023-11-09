@@ -1,6 +1,8 @@
 package sheets
 
 import (
+	"acb/db-interface/escape"
+	"acb/db-interface/fkeys"
 	"errors"
 	"fmt"
 	"log"
@@ -19,13 +21,6 @@ type TableNames struct {
 	TableName  string `db:"tablename"`
 }
 
-type ForeignKey struct {
-	sourceTableName string
-	targetTableName string
-	sourceColNames  []string
-	targetColNames  []string
-}
-
 type Column struct {
 	Name         string
 	IsNullable   bool
@@ -38,7 +33,7 @@ type Table struct {
 	TableNames
 	HasPrimaryKey bool
 	Cols          map[string]Column
-	Fkeys         map[int64]ForeignKey
+	Fkeys         map[int64]fkeys.ForeignKey
 	Oid           int64
 }
 
@@ -51,18 +46,6 @@ var TableMap = make(map[string]*Table)
 
 func (table Table) FullName() string {
 	return fmt.Sprintf("%s.%s", table.SchemaName, table.TableName)
-}
-
-func (fkey ForeignKey) ToString() string {
-	return fkey.sourceTableName + "." + strings.Join(fkey.sourceColNames, ",") + "->" + fkey.targetTableName + "." + strings.Join(fkey.targetColNames, ",")
-}
-
-func (fkey ForeignKey) toJoinClause(tableName string) string {
-	pairs := make([]string, len(fkey.sourceColNames))
-	for i, sourceCol := range fkey.sourceColNames {
-		pairs[i] = fkey.sourceTableName + "." + sourceCol + " = " + fkey.targetTableName + "." + fkey.targetColNames[i]
-	}
-	return "LEFT JOIN " + tableName + " ON " + strings.Join(pairs, ",")
 }
 
 func (sheet Sheet) OrderedCols(tx *sqlx.Tx) [][]Column {
@@ -97,7 +80,7 @@ func (sheet *Sheet) sortedTablesAndReqCols(tx *sqlx.Tx) ([]string, map[string]ma
 
 	table := *sheet.Table
 	for i, joinOid := range sheet.JoinOids {
-		var join ForeignKey
+		var join fkeys.ForeignKey
 		var joinFound bool
 		for _, potentialJoinTableName := range sheet.TableNames[:i+1] {
 			potentialJoinTable := TableMap[potentialJoinTableName]
@@ -110,10 +93,10 @@ func (sheet *Sheet) sortedTablesAndReqCols(tx *sqlx.Tx) ([]string, map[string]ma
 			panic(fmt.Sprintf("Missing join %d on table %s (have %v)", joinOid, table.FullName(), table.Fkeys))
 		}
 		log.Printf("Join info: %v", join)
-		addToNestedMap(outgoingEdges, join.targetTableName, join.sourceTableName, true)
-		addToNestedMap(incomingEdges, join.sourceTableName, join.targetTableName, true)
-		for i, colName := range join.targetColNames {
-			addToNestedMap2(requiredCols, join.targetTableName, colName, join.sourceTableName, join.sourceColNames[i])
+		addToNestedMap(outgoingEdges, join.TargetTableName, join.SourceTableName, true)
+		addToNestedMap(incomingEdges, join.SourceTableName, join.TargetTableName, true)
+		for i, colName := range join.TargetColNames {
+			addToNestedMap2(requiredCols, join.TargetTableName, colName, join.SourceTableName, join.SourceColNames[i])
 		}
 	}
 
@@ -183,7 +166,7 @@ func (t *Table) loadConstraints(tx *sqlx.Tx) {
 		return
 	}
 	log.Printf("Loading constraints for table %s (%d)", t.FullName(), t.Oid)
-	t.Fkeys = make(map[int64]ForeignKey)
+	t.Fkeys = make(map[int64]fkeys.ForeignKey)
 
 	if tx == nil {
 		tx = Begin()
@@ -236,6 +219,7 @@ func (t *Table) loadConstraints(tx *sqlx.Tx) {
 				strconv.FormatInt(rawFkey.Conrelid, 10)),
 			strconv.FormatInt(rawFkey.Confrelid, 10))
 	}
+	// Safe since we know relIds are from strconv.FormatInt
 	query := fmt.Sprintf(`
 		SELECT attrelid
 		    , attnum
@@ -271,40 +255,40 @@ func (t *Table) loadConstraints(tx *sqlx.Tx) {
 
 	// Populate t.Fkeys
 	for _, rawFkey := range rawFkeys {
-		fkey := ForeignKey{}
+		fkey := fkeys.ForeignKey{}
 		if rawFkey.Conrelid == t.Oid {
-			fkey.sourceTableName = t.FullName()
+			fkey.SourceTableName = t.FullName()
 			for _, t2 := range TableMap {
 				if t2.Oid == rawFkey.Confrelid {
-					fkey.targetTableName = t2.FullName()
+					fkey.TargetTableName = t2.FullName()
 				}
 			}
 			for _, attnum := range rawFkey.Conkey {
-				fkey.sourceColNames = append(fkey.sourceColNames, idsToNames[[2]int64{rawFkey.Conrelid, attnum}])
+				fkey.SourceColNames = append(fkey.SourceColNames, idsToNames[[2]int64{rawFkey.Conrelid, attnum}])
 			}
 			for _, attnum := range rawFkey.Confkey {
-				fkey.targetColNames = append(fkey.targetColNames, idsToNames[[2]int64{rawFkey.Confrelid, attnum}])
+				fkey.TargetColNames = append(fkey.TargetColNames, idsToNames[[2]int64{rawFkey.Confrelid, attnum}])
 			}
 		} else {
 			if rawFkey.Confrelid != t.Oid {
 				panic("SQL WHERE clause violated -- unexpected table oid")
 			}
 
-			fkey.targetTableName = t.FullName()
+			fkey.TargetTableName = t.FullName()
 			for _, t2 := range TableMap {
 				if t2.Oid == rawFkey.Conrelid {
-					fkey.sourceTableName = t2.FullName()
+					fkey.SourceTableName = t2.FullName()
 				}
 			}
 			for _, attnum := range rawFkey.Conkey {
-				fkey.sourceColNames = append(fkey.sourceColNames, idsToNames[[2]int64{rawFkey.Conrelid, attnum}])
+				fkey.SourceColNames = append(fkey.SourceColNames, idsToNames[[2]int64{rawFkey.Conrelid, attnum}])
 			}
 			for _, attnum := range rawFkey.Confkey {
-				fkey.targetColNames = append(fkey.targetColNames, idsToNames[[2]int64{rawFkey.Confrelid, attnum}])
+				fkey.TargetColNames = append(fkey.TargetColNames, idsToNames[[2]int64{rawFkey.Confrelid, attnum}])
 			}
 		}
 
-		if fkey.sourceTableName == "" || fkey.targetTableName == "" {
+		if fkey.SourceTableName == "" || fkey.TargetTableName == "" {
 			panic(fmt.Sprintf("Unexpected table oid in %v", rawFkey))
 		}
 
@@ -326,10 +310,10 @@ func (sheet *Sheet) LoadJoins() {
 			join, ok := TableMap[tableName].Fkeys[joinOid]
 			if ok {
 				joinFound = true
-				if join.sourceTableName == table.FullName() {
-					table = TableMap[join.targetTableName]
+				if join.SourceTableName == table.FullName() {
+					table = TableMap[join.TargetTableName]
 				} else {
-					table = TableMap[join.sourceTableName]
+					table = TableMap[join.SourceTableName]
 				}
 				break
 			}
@@ -357,10 +341,10 @@ func (sheet *Sheet) SetJoin(fkeyIndex int, oid int64) error {
 				sheet.TableNames = append(sheet.TableNames, "")
 			}
 			sheet.JoinOids[fkeyIndex] = oid
-			if fkey.sourceTableName == tableName {
-				sheet.TableNames[fkeyIndex+1] = fkey.targetTableName
+			if fkey.SourceTableName == tableName {
+				sheet.TableNames[fkeyIndex+1] = fkey.TargetTableName
 			} else {
-				sheet.TableNames[fkeyIndex+1] = fkey.sourceTableName
+				sheet.TableNames[fkeyIndex+1] = fkey.SourceTableName
 			}
 			log.Printf("Sheet now joins %v", sheet.TableNames)
 			sheet.SaveSheet()
@@ -374,14 +358,12 @@ func (sheet *Sheet) SetJoin(fkeyIndex int, oid int64) error {
 	return fmt.Errorf("no such fkey %d", oid)
 }
 
-func (sheet *Sheet) fromClause() string {
-	fromClause := "FROM " + sheet.TableNames[0]
+func (sheet *Sheet) joins() []fkeys.ForeignKey {
+	joins := make([]fkeys.ForeignKey, len(sheet.JoinOids))
 	for i, joinOid := range sheet.JoinOids {
-		tableName := sheet.TableNames[i+1]
-		fkey := TableMap[tableName].Fkeys[joinOid]
-		fromClause += " " + fkey.toJoinClause(tableName)
+		joins[i] = TableMap[sheet.TableNames[i+1]].Fkeys[joinOid]
 	}
-	return fromClause
+	return joins
 }
 
 func (sheet *Sheet) LoadRows(limit int, offset int) error {
@@ -389,44 +371,47 @@ func (sheet *Sheet) LoadRows(limit int, offset int) error {
 	sheet.LoadPrefs()
 	cols := sheet.OrderedCols(nil)
 	sheet.Cells = make([][][]Cell, len(sheet.TableNames))
-	// TODO: Check if table.TableName and column names are valid somewhere
-	casts := []string{}
-	orderClauses := []string{}
-	filterClauses := []string{}
+	casts := []escape.SafeSQL{}
+	orderExpressions := []escape.SafeSQL{}
+	filterClauses := []escape.SafeSQL{}
 	for i, tableName := range sheet.TableNames {
-		table := TableMap[tableName]
 		sheet.Cells[i] = make([][]Cell, len(cols[i]))
 		for j, col := range cols[i] {
 			sheet.Cells[i][j] = make([]Cell, 0, limit)
-			name := table.FullName() + "." + col.Name
-			cast := fmt.Sprintf("%s::text, %s IS NOT NULL", name, name)
+			name := tableName + "." + col.Name
+			cast, err := escape.MakeCast(name, "text", "")
+			if err != nil {
+				return err
+			}
+			casts = append(casts, cast)
+			cast, err = escape.MakeNotNull(name)
+			if err != nil {
+				return err
+			}
 			casts = append(casts, cast)
 
-			pref := sheet.PrefsMap[tableName+"."+col.Name]
+			pref := sheet.PrefsMap[name]
 			if pref.SortOn {
-				orderDirection := "DESC"
-				if pref.Ascending {
-					orderDirection = "ASC"
+				colOrder, err := escape.MakeOrderExpr(name, pref.Ascending)
+				if err != nil {
+					return err
 				}
-				colOrder := fmt.Sprintf("%s.%s %s", tableName, col.Name, orderDirection)
-				orderClauses = append(orderClauses, colOrder)
+				orderExpressions = append(orderExpressions, colOrder)
 			}
 			if pref.Filter != "" {
-				filter := fmt.Sprintf("%s.%s %s", tableName, col.Name, pref.Filter)
+				filter, err := escape.MakeFilterClause(name, pref.Filter)
+				if err != nil {
+					return err
+				}
 				filterClauses = append(filterClauses, filter)
 			}
 		}
 	}
 
-	query := "SELECT " + strings.Join(casts, ", ") + " " + sheet.fromClause()
-	if len(filterClauses) > 0 {
-		query += " WHERE " + strings.Join(filterClauses, " AND ")
+	query, err := escape.MakeSelectStmt(sheet.TableNames, sheet.joins(), casts, filterClauses, orderExpressions, true)
+	if err != nil {
+		return err
 	}
-	if len(orderClauses) > 0 {
-		query += " ORDER BY " + strings.Join(orderClauses, ", ")
-	}
-	query += " LIMIT $1 OFFSET $2"
-	log.Printf("Executing: %s", query)
 	rows, err := conn.Queryx(query, limit, offset)
 	if err != nil {
 		return fmt.Errorf("Error running %s: %w", query, err)
@@ -439,8 +424,8 @@ func (sheet *Sheet) LoadRows(limit int, offset int) error {
 			return err
 		}
 		index := 0
-		for i, _ := range sheet.TableNames {
-			for j, _ := range cols[i] {
+		for i := range sheet.TableNames {
+			for j := range cols[i] {
 				val := ""
 				isNotNull := scanResult[2*index+1].(bool)
 				if isNotNull {
@@ -461,37 +446,17 @@ func (sheet *Sheet) LoadRows(limit int, offset int) error {
 
 func (sheet *Sheet) InsertRow(tx *sqlx.Tx, tableName string, values map[string]string, returning []string) ([]interface{}, error) {
 	nonEmptyValues := prepareValues(values, false)
-	if len(nonEmptyValues) == 0 {
-		return nil, errors.New("All fields are empty")
+	query, err := escape.MakeInsertStmt(tableName, nonEmptyValues, returning)
+	if err != nil {
+		return nil, err
 	}
-
-	keys := maps.Keys(nonEmptyValues)
-	valueLabels := make([]string, len(nonEmptyValues))
-	for i, key := range keys {
-		valueLabels[i] = ":" + key
-	}
-
-	returningCasts := make([]string, len(returning))
-	for i, colName := range returning {
-		returningCasts[i] = fmt.Sprintf("CAST(%s AS TEXT)", colName)
-	}
-
-	query := fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES (%s)",
-		tableName,
-		strings.Join(keys, ", "),
-		strings.Join(valueLabels, ", "))
-	if len(returningCasts) > 0 {
-		query += " RETURNING " + strings.Join(returningCasts, ", ")
-	}
-	log.Println("Executing:", query)
 	log.Println("Values:", nonEmptyValues)
 	rows, err := tx.NamedQuery(query, nonEmptyValues)
 	if err != nil {
 		return nil, err
 	}
 	var result []interface{}
-	if len(returningCasts) > 0 {
+	if len(returning) > 0 {
 		if !rows.Next() {
 			panic("No ID returned by insert")
 		}
@@ -531,7 +496,7 @@ func topoSort(nodes []string, outgoingEdges, incomingEdges map[string]map[string
 		n := s[0]
 		s = s[1:]
 		l = append(l, n)
-		for m, _ := range outgoingEdges[n] {
+		for m := range outgoingEdges[n] {
 			delete(outgoingEdges[n], m)
 			delete(incomingEdges[m], n)
 			if len(incomingEdges[m]) == 0 {
@@ -614,24 +579,13 @@ func (table *Table) updateRow(values map[string]string, primaryKeys map[string]s
 		return errors.New("Cannot update table without primary key: " + table.FullName())
 	}
 
-	assignments := make([]string, len(values))
-	for i, key := range maps.Keys(values) {
-		assignments[i] = key + " = :" + key
+	query, err := escape.MakeUpdateStmt(table.FullName(), values, primaryKeys)
+	if err != nil {
+		return err
 	}
-	whereClauses := make([]string, len(primaryKeys))
-	for i, key := range maps.Keys(primaryKeys) {
-		whereClauses[i] = key + " = :" + key
-		values[key] = primaryKeys[key]
-	}
-	query := fmt.Sprintf(
-		"UPDATE %s SET %s WHERE %s",
-		table.FullName(),
-		strings.Join(assignments, ", "),
-		strings.Join(whereClauses, " AND "))
 	prepared := prepareValues(values, true)
-	log.Println("Executing:", query)
 	log.Println("Values:", prepared)
-	_, err := conn.NamedExec(query, prepared)
+	_, err = conn.NamedExec(query, prepared)
 	return err
 }
 

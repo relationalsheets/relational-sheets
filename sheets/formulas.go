@@ -1,6 +1,8 @@
 package sheets
 
 import (
+	"acb/db-interface/escape"
+	"acb/db-interface/fkeys"
 	"errors"
 	"fmt"
 	"log"
@@ -328,15 +330,18 @@ func (s *Sheet) evalAssociativeFunc(fDefs SQLAndGoFunc, arguments [][]Token) (To
 				return Token{}, err
 			}
 			if tableIndex >= 0 {
-				colExpression := "\"" + colName + "\""
-				if fDefs.sqlCast != "" {
-					colExpression = fmt.Sprintf("CAST(%s AS %s)", colExpression, fDefs.sqlCast)
-				}
+				alias, err := escape.MakeCast(colName, fDefs.sqlCast, "val")
+				subquery, err := escape.MakeSelectStmt(
+					s.TableNames,
+					s.joins(),
+					[]escape.SafeSQL{alias},
+					[]escape.SafeSQL{},
+					[]escape.SafeSQL{},
+					true)
 				query := fmt.Sprintf(
-					"SELECT %s(sq.val) FROM (SELECT %s AS val FROM %s LIMIT $1 OFFSET $2) sq",
+					"SELECT %s(sq.val) FROM (%s) sq",
 					fDefs.sqlName,
-					colExpression,
-					s.TableNames[tableIndex])
+					subquery)
 				log.Printf("Executing %s (%d, %d)", query, end-start+1, start-1)
 				row := conn.QueryRow(query, end-start+1, start-1)
 				err = row.Scan(&argVal)
@@ -469,10 +474,18 @@ func (s *Sheet) evalAverage(arguments [][]Token) (Token, error) {
 				return Token{}, err
 			}
 			if tableIndex >= 0 {
-				query := fmt.Sprintf(
-					"SELECT SUM(sq.val), COUNT(*) FROM (SELECT \"%s\" AS val FROM %s LIMIT $1 OFFSET $2) sq",
-					colName,
-					s.TableNames[tableIndex])
+				alias, err := escape.MakeCast(colName, "", "val")
+				if err != nil {
+					return Token{}, err
+				}
+				subquery, err := escape.MakeSelectStmt(
+					[]string{s.TableNames[tableIndex]},
+					[]fkeys.ForeignKey{},
+					[]escape.SafeSQL{alias},
+					[]escape.SafeSQL{},
+					[]escape.SafeSQL{},
+					true)
+				query := fmt.Sprintf("SELECT SUM(sq.val), COUNT(*) FROM (%s) sq", subquery)
 				log.Printf("Executing %s (%d, %d)", query, end-start+1, start-1)
 				row := conn.QueryRow(query, end-start+1, start-1)
 				err = row.Scan(&argVal, &argCount)
@@ -555,7 +568,7 @@ func (s *Sheet) evalAggIf(fName string, arguments [][]Token) (Token, error) {
 	criteria := criteriaToken.TValue
 	sumRange := conditionRange
 	if len(arguments) > 2 {
-		if len(arguments[2]) != 1 || arguments[2][0].TSubType != efp.TokenSubTypeRange { 
+		if len(arguments[2]) != 1 || arguments[2][0].TSubType != efp.TokenSubTypeRange {
 			return Token{}, errors.New("invalid range in SUMIF")
 		}
 		sumRange = arguments[2][0].TValue
@@ -580,18 +593,27 @@ func (s *Sheet) evalAggIf(fName string, arguments [][]Token) (Token, error) {
 	sum := 0.0
 	count := 0
 	if conditionTableIndex >= 0 {
+		alias, err := escape.MakeCast(sumColName, "", "val")
+		if err != nil {
+			return Token{}, err
+		}
+		filterClause, err := escape.MakeFilterClause(conditionColName, criteria)
+		subquery, err := escape.MakeSelectStmt(
+			s.TableNames,
+			s.joins(),
+			[]escape.SafeSQL{alias},
+			[]escape.SafeSQL{filterClause},
+			[]escape.SafeSQL{},
+			true)
 		query := fmt.Sprintf(
-			"SELECT COALESCE(SUM(sq.val), 0), COUNT(*) FROM (SELECT \"%s\" AS val %s WHERE %s %s LIMIT $1 OFFSET $2) sq",
-			sumColName,
-			s.fromClause(),
-			conditionColName,
-			criteria)
+			"SELECT COALESCE(SUM(sq.val), 0), COUNT(*) FROM (%s) sq",
+			subquery)
 		log.Printf("Executing %s (%d, %d)", query, end-start+1, start-1)
 		row := conn.QueryRow(query, end-start+1, start-1)
 		err = row.Scan(&sum, &count)
 		Check(err)
 	} else {
-		for i := start-1; i < min(end, len(s.ExtraCols[conditionColIndex].Cells)); i++ {
+		for i := start - 1; i < min(end, len(s.ExtraCols[conditionColIndex].Cells)); i++ {
 			conditionExpression := "=" + s.ExtraCols[conditionColIndex].Cells[i].Value + criteria
 			conditionVal, err := s.evalLogicalExpression(parseFormula(conditionExpression))
 			if err != nil {

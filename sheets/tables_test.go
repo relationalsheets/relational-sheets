@@ -85,7 +85,7 @@ func TestMultiTableSheet(t *testing.T) {
 	sheet.JoinOids = make([]int64, 0, 100)
 	// Join orders
 	for oid, fkey := range customers.Fkeys {
-		if fkey.targetTableName == customers.FullName() {
+		if fkey.TargetTableName == customers.FullName() {
 			err := sheet.SetJoin(0, oid)
 			if err != nil {
 				t.Fatal(err)
@@ -94,7 +94,7 @@ func TestMultiTableSheet(t *testing.T) {
 	}
 	// Join order_products
 	for oid, fkey := range order_products.Fkeys {
-		if fkey.targetTableName == orders.FullName() {
+		if fkey.TargetTableName == orders.FullName() {
 			err := sheet.SetJoin(1, oid)
 			if err != nil {
 				t.Fatal(err)
@@ -103,7 +103,7 @@ func TestMultiTableSheet(t *testing.T) {
 	}
 	// Join products
 	for oid, fkey := range order_products.Fkeys {
-		if fkey.targetTableName == products.FullName() {
+		if fkey.TargetTableName == products.FullName() {
 			err := sheet.SetJoin(2, oid)
 			if err != nil {
 				t.Fatal(err)
@@ -173,7 +173,7 @@ func TestAlternateJoinOrder(t *testing.T) {
 	sheet.JoinOids = make([]int64, 0, 100)
 	// Join customers
 	for oid, fkey := range orders.Fkeys {
-		if fkey.targetTableName == customers.FullName() {
+		if fkey.TargetTableName == customers.FullName() {
 			err := sheet.SetJoin(0, oid)
 			if err != nil {
 				t.Fatal(err)
@@ -182,7 +182,7 @@ func TestAlternateJoinOrder(t *testing.T) {
 	}
 	// Join order_products
 	for oid, fkey := range orders.Fkeys {
-		if fkey.sourceTableName == order_products.FullName() {
+		if fkey.SourceTableName == order_products.FullName() {
 			err := sheet.SetJoin(1, oid)
 			if err != nil {
 				t.Fatal(err)
@@ -191,7 +191,7 @@ func TestAlternateJoinOrder(t *testing.T) {
 	}
 	// Join products
 	for oid, fkey := range order_products.Fkeys {
-		if fkey.targetTableName == products.FullName() {
+		if fkey.TargetTableName == products.FullName() {
 			err := sheet.SetJoin(2, oid)
 			if err != nil {
 				t.Fatal(err)

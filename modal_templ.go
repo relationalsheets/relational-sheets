@@ -10,12 +10,13 @@ import "io"
 import "bytes"
 
 import (
+	"acb/db-interface/fkeys"
 	"acb/db-interface/sheets"
 	"fmt"
 	"strconv"
 )
 
-func fkeySelect(index int, sheet sheets.Sheet, fkeys map[string]map[int64]sheets.ForeignKey, selected int64) templ.Component {
+func fkeySelect(index int, sheet sheets.Sheet, options map[string]map[int64]fkeys.ForeignKey, selected int64) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -50,7 +51,7 @@ func fkeySelect(index int, sheet sheets.Sheet, fkeys map[string]map[int64]sheets
 			return err
 		}
 		for _, tableName := range sheet.TableNames {
-			for oid, fkey := range fkeys[tableName] {
+			for oid, fkey := range options[tableName] {
 				_, err = templBuffer.WriteString("<option value=\"")
 				if err != nil {
 					return err
@@ -95,7 +96,7 @@ func fkeySelect(index int, sheet sheets.Sheet, fkeys map[string]map[int64]sheets
 	})
 }
 
-func modal(sheet sheets.Sheet, tableNames []string, fkeys map[string]map[int64]sheets.ForeignKey, addJoin bool) templ.Component {
+func modal(sheet sheets.Sheet, tableNames []string, options map[string]map[int64]fkeys.ForeignKey, addJoin bool) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) (err error) {
 		templBuffer, templIsBuffer := w.(*bytes.Buffer)
 		if !templIsBuffer {
@@ -167,13 +168,13 @@ func modal(sheet sheets.Sheet, tableNames []string, fkeys map[string]map[int64]s
 			return err
 		}
 		for index, oid := range sheet.JoinOids {
-			err = fkeySelect(index, sheet, fkeys, oid).Render(ctx, templBuffer)
+			err = fkeySelect(index, sheet, options, oid).Render(ctx, templBuffer)
 			if err != nil {
 				return err
 			}
 		}
 		if addJoin {
-			err = fkeySelect(len(sheet.JoinOids), sheet, fkeys, 0).Render(ctx, templBuffer)
+			err = fkeySelect(len(sheet.JoinOids), sheet, options, 0).Render(ctx, templBuffer)
 			if err != nil {
 				return err
 			}

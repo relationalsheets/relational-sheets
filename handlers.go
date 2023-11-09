@@ -1,6 +1,7 @@
 package main
 
 import (
+	"acb/db-interface/fkeys"
 	"acb/db-interface/sheets"
 	"errors"
 	"log"
@@ -57,7 +58,7 @@ func parseColFields(r *http.Request, prefix string) (map[string]map[string]strin
 		if found {
 			parts := strings.Split(name, " ")
 			if len(parts) != 2 {
-				return nil, errors.New("Unexpected field name: "+name)
+				return nil, errors.New("Unexpected field name: " + name)
 			}
 			submap, ok := values[parts[0]]
 			if !ok {
@@ -275,21 +276,21 @@ func handleModal(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 	slices.Sort(tableNames)
 
 	fkeyOidsSeen := make(map[int64]bool)
-	fkeys := make(map[string]map[int64]sheets.ForeignKey)
+	options := make(map[string]map[int64]fkeys.ForeignKey)
 	for _, name := range sheet.TableNames {
-		fkeys[name] = make(map[int64]sheets.ForeignKey)
+		options[name] = make(map[int64]fkeys.ForeignKey)
 		for oid, fkey := range sheets.TableMap[name].Fkeys {
 			if !fkeyOidsSeen[oid] {
 				fkeyOidsSeen[oid] = true
-				fkeys[name][oid] = fkey
+				options[name][oid] = fkey
 			}
 		}
 	}
 
 	_, addJoin := r.Form["add_join"]
 	if addJoin || r.Method != "POST" {
-		log.Printf("Available fkeys: %v", fkeys)
-		templ.Handler(modal(sheet, tableNames, fkeys, addJoin)).ServeHTTP(w, r)
+		log.Printf("Available fkeys: %v", options)
+		templ.Handler(modal(sheet, tableNames, options, addJoin)).ServeHTTP(w, r)
 		return
 	}
 
@@ -317,7 +318,7 @@ func handleModal(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	templ.Handler(modal(sheet, tableNames, fkeys, addJoin)).ServeHTTP(w, r)
+	templ.Handler(modal(sheet, tableNames, options, addJoin)).ServeHTTP(w, r)
 }
 
 func handleSetName(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
