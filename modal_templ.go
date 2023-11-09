@@ -13,6 +13,7 @@ import (
 	"acb/db-interface/fkeys"
 	"acb/db-interface/sheets"
 	"fmt"
+	"slices"
 	"strconv"
 )
 
@@ -52,36 +53,38 @@ func fkeySelect(index int, sheet sheets.Sheet, options map[string]map[int64]fkey
 		}
 		for _, tableName := range sheet.TableNames {
 			for oid, fkey := range options[tableName] {
-				_, err = templBuffer.WriteString("<option value=\"")
-				if err != nil {
-					return err
-				}
-				_, err = templBuffer.WriteString(templ.EscapeString(strconv.FormatInt(oid, 10)))
-				if err != nil {
-					return err
-				}
-				_, err = templBuffer.WriteString("\"")
-				if err != nil {
-					return err
-				}
-				if oid == selected {
-					_, err = templBuffer.WriteString(" selected")
+				if oid == selected || !slices.Contains(sheet.JoinOids, oid) {
+					_, err = templBuffer.WriteString("<option value=\"")
 					if err != nil {
 						return err
 					}
-				}
-				_, err = templBuffer.WriteString(">")
-				if err != nil {
-					return err
-				}
-				var var_3 string = fkey.ToString()
-				_, err = templBuffer.WriteString(templ.EscapeString(var_3))
-				if err != nil {
-					return err
-				}
-				_, err = templBuffer.WriteString("</option>")
-				if err != nil {
-					return err
+					_, err = templBuffer.WriteString(templ.EscapeString(strconv.FormatInt(oid, 10)))
+					if err != nil {
+						return err
+					}
+					_, err = templBuffer.WriteString("\"")
+					if err != nil {
+						return err
+					}
+					if oid == selected {
+						_, err = templBuffer.WriteString(" selected")
+						if err != nil {
+							return err
+						}
+					}
+					_, err = templBuffer.WriteString(">")
+					if err != nil {
+						return err
+					}
+					var var_3 string = fkey.ToString()
+					_, err = templBuffer.WriteString(templ.EscapeString(var_3))
+					if err != nil {
+						return err
+					}
+					_, err = templBuffer.WriteString("</option>")
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}

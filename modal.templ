@@ -2,6 +2,7 @@ import (
 	"acb/db-interface/fkeys"
 	"acb/db-interface/sheets"
     "fmt"
+    "slices"
 	"strconv"
 )
 
@@ -11,10 +12,12 @@ templ fkeySelect(index int, sheet sheets.Sheet, options map[string]map[int64]fke
             <option value="">None</option>
         for _, tableName := range sheet.TableNames {
         for oid, fkey := range options[tableName] {
+        if oid == selected || !slices.Contains(sheet.JoinOids, oid) {
             <option value={ strconv.FormatInt(oid, 10) }
                     selected?={ oid == selected }>
                 { fkey.ToString() }
             </option>
+        }
         }
         }
         </select>
