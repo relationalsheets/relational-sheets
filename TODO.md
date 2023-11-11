@@ -1,5 +1,4 @@
 - [ ] Support column dependencies
-- [ ] Expand README
 - [ ] Add license
 - [ ] Change limit
 - [ ] Pagination
