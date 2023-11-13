@@ -1,4 +1,0 @@
-- [ ] Support column dependencies
-- [ ] Add license
-- [ ] Change limit
-- [ ] Pagination
