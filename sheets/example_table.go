@@ -45,40 +45,79 @@ func SetupTablesDB() {
 func LoadExampleData() {
 	conn.MustExec(
 		`INSERT INTO db_interface_test.customers (name)
-			VALUES ('Alice'), ('Bob'), ('Charles'), ('Devon'), ('Erin'), ('Finnegan')
+			VALUES ('Alice')
+				, ('Bob')
+				, ('Charles')
+				, ('Devon')
+				, ('Erin')
+				, ('Finnegan')
+				, ('George')
+				, ('Herald')
+				, ('Irina')
 		`)
 	conn.MustExec(
 		`INSERT INTO db_interface_test.orders (customer_id, total, status)
-			VALUES (1, 123.45, 'unfilled'),
-				(2, 10, 'shipped'),
-				(2, 15, 'delivered'),
-				(3, 2000, 'unfilled'),
-				(4, 180.20, 'shipped'),
-				(4, 41.55, 'shipped'),
-				(6, 0.99, 'delivered')
+			VALUES (1, 123.45, 'unfilled')
+				, (2, 2010.99, 'shipped')
+				, (2, 15, 'delivered')
+				, (3, 2000, 'unfilled')
+				, (4, 349.21, 'shipped')
+				, (4, 41.55, 'shipped')
+				, (6, 0.99, 'delivered')
+				, (6, 36.55, 'delivered')
+				, (7, 345.20, 'delivered')
+				, (7, 2225.76, 'delivered')
+				, (8, 169.01, 'delivered')
+				, (9, 41.55, 'delivered')
 		`)
 	conn.MustExec(
 		`INSERT INTO db_interface_test.products (name, price)
-			VALUES ('ACME Widget', 123.45),
-				('Steel Bolt', 10),
-				('Chinese Five Spice', 5),
-				('Candles', 2000),
-				('U-Turn Sign', 180.20),
-				('Pillow', 30.56),
-				('Digital Download', 0.99)
+			VALUES ('ACME Widget', 123.45)
+				, ('Steel Bolt', 10)
+				, ('Chinese Five Spice', 5)
+				, ('Candles', 2000)
+				, ('U-Turn Sign', 180.20)
+				, ('Pillow', 30.56)
+				, ('Digital Download', 0.99)
 		`)
 	conn.MustExec(
 		`INSERT INTO db_interface_test.order_products (order_id, product_id)
-			VALUES (1, 1),
-				(2, 2),
-				(3, 2),
-				(3, 3),
-				(4, 4),
-				(5, 5),
-				(6, 2),
-				(6, 6),
-				(6, 7),
-				(7, 7)
+			VALUES (1, 1)
+				, (2, 2)
+				, (2, 4)
+				, (2, 7)
+				, (3, 2)
+				, (3, 3)
+				, (4, 4)
+				, (5, 5)
+				, (5, 1)
+				, (5, 2)
+				, (5, 3)
+				, (5, 6)
+				, (6, 2)
+				, (6, 6)
+				, (6, 7)
+				, (7, 7)
+				, (8, 3)
+				, (8, 6)
+				, (8, 7)
+				, (9, 1)
+				, (9, 2)
+				, (9, 5)
+				, (9, 6)
+				, (9, 7)
+				, (10, 2)
+				, (10, 3)
+				, (10, 4)
+				, (10, 5)
+				, (10, 6)
+				, (11, 1)
+				, (11, 2)
+				, (11, 3)
+				, (11, 6)
+				, (12, 2)
+				, (12, 6)
+				, (12, 7)
 		`)
 }
 

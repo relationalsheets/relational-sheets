@@ -87,6 +87,7 @@ func (s *Sheet) loadExtraCols() {
 	Check(err)
 	log.Printf("Loaded %d custom columns", len(s.ExtraCols))
 
+	SheetMap[s.Id] = *s
 	s.loadCells()
 }
 

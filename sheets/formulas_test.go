@@ -51,6 +51,17 @@ func checkFormulas(t *testing.T, sheet Sheet, formulasAndValues map[string]strin
 	}
 }
 
+func checkFormulaErrors(t *testing.T, sheet Sheet, formulasAndErrors map[string]string) {
+	for formula, expected := range formulasAndErrors {
+		_, err := sheet.evalFormula("=" + formula)
+		if err == nil {
+			t.Errorf("Unexpected success: %s", formula)
+		} else if err.Error() != expected {
+			t.Errorf("Wrong error: %s != %s", err.Error(), expected)
+		}
+	}
+}
+
 func TestEvalWithLiterals(t *testing.T) {
 	formulasAndValues := map[string]string{
 		"2":                           "2",
@@ -172,4 +183,11 @@ func TestRoundTripSerialization(t *testing.T) {
 			t.Errorf("%s != %s parsed as: %v", roundTripped, formula, tokens)
 		}
 	}
+}
+
+func TestParsingErrors(t *testing.T) {
+	formulasAndErrors := map[string]string{
+		"1+": "missing second operand for +",
+	}
+	checkFormulaErrors(t, Sheet{}, formulasAndErrors)
 }

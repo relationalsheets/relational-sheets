@@ -799,6 +799,9 @@ func (s *Sheet) evalTokens(tokens []Token) (Token, error) {
 			if i == 0 {
 				return Token{}, errors.New("cannot start expression with infix operator")
 			}
+			if len(tokens) <= i+1 {
+				return Token{}, fmt.Errorf("missing second operand for %s", t.TValue)
+			}
 			val, err := s.infixOperator(tokens[i-1], tokens[i+1], t.TValue)
 			if err != nil {
 				return Token{}, err
@@ -817,6 +820,9 @@ func (s *Sheet) evalTokens(tokens []Token) (Token, error) {
 		if t.TType == efp.TokenTypeOperatorInfix && (t.TValue == "+" || t.TValue == "-") {
 			if i == 0 {
 				return Token{}, errors.New("cannot start expression with infix operator")
+			}
+			if len(tokens) <= i+1 {
+				return Token{}, fmt.Errorf("missing second operand for %s", t.TValue)
 			}
 			val, err := s.infixOperator(tokens[i-1], tokens[i+1], t.TValue)
 			if err != nil {
