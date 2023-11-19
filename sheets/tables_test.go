@@ -96,7 +96,7 @@ func TestMultiTableSheet(t *testing.T) {
 	sheet.SetTable(customers.FullName())
 	sheet.JoinOids = make([]int64, 0, 100)
 	// Join orders
-	for oid, fkey := range customers.Fkeys {
+	for oid, fkey := range orders.Fkeys {
 		if fkey.TargetTableName == customers.FullName() {
 			err := sheet.SetJoin(0, oid)
 			if err != nil {

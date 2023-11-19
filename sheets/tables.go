@@ -138,7 +138,7 @@ func loadTables() {
 		ORDER BY schemaname, tablename DESC`)
 	Check(err)
 	for i, table := range tables {
-		//log.Printf("Loading table %s", table.FullName())
+		//log.Printf("Loading table %s (%d)", table.FullName(), table.Oid)
 		TableMap[table.FullName()] = &tables[i]
 	}
 	log.Printf("Retrieved %d Tables", len(TableMap))
@@ -300,8 +300,10 @@ func (t *Table) loadConstraints(tx *sqlx.Tx) {
 			}
 		}
 
-		if fkey.SourceTableName == "" || fkey.TargetTableName == "" {
-			panic(fmt.Sprintf("Unexpected table oid in %v", rawFkey))
+		if fkey.SourceTableName == "" {
+			panic(fmt.Sprintf("Unexpected source table oid %d on %s (%d)", rawFkey.Conrelid, t.FullName(), t.Oid))
+		} else if fkey.TargetTableName == "" {
+			panic(fmt.Sprintf("Unexpected target table oid %d on %s (%d)", rawFkey.Confrelid, t.FullName(), t.Oid))
 		}
 
 		t.Fkeys[rawFkey.Oid] = fkey
