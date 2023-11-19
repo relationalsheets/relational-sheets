@@ -7,7 +7,7 @@ I built it because I'm tired of writing the same Django admin code, maintaining 
 SQL queries and JavaScript transformers in Retool, and working around the lack of writability
 in BI tools.
 
-![Screenshot of Relational Sheets](/screenshot.png)
+[![Watch the demo video](https://cdn.loom.com/sessions/thumbnails/28e4dfd008ee458fb7726993ff129907-1700420177156-with-play.gif)](https://www.loom.com/share/28e4dfd008ee458fb7726993ff129907?sid=ffe2e2f3-a261-46ef-acf6-cdb67fde2324)
 
 # Installing
 
