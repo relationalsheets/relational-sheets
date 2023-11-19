@@ -1,3 +1,14 @@
+# Relational Sheets
+
+Relational Sheets lets you read and write from your database like it's a spreadsheet,
+with minimal configuration and maintainenance.
+
+I built it because I'm tired of writing the same Django admin code, maintaining complex
+SQL queries and JavaScript transformers in Retool, and working around the lack of writability
+in BI tools.
+
+![Screenshot of Relational Sheets](/screenshot.png)
+
 # Installing
 
 Binaries can be downloaded here:
@@ -22,6 +33,8 @@ All you need to provide is your database credentials, via enviornment variable:
 export DATABASE_URL=postgresql://username:password@host/database
 ```
 Then run the installed binary.
+
+Currently only PostgreSQL is supported.
 
 # Use
 
