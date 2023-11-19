@@ -12,13 +12,13 @@ in BI tools.
 # Installing
 
 Binaries can be downloaded here:
-- [Linux / amd64](https://relational-sheets.s3.us-west-2.amazonaws.com/relational-sheets-20231111-linux-amd64)
-- [Linux / arm64](https://relational-sheets.s3.us-west-2.amazonaws.com/relational-sheets-20231111-linux-arm64)
-- [Linux / i386](https://relational-sheets.s3.us-west-2.amazonaws.com/relational-sheets-20231111-linux-386)
-- [OS X / amd64](https://relational-sheets.s3.us-west-2.amazonaws.com/relational-sheets-20231111-darwin-amd64)
-- [OS X / arm64](https://relational-sheets.s3.us-west-2.amazonaws.com/relational-sheets-20231111-darwin-arm64)
-- [Windows / amd64](https://relational-sheets.s3.us-west-2.amazonaws.com/relational-sheets-20231111-windows-amd64.exe)
-- [Windows / i386](https://relational-sheets.s3.us-west-2.amazonaws.com/relational-sheets-20231111-windows-386.exe)
+- [Linux / amd64](https://relational-sheets.s3.us-west-2.amazonaws.com/relational-sheets-20231119-linux-amd64)
+- [Linux / arm64](https://relational-sheets.s3.us-west-2.amazonaws.com/relational-sheets-20231119-linux-arm64)
+- [Linux / i386](https://relational-sheets.s3.us-west-2.amazonaws.com/relational-sheets-20231119-linux-386)
+- [OS X / amd64](https://relational-sheets.s3.us-west-2.amazonaws.com/relational-sheets-20231119-darwin-amd64)
+- [OS X / arm64](https://relational-sheets.s3.us-west-2.amazonaws.com/relational-sheets-20231119-darwin-arm64)
+- [Windows / amd64](https://relational-sheets.s3.us-west-2.amazonaws.com/relational-sheets-20231119-windows-amd64.exe)
+- [Windows / i386](https://relational-sheets.s3.us-west-2.amazonaws.com/relational-sheets-20231119-windows-386.exe)
 
 After downloading, move the file to your "Applications" folder (on Windows)
 or run `chmod 0777` (on Linux) to make it executable.
