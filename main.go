@@ -55,5 +55,9 @@ func main() {
 
 	http.HandleFunc("/", withSheet(handleIndex, false))
 
-	http.ListenAndServe(":8080", nil)
+	port := os.Getenv("RS_PORT")
+	if port == "" {
+		port = "8080"
+	}
+	http.ListenAndServe(":"+port, nil)
 }

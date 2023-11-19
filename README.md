@@ -32,7 +32,9 @@ All you need to provide is your database credentials, via enviornment variable:
 ```
 export DATABASE_URL=postgresql://username:password@host/database
 ```
-Then run the installed binary.
+Then run the installed binary to start the server. You can then use it in any browser.
+
+By default, this will run on port 8080. To change ports, set the `RS_PORT` environment variable.
 
 Currently only PostgreSQL is supported.
 
