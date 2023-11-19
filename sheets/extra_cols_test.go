@@ -41,7 +41,7 @@ func TestFillColumnDown(t *testing.T) {
 	defer teardownTablesDB()
 
 	sheet := Sheet{RowCount: 10}
-	sheet.SetTable("db_interface_test.customers")
+	sheet.SetTable("test.customers")
 	sheet.AddColumn("")
 	sheet.AddColumn("")
 	sheet.AddColumn("")

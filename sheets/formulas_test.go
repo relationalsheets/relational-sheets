@@ -19,14 +19,14 @@ import (
 func setupFormulasDB() func() {
 	Open()
 	InitSheetsTables()
-	conn.MustExec("CREATE SCHEMA IF NOT EXISTS db_interface_test")
+	conn.MustExec("CREATE SCHEMA IF NOT EXISTS test")
 	conn.MustExec(
-		`CREATE TABLE IF NOT EXISTS db_interface_test.foo (
+		`CREATE TABLE IF NOT EXISTS test.foo (
 			bar INT
 			, baz FLOAT
 		)`)
 	conn.MustExec(
-		`INSERT INTO db_interface_test.foo VALUES
+		`INSERT INTO test.foo VALUES
 			(1, 2)
 			, (3, 4)
 			, (5, 6)
@@ -35,7 +35,7 @@ func setupFormulasDB() func() {
 	loadTables()
 
 	return func() {
-		conn.MustExec("DROP TABLE IF EXISTS db_interface_test.foo CASCADE")
+		conn.MustExec("DROP TABLE IF EXISTS test.foo CASCADE")
 		Check(conn.Close())
 	}
 }
@@ -140,12 +140,12 @@ func TestEvalWithDB(t *testing.T) {
 	defer teardown()
 
 	sheet := Sheet{}
-	sheet.SetTable("db_interface_test.foo")
+	sheet.SetTable("test.foo")
 	sheet.LoadRows(100, 0)
 
 	formulasAndValues := map[string]string{
 		"bar1":                              "1",
-		"db_interface_test.foo.bar1":        "1",
+		"test.foo.bar1":        "1",
 		"SUM(bar1:bar1)":                    "1",
 		"SUM(bar1:bar3)":                    "9",
 		"SUM(baz1:baz3)":                    "12",

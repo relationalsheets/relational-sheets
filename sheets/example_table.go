@@ -16,35 +16,36 @@ func SetupTablesDB() {
 	Open()
 	InitSheetsTables()
 	teardownTablesDB()
+	conn.MustExec("CREATE SCHEMA IF NOT EXISTS test")
 	conn.MustExec(
-		`CREATE TABLE IF NOT EXISTS db_interface_test.customers (
+		`CREATE TABLE IF NOT EXISTS test.customers (
     		id SERIAL PRIMARY KEY
 			, name VARCHAR(255)
 		)`)
 	conn.MustExec(
-		`CREATE TABLE IF NOT EXISTS db_interface_test.orders (
+		`CREATE TABLE IF NOT EXISTS test.orders (
     		id SERIAL PRIMARY KEY 
 			, total DECIMAL
             , status VARCHAR(255)
-            , customer_id INT NOT NULL REFERENCES db_interface_test.customers(id)
+            , customer_id INT NOT NULL REFERENCES test.customers(id)
 		)`)
 	conn.MustExec(
-		`CREATE TABLE IF NOT EXISTS db_interface_test.products (
+		`CREATE TABLE IF NOT EXISTS test.products (
     		id SERIAL PRIMARY KEY 
 			, name VARCHAR(255)
             , price DECIMAL
 		)`)
 	conn.MustExec(
-		`CREATE TABLE IF NOT EXISTS db_interface_test.order_products (
-			order_id INT NOT NULL REFERENCES db_interface_test.orders(id)
-			, product_id INT NOT NULL REFERENCES db_interface_test.products(id)
+		`CREATE TABLE IF NOT EXISTS test.order_products (
+			order_id INT NOT NULL REFERENCES test.orders(id)
+			, product_id INT NOT NULL REFERENCES test.products(id)
 		)`)
 	loadTables()
 }
 
 func LoadExampleData() {
 	conn.MustExec(
-		`INSERT INTO db_interface_test.customers (name)
+		`INSERT INTO test.customers (name)
 			VALUES ('Alice')
 				, ('Bob')
 				, ('Charles')
@@ -56,7 +57,7 @@ func LoadExampleData() {
 				, ('Irina')
 		`)
 	conn.MustExec(
-		`INSERT INTO db_interface_test.orders (customer_id, total, status)
+		`INSERT INTO test.orders (customer_id, total, status)
 			VALUES (1, 123.45, 'unfilled')
 				, (2, 2010.99, 'shipped')
 				, (2, 15, 'delivered')
@@ -71,7 +72,7 @@ func LoadExampleData() {
 				, (9, 41.55, 'delivered')
 		`)
 	conn.MustExec(
-		`INSERT INTO db_interface_test.products (name, price)
+		`INSERT INTO test.products (name, price)
 			VALUES ('ACME Widget', 123.45)
 				, ('Steel Bolt', 10)
 				, ('Chinese Five Spice', 5)
@@ -81,7 +82,7 @@ func LoadExampleData() {
 				, ('Digital Download', 0.99)
 		`)
 	conn.MustExec(
-		`INSERT INTO db_interface_test.order_products (order_id, product_id)
+		`INSERT INTO test.order_products (order_id, product_id)
 			VALUES (1, 1)
 				, (2, 2)
 				, (2, 4)
@@ -122,9 +123,9 @@ func LoadExampleData() {
 }
 
 func teardownTablesDB() {
-	conn.MustExec("DELETE FROM db_interface.sheets WHERE schemaname='db_interface_test'")
-	conn.MustExec("DROP TABLE IF EXISTS db_interface_test.customers CASCADE")
-	conn.MustExec("DROP TABLE IF EXISTS db_interface_test.orders CASCADE")
-	conn.MustExec("DROP TABLE IF EXISTS db_interface_test.products CASCADE")
-	conn.MustExec("DROP TABLE IF EXISTS db_interface_test.order_products CASCADE")
+	conn.MustExec("DELETE FROM db_interface.sheets WHERE schemaname='test'")
+	conn.MustExec("DROP TABLE IF EXISTS test.customers CASCADE")
+	conn.MustExec("DROP TABLE IF EXISTS test.orders CASCADE")
+	conn.MustExec("DROP TABLE IF EXISTS test.products CASCADE")
+	conn.MustExec("DROP TABLE IF EXISTS test.order_products CASCADE")
 }

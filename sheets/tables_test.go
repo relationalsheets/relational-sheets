@@ -20,7 +20,7 @@ func TestSingleTableSheet(t *testing.T) {
 	SetupTablesDB()
 	defer teardownTablesDB()
 
-	tableName := "db_interface_test.customers"
+	tableName := "test.customers"
 	sheet := Sheet{}
 	sheet.SetTable(tableName)
 	sheet.LoadRows(100, 0)
@@ -84,13 +84,13 @@ func TestMultiTableSheet(t *testing.T) {
 	SetupTablesDB()
 	defer teardownTablesDB()
 
-	customers := TableMap["db_interface_test.customers"]
+	customers := TableMap["test.customers"]
 	customers.loadConstraints(nil)
-	orders := TableMap["db_interface_test.orders"]
+	orders := TableMap["test.orders"]
 	orders.loadConstraints(nil)
-	products := TableMap["db_interface_test.products"]
+	products := TableMap["test.products"]
 	products.loadConstraints(nil)
-	order_products := TableMap["db_interface_test.order_products"]
+	order_products := TableMap["test.order_products"]
 	order_products.loadConstraints(nil)
 	sheet := Sheet{}
 	sheet.SetTable(customers.FullName())
@@ -172,13 +172,13 @@ func TestAlternateJoinOrder(t *testing.T) {
 	SetupTablesDB()
 	defer teardownTablesDB()
 
-	customers := TableMap["db_interface_test.customers"]
+	customers := TableMap["test.customers"]
 	customers.loadConstraints(nil)
-	orders := TableMap["db_interface_test.orders"]
+	orders := TableMap["test.orders"]
 	orders.loadConstraints(nil)
-	products := TableMap["db_interface_test.products"]
+	products := TableMap["test.products"]
 	products.loadConstraints(nil)
-	order_products := TableMap["db_interface_test.order_products"]
+	order_products := TableMap["test.order_products"]
 	order_products.loadConstraints(nil)
 	sheet := Sheet{}
 	sheet.SetTable(orders.FullName())
