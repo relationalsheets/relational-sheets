@@ -187,6 +187,11 @@ td .extra-cell {
 td .extra-cell .has-text-danger {
     width: 100%;
 }
+td span.extra-cell-value {
+    padding: 0;
+    min-height: 1.5rem;
+    width: 100%;
+}
 .width-control {
     visibility: hidden;
     height: 0;
