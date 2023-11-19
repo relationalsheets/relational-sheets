@@ -74,9 +74,10 @@
             <p>
                 You can also reference cells from your database tables using the same syntax.
                 E.g. if there is column named "foo" in one of your tables, the first cell shown in that table can be referenced
-                as "foo1". If there are multiple columns with the same name, you can distinguish them by using a fully-qualified
-                name, e.g. "public.mytable.mycolumn". Aggregation functions invoked with the whole column as the range will
-                run against every row in the table, even if the sheet is not able to display all rows due to row limits.
+                as "foo1". If there are multiple columns with the same name, you can distinguish them by using a qualified
+                name, e.g. "mytable.mycolumn" or "public.mytable.mycolumn". Aggregation functions invoked with the whole
+                column as the range will run against every row in the table, even if the sheet is not able to display all
+                rows due to row limits.
             </p>
             <p>
                 Spreadsheet columns support the following functions:

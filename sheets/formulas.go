@@ -218,17 +218,24 @@ func (s *Sheet) infixOperator(t1, t2 Token, operator string) (Token, error) {
 
 func (s *Sheet) tableAndColIndex(colName string) (int, int, error) {
 	split := strings.Split(colName, ".")
-	if len(split) != 1 && len(split) != 3 {
-		return -1, -1, errors.New("columns must be specified as <col> or <schema>.<table>.<col>")
+	if len(split) < 1 || len(split) > 3 {
+		return -1, -1, fmt.Errorf("columns must be specified as <col>, <table>.<col> or <schema>.<table>.<col>: %s", colName)
 	}
-	if len(split) == 3 {
-		tableName := split[0] + "." + split[1]
+	if len(split) > 1 {
+		var tableName string
+		if len(split) == 3 {
+			tableName = split[0] + "." + split[1]
+			colName = split[2]
+		} else {
+			tableName = "public." + split[0]
+			colName = split[1]
+		}
 		tableIndex := slices.Index(s.TableNames, tableName)
 		if tableIndex < 0 {
 			return -1, -1, errors.New("no such table " + tableName)
 		}
 		for i, col := range s.OrderedCols(nil)[tableIndex] {
-			if split[2] == col.Name {
+			if colName == col.Name {
 				return tableIndex, i, nil
 			}
 		}
@@ -236,13 +243,13 @@ func (s *Sheet) tableAndColIndex(colName string) (int, int, error) {
 	} else {
 		for i, cols := range s.OrderedCols(nil) {
 			for j, col := range cols {
-				if split[0] == col.Name {
+				if colName == col.Name {
 					return i, j, nil
 				}
 			}
 		}
 		for i, col := range s.ExtraCols {
-			if split[0] == col.Name {
+			if colName == col.Name {
 				return -1, i, nil
 			}
 		}
