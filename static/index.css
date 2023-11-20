@@ -1,4 +1,7 @@
 /* general styles */
+html {
+    overflow: auto;
+}
 .is-null {
     background-color: #eee;
 }
@@ -82,8 +85,6 @@ label {
 .scrollable {
     height: calc(100vh - 48px);
     overflow-x: scroll;
-    position: relative;
-    z-index: 1;
 }
 table {
     width: max-content;
@@ -91,6 +92,8 @@ table {
     border-spacing: 0;
     border-collapse: separate;
     margin-bottom: calc(1.5rem + 16px);
+    z-index: 1;
+    position: relative;
 }
 thead {
     background-color: white;

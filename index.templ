@@ -147,16 +147,18 @@ templ index(sheet sheets.Sheet, sheets map[int]sheets.Sheet) {
                 <table id="table"
                        hx-trigger="click" >
                 </table>
-            </div>
-            <div id="limit-row"
-                 class="flex center scrolling-content-container" >
-                <label>
-                    Showing
-                    <input name="limit"
-                          value="100"
-                          hx-get="/table" />
-                    rows
-                </label>
+                <div id="limit-row"
+                    class="flex center scrolling-content-container" >
+                    <label>
+                        Showing
+                        <input name="limit"
+                              inputmode="numeric"
+                              pattern="[0-9]*"
+                              value="100"
+                              hx-get="/table" />
+                        rows
+                    </label>
+                </div>
             </div>
 
             <div id="modal">

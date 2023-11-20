@@ -271,7 +271,7 @@ func index(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</div><div class=\"scrollable\" hx-target=\"#table\" hx-ext=\"response-targets\"><table id=\"table\" hx-trigger=\"click\"></table></div><div id=\"limit-row\" class=\"flex center scrolling-content-container\"><label>")
+		_, err = templBuffer.WriteString("</div><div class=\"scrollable\" hx-target=\"#table\" hx-ext=\"response-targets\"><table id=\"table\" hx-trigger=\"click\"></table><div id=\"limit-row\" class=\"flex center scrolling-content-container\"><label>")
 		if err != nil {
 			return err
 		}
@@ -280,7 +280,7 @@ func index(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString(" <input name=\"limit\" value=\"100\" hx-get=\"/table\"> ")
+		_, err = templBuffer.WriteString(" <input name=\"limit\" inputmode=\"numeric\" pattern=\"[0-9]*\" value=\"100\" hx-get=\"/table\"> ")
 		if err != nil {
 			return err
 		}
@@ -289,7 +289,7 @@ func index(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</label></div><div id=\"modal\"></div><input name=\"sheet_id\" type=\"hidden\" value=\"")
+		_, err = templBuffer.WriteString("</label></div></div><div id=\"modal\"></div><input name=\"sheet_id\" type=\"hidden\" value=\"")
 		if err != nil {
 			return err
 		}
