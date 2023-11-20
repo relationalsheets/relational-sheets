@@ -82,12 +82,15 @@ label {
 .scrollable {
     height: calc(100vh - 48px);
     overflow-x: scroll;
+    position: relative;
+    z-index: 1;
 }
 table {
     width: max-content;
     min-width: 100%;
     border-spacing: 0;
     border-collapse: separate;
+    margin-bottom: calc(1.5rem + 16px);
 }
 thead {
     background-color: white;
@@ -142,7 +145,7 @@ th .filter-icon.is-filtering {
     margin-top: 4px;
     height: 48px;
 }
-#new-row-err-container > td > div {
+.scrolling-content-container {
     position: fixed;
     width: 100%;
 }
@@ -151,6 +154,9 @@ th .filter-icon.is-filtering {
 }
 #new-row-err:empty {
     display: none;
+}
+tr.body-row {
+    background: white;
 }
 td span, th span {
     padding: 4px;
@@ -191,6 +197,14 @@ td span.extra-cell-value {
     padding: 0;
     min-height: 1.5rem;
     width: 100%;
+}
+#limit-row {
+    height: calc(1.5rem + 16px);
+    bottom: 0;
+}
+input[name=limit] {
+    width: 80px;
+    height: 1.5rem;
 }
 .width-control {
     visibility: hidden;

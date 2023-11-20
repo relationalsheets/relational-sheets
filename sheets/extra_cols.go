@@ -47,7 +47,7 @@ func initExtraColsTables() {
 
 func (s *Sheet) loadCells() {
 	for i, col := range s.ExtraCols {
-		col.Cells = make([]SheetCell, 100)
+		col.Cells = make([]SheetCell, s.RowCount)
 		s.ExtraCols[i] = col
 	}
 

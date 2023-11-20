@@ -10,7 +10,6 @@
 //
 // You should have received a copy of the GNU General Public License along with Relational Sheets.
 // If not, see https://www.gnu.org/licenses/agpl-3.0.html
-package main
 
 import (
 	"acb/db-interface/sheets"
@@ -142,12 +141,22 @@ templ index(sheet sheets.Sheet, sheets map[int]sheets.Sheet) {
                 @toolbar(sheet, sheets)
             </div>
 
-            <div class="scrollable">
+            <div class="scrollable"
+                 hx-target="#table"
+                 hx-ext="response-targets" >
                 <table id="table"
-                       hx-trigger="click"
-                       hx-target="#table"
-                       hx-ext="response-targets">
+                       hx-trigger="click" >
                 </table>
+            </div>
+            <div id="limit-row"
+                 class="flex center scrolling-content-container" >
+                <label>
+                    Showing
+                    <input name="limit"
+                          value="100"
+                          hx-get="/table" />
+                    rows
+                </label>
             </div>
 
             <div id="modal">

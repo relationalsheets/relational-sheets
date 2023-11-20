@@ -9,6 +9,19 @@ import "context"
 import "io"
 import "bytes"
 
+// This file is part of Relational Sheets.
+//
+// Relational Sheets is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Affero General Public License as published by the Free Software Foundation,
+// either version 3 of the License, or (at your option) any later version.
+//
+// Relational Sheets is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+// without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along with Relational Sheets.
+// If not, see https://www.gnu.org/licenses/agpl-3.0.html
+
 import (
 	"acb/db-interface/sheets"
 	"fmt"
@@ -442,7 +455,7 @@ func newRow(tableNames []string, tableName string, cols [][]sheets.Column, numCo
 				}
 			}
 		}
-		_, err = templBuffer.WriteString("</tr><tr id=\"new-row-err-container\"><td colspan=\"")
+		_, err = templBuffer.WriteString("</tr><tr id=\"new-row-err-container\" class=\"has-scrolling-content\"><td colspan=\"")
 		if err != nil {
 			return err
 		}
@@ -450,7 +463,7 @@ func newRow(tableNames []string, tableName string, cols [][]sheets.Column, numCo
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("\" style=\"border-top: none\"><div class=\"flex center\"><button hx-post=\"/add-row\" hx-include=\"")
+		_, err = templBuffer.WriteString("\" class=\"has-scrolling-content\" style=\"border-top: none\"><div class=\"flex center scrolling-content-container\"><button hx-post=\"/add-row\" hx-include=\"")
 		if err != nil {
 			return err
 		}

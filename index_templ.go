@@ -9,6 +9,19 @@ import "context"
 import "io"
 import "bytes"
 
+// This file is part of Relational Sheets.
+//
+// Relational Sheets is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Affero General Public License as published by the Free Software Foundation,
+// either version 3 of the License, or (at your option) any later version.
+//
+// Relational Sheets is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+// without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along with Relational Sheets.
+// If not, see https://www.gnu.org/licenses/agpl-3.0.html
+
 import (
 	"acb/db-interface/sheets"
 	"fmt"
@@ -258,7 +271,25 @@ func index(sheet sheets.Sheet, sheets map[int]sheets.Sheet) templ.Component {
 		if err != nil {
 			return err
 		}
-		_, err = templBuffer.WriteString("</div><div class=\"scrollable\"><table id=\"table\" hx-trigger=\"click\" hx-target=\"#table\" hx-ext=\"response-targets\"></table></div><div id=\"modal\"></div><input name=\"sheet_id\" type=\"hidden\" value=\"")
+		_, err = templBuffer.WriteString("</div><div class=\"scrollable\" hx-target=\"#table\" hx-ext=\"response-targets\"><table id=\"table\" hx-trigger=\"click\"></table></div><div id=\"limit-row\" class=\"flex center scrolling-content-container\"><label>")
+		if err != nil {
+			return err
+		}
+		var_22 := `Showing`
+		_, err = templBuffer.WriteString(var_22)
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString(" <input name=\"limit\" value=\"100\" hx-get=\"/table\"> ")
+		if err != nil {
+			return err
+		}
+		var_23 := `rows`
+		_, err = templBuffer.WriteString(var_23)
+		if err != nil {
+			return err
+		}
+		_, err = templBuffer.WriteString("</label></div><div id=\"modal\"></div><input name=\"sheet_id\" type=\"hidden\" value=\"")
 		if err != nil {
 			return err
 		}

@@ -62,6 +62,21 @@ func withSheet(f func(sheets.Sheet, http.ResponseWriter, *http.Request), require
 	}
 }
 
+func withSheetAndLimit(f func(sheets.Sheet, int, http.ResponseWriter, *http.Request)) func(w http.ResponseWriter, r *http.Request) {
+	g := func (sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+		str := r.FormValue("limit")
+		limit, err := strconv.Atoi(str)
+		if str == "" {
+			limit = 100
+		} else if err != nil {
+			writeError(w, err.Error())
+			return
+		}
+		f(sheet, limit, w, r)
+	}
+	return withSheet(g, true)
+}
+
 func parseColFields(r *http.Request, prefix string) (map[string]map[string]string, error) {
 	sheets.Check(r.ParseForm())
 	values := make(map[string]map[string]string)
@@ -89,12 +104,12 @@ func getPKs(r *http.Request) map[string]map[string]string {
 	return pks
 }
 
-func handleAddCol(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+func handleAddCol(sheet sheets.Sheet, limit int, w http.ResponseWriter, r *http.Request) {
 	sheet.AddColumn("")
-	reRenderSheet(sheet, w, r)
+	reRenderSheet(sheet, limit, w, r)
 }
 
-func handleRenameCol(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+func handleRenameCol(sheet sheets.Sheet, limit int, w http.ResponseWriter, r *http.Request) {
 	colIndex, err := strconv.Atoi(r.FormValue("col_index"))
 	if err != nil {
 		writeError(w, err.Error())
@@ -104,14 +119,14 @@ func handleRenameCol(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func handleDeleteCol(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+func handleDeleteCol(sheet sheets.Sheet, limit int, w http.ResponseWriter, r *http.Request) {
 	colIndex, err := strconv.Atoi(r.FormValue("col_index"))
 	if err != nil {
 		writeError(w, err.Error())
 		return
 	}
 	sheet.DeleteColumn(colIndex)
-	reRenderSheet(sheet, w, r)
+	reRenderSheet(sheet, limit, w, r)
 }
 
 func handleSetExtraCell(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
@@ -129,12 +144,12 @@ func handleSetExtraCell(sheet sheets.Sheet, w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r)
 }
 
-func reRenderSheet(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+func reRenderSheet(sheet sheets.Sheet, limit int, w http.ResponseWriter, r *http.Request) {
 	if sheet.TableFullName() == "" {
 		writeError(w, "No table name provided")
 		return
 	}
-	err := sheet.LoadRows(100, 0)
+	err := sheet.LoadRows(limit, 0)
 	cols := sheet.OrderedCols(nil)
 	numCols := 0
 	for _, tcols := range cols {
@@ -145,7 +160,7 @@ func reRenderSheet(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 	handler.ServeHTTP(w, r)
 }
 
-func handleSetTable(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+func handleSetTable(sheet sheets.Sheet, limit int, w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		tableName := r.FormValue("table_name")
 		if tableName == "" {
@@ -155,10 +170,10 @@ func handleSetTable(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) 
 		sheet.SetTable(tableName)
 	}
 
-	reRenderSheet(sheet, w, r)
+	reRenderSheet(sheet, limit, w, r)
 }
 
-func handleNewRow(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+func handleNewRow(sheet sheets.Sheet, limit int, w http.ResponseWriter, r *http.Request) {
 	cols := sheet.OrderedCols(nil)
 	tableName := r.FormValue("table_name")
 	tableIndex := slices.Index(sheet.TableNames, tableName)
@@ -179,7 +194,7 @@ func handleNewRow(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// TODO: cache
-		err := sheet.LoadRows(100, 0)
+		err := sheet.LoadRows(limit, 0)
 		if err != nil {
 			writeError(w, err.Error())
 			return
@@ -205,7 +220,7 @@ func handleNewRow(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 	templ.Handler(component).ServeHTTP(w, r)
 }
 
-func handleAddRow(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+func handleAddRow(sheet sheets.Sheet, limit int, w http.ResponseWriter, r *http.Request) {
 	pks := getPKs(r)
 	values, err := parseColFields(r, "column-")
 	if err != nil {
@@ -219,14 +234,14 @@ func handleAddRow(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reRenderSheet(sheet, w, r)
+	reRenderSheet(sheet, limit, w, r)
 }
 
 func handleIndex(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 	templ.Handler(index(sheet, sheets.SheetMap)).ServeHTTP(w, r)
 }
 
-func handleSetColPref(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+func handleSetColPref(sheet sheets.Sheet, limit int, w http.ResponseWriter, r *http.Request) {
 	tableName := r.FormValue("table_name")
 	colName := r.FormValue("col_name")
 	if colName == "" {
@@ -256,25 +271,25 @@ func handleSetColPref(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request
 	log.Printf("saving pref: %v", pref)
 	sheet.SavePref(pref)
 
-	reRenderSheet(sheet, w, r)
+	reRenderSheet(sheet, limit, w, r)
 }
 
-func handleUnhideCols(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+func handleUnhideCols(sheet sheets.Sheet, limit int, w http.ResponseWriter, r *http.Request) {
 	for _, pref := range sheet.PrefsMap {
 		pref.Hide = false
 		sheet.SavePref(pref)
 	}
 
-	reRenderSheet(sheet, w, r)
+	reRenderSheet(sheet, limit, w, r)
 }
 
-func handleClearFilters(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+func handleClearFilters(sheet sheets.Sheet, limit int, w http.ResponseWriter, r *http.Request) {
 	for _, pref := range sheet.PrefsMap {
 		pref.Filter = ""
 		sheet.SavePref(pref)
 	}
 
-	reRenderSheet(sheet, w, r)
+	reRenderSheet(sheet, limit, w, r)
 }
 
 func handleModal(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
@@ -356,11 +371,11 @@ func handleSetCell(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
 	templ.Handler(cell).ServeHTTP(w, r)
 }
 
-func handleFillColumnDown(sheet sheets.Sheet, w http.ResponseWriter, r *http.Request) {
+func handleFillColumnDown(sheet sheets.Sheet, limit int, w http.ResponseWriter, r *http.Request) {
 	i := mustGetInt(r, "i")
 	j := mustGetInt(r, "j")
 	formula := r.FormValue("formula")
 	sheet.FillColumnDown(i, j, formula)
 
-	reRenderSheet(sheet, w, r)
+	reRenderSheet(sheet, limit, w, r)
 }
