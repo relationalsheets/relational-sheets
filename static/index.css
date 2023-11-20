@@ -200,7 +200,12 @@ td span.extra-cell-value {
 }
 #limit-row {
     height: calc(1.5rem + 16px);
-    bottom: 0;
+    bottom: 16px;
+}
+@-moz-document url-prefix() {
+    #limit-row {
+        bottom: 0;
+    }
 }
 input[name=limit] {
     width: 80px;
